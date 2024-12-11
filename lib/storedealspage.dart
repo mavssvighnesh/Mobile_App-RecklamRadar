@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 
-import 'package:flutter/services.dart';
 
 
 class StoreDealsPage extends StatefulWidget {
@@ -53,6 +52,7 @@ class _StoreDealsPageState extends State<StoreDealsPage> {
   }
  void filterItemsByCategory(String? category) {
     setState(() {
+      // ignore: unused_local_variable
       var selectedCategory = category;
       if (category == null) {
         filteredItems = storeItems;

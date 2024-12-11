@@ -1,6 +1,5 @@
 
 import 'package:flutter/material.dart' show AppBar, BoxFit, BuildContext, Colors, FloatingActionButton, Icon, Icons, Image, ListView, MaterialPageRoute, Navigator, Scaffold, ScaffoldMessenger, SnackBar, StatelessWidget, Text, Widget;
-import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'item_adding_page.dart';
 
