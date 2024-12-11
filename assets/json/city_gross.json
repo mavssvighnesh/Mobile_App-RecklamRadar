@@ -1,0 +1,29 @@
+[
+    {
+        "name": "Tomatoes",
+        "price": "12.0",
+        "memberPrice": 10.0,
+        "image": "assets/images/tomatoes.png",
+        "category": "Groceries",
+        "quantity": 1,
+        "store":"city gross"
+    },
+    {
+        "name": "Cheese",
+        "price": "30.0",
+        "memberPrice": 25.0,
+        "image": "assets/images/cheese.png",
+        "category": "Dairy",
+        "quantity": 1,
+        "store":"city gross"
+    },
+    {
+        "name": "Chicken Breast",
+        "price": "50.0",
+        "memberPrice": 45.0,
+        "image": "assets/images/chicken.png",
+        "category": "Meat",
+        "quantity": 1,
+        "store":"city gross"
+    }
+]

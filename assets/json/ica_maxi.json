@@ -1,0 +1,29 @@
+[
+    {
+        "name": "Hand Wash",
+        "price": "20.0",
+        "memberPrice": 18.0,
+        "image": "assets/images/hand_wash.png",
+        "category": "Sanitary",
+        "quantity": 1,
+        "store":"ica Maxi"
+    },
+    {
+        "name": "Dish Soap",
+        "price": "25.0",
+        "memberPrice": 22.0,
+        "image": "assets/images/dish_soap.png",
+        "category": "Sanitary",
+        "quantity": 1,
+        "store":"ica Maxi"
+    },
+    {
+        "name": "Laundry Detergent",
+        "price": "60.0",
+        "memberPrice": 55.0,
+        "image": "assets/images/detergent.png",
+        "category": "Sanitary",
+        "quantity": 1,
+        "store":"ica Maxi"
+    }
+]

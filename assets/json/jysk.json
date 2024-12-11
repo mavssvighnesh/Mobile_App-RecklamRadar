@@ -1,0 +1,29 @@
+[
+    {
+        "name": "Pillow",
+        "price": "100.0",
+        "memberPrice" :"90.0",
+        "image": "assets/images/pillow.png",
+        "category": "Bedding",
+        "quantity": 1,
+        "store":"jysk"
+    },
+    {
+        "name": "Mattress",
+        "price": "2000.0",
+        "memberPrice": 1800.0,
+        "image": "assets/images/mattress.png",
+        "category": "Bedding",
+        "quantity": 1,
+        "store":"jysk"
+    },
+    {
+        "name": "Duvet",
+        "price": "800.0",
+        "memberPrice": 750.0,
+        "image": "assets/images/duvet.png",
+        "category": "Bedding",
+        "quantity": 1,
+        "store":"jysk"
+    }
+]

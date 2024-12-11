@@ -1,0 +1,29 @@
+[
+    {
+        "name": "Curtains",
+        "price": "SEK 200.0",
+        "memberPrice": "SEK 180.0",
+        "image": "assets/images/curtains.png",
+        "category": "Home Decor",
+        "quantity": 1,
+        "store":"rusta"
+    },
+    {
+        "name": "Floor Lamp",
+        "price": "SEK 500.0",
+        "memberPrice": "SEK 450.0",
+        "image": "assets/images/floor_lamp.png",
+        "category": "Home Decor",
+        "quantity": 1,
+        "store":"rusta"
+    },
+    {
+        "name": "Wall Art",
+        "price": "SEK 300.0",
+        "memberPrice": "SEK 250.0",
+        "image": "assets/images/wall_art.png",
+        "category": "Home Decor",
+        "quantity": 1,
+        "store":"rusta"
+    }
+]

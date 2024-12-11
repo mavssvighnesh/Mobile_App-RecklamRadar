@@ -1,0 +1,30 @@
+[
+    {
+      "name": "Carrots",
+      "price": "SEK 11.99/KG",
+      "memberPrice": "SEK 9.99/KG",
+      "image": "assets/images/carrots.png",
+      "category": "Groceries",
+      "quantity": 1,
+      "store":"willys"
+    },
+    {
+      "name": "Cabbage",
+      "price": "SEK 15.99/KG",
+      "memberPrice": "SEK 8.99/KG",
+      "image": "assets/images/cabbage.png",
+      "category": "Groceries",
+      "quantity": 1,
+      "store":"willys"
+    },
+    {
+      "name": "Notebook",
+      "price": "SEK 25.00",
+      "memberPrice": "SEK 20.00",
+      "image": "assets/images/notebook.png",
+      "category": "Stationary",
+      "quantity": 1,
+      "store":"willys"
+    }
+  ]
+  

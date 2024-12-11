@@ -1,0 +1,29 @@
+[
+    {
+        "name": "Carrot",
+        "price": "9.9",
+        "memberPrice": 7.5,
+        "image": "assets/images/carrot.png",
+        "category": "Groceries",
+        "quantity": 1,
+        "store":"lidl"
+    },
+    {
+        "name": "Cabbage",
+        "price": "8.5",
+        "memberPrice": 6.0,
+        "image": "assets/images/cabbage.png",
+        "category": "Groceries",
+        "quantity": 1,
+        "store":"lidl"
+    },
+    {
+        "name": "Milk",
+        "price": "15.0",
+        "memberPrice": 12.0,
+        "image": "assets/images/milk.png",
+        "category": "Drinks",
+        "quantity": 1,
+        "store":"lidl"
+    }
+]
