@@ -25,8 +25,8 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
   // List of page widgets for roll-over transitions
   final List<Widget> _pages = [
     const HomePage(),
-    FavoritesPage(),
-    CartPage(),
+    const FavoritesPage(),
+    const CartPage(),
     const SettingsPage(),
   ];
 

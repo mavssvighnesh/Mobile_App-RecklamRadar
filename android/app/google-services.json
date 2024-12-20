@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "47494083713",
+    "project_id": "recklamradar-98889",
+    "storage_bucket": "recklamradar-98889.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:47494083713:android:21f38a1b2b922cf12f0980",
+        "android_client_info": {
+          "package_name": "com.flutter.recklamradar98889"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "47494083713-m2vjk00b8nq8ifmtdtpkg7t3gsaa2g61.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.flutter.recklamradar98889",
+            "certificate_hash": "fae72af142e881f7389e387290c591a9df6e93ea"
+          }
+        },
+        {
+          "client_id": "47494083713-ti0tts0v8it87arpc9atvackrbqontib.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDVJ_hGg07GKK3_J-rnnlFahdBg2LazP1I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "47494083713-ti0tts0v8it87arpc9atvackrbqontib.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "47494083713-3tmbo69bte3ni595ta0n7la9u0f9ba72.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.recklamradar"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

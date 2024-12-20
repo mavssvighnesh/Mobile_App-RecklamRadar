@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import 'package:firebase_auth/firebase_auth.dart';
 
 // Full-Screen Photo Page
 class FullScreenPhotoPage extends StatelessWidget {
@@ -26,12 +26,60 @@ class FullScreenPhotoPage extends StatelessWidget {
     );
   }
 }
-class ChangePasswordPage extends StatelessWidget {
-  final TextEditingController _currentPasswordController = TextEditingController();
-  final TextEditingController _newPasswordController = TextEditingController();
-  final TextEditingController _confirmPasswordController = TextEditingController();
 
-  ChangePasswordPage({super.key});
+class ChangePasswordPage extends StatefulWidget {
+  const ChangePasswordPage({super.key});
+
+  @override
+  _ChangePasswordPageState createState() => _ChangePasswordPageState();
+}
+
+class _ChangePasswordPageState extends State<ChangePasswordPage> {
+  final _currentPasswordController = TextEditingController();
+  final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  final _auth = FirebaseAuth.instance;
+  bool _isLoading = false;
+  bool _isCurrentPasswordVisible = false;
+  bool _isNewPasswordVisible = false;
+  bool _isConfirmPasswordVisible = false;
+
+  Future<void> _changePassword() async {
+    if (_newPasswordController.text != _confirmPasswordController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("New passwords don't match!")),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      // Re-authenticate user
+      final user = _auth.currentUser;
+      final credential = EmailAuthProvider.credential(
+        email: user?.email ?? '',
+        password: _currentPasswordController.text,
+      );
+      await user?.reauthenticateWithCredential(credential);
+
+      // Change password
+      await user?.updatePassword(_newPasswordController.text);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Password changed successfully!")),
+        );
+        Navigator.pop(context);
+      }
+    } on FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message ?? "Failed to change password")),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,12 +87,6 @@ class ChangePasswordPage extends StatelessWidget {
       appBar: AppBar(
         title: const Text("Change Password"),
         centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -52,66 +94,71 @@ class ChangePasswordPage extends StatelessWidget {
           children: [
             TextField(
               controller: _currentPasswordController,
-              obscureText: true,
-              decoration: const InputDecoration(
+              obscureText: !_isCurrentPasswordVisible,
+              decoration: InputDecoration(
                 labelText: "Current Password",
-                border: OutlineInputBorder(),
+                border: const OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  icon: Icon(_isCurrentPasswordVisible
+                      ? Icons.visibility
+                      : Icons.visibility_off),
+                  onPressed: () {
+                    setState(() {
+                      _isCurrentPasswordVisible = !_isCurrentPasswordVisible;
+                    });
+                  },
+                ),
               ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _newPasswordController,
-              obscureText: true,
-              decoration: const InputDecoration(
+              obscureText: !_isNewPasswordVisible,
+              decoration: InputDecoration(
                 labelText: "New Password",
-                border: OutlineInputBorder(),
+                border: const OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  icon: Icon(_isNewPasswordVisible
+                      ? Icons.visibility
+                      : Icons.visibility_off),
+                  onPressed: () {
+                    setState(() {
+                      _isNewPasswordVisible = !_isNewPasswordVisible;
+                    });
+                  },
+                ),
               ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _confirmPasswordController,
-              obscureText: true,
-              decoration: const InputDecoration(
+              obscureText: !_isConfirmPasswordVisible,
+              decoration: InputDecoration(
                 labelText: "Confirm New Password",
-                border: OutlineInputBorder(),
+                border: const OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  icon: Icon(_isConfirmPasswordVisible
+                      ? Icons.visibility
+                      : Icons.visibility_off),
+                  onPressed: () {
+                    setState(() {
+                      _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
+                    });
+                  },
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              "Password should be 8-15 characters and alphanumeric",
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
             ),
             const SizedBox(height: 24),
             ElevatedButton(
-              onPressed: () {
-                if (_newPasswordController.text == _confirmPasswordController.text) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Password changed successfully!")),
-                  );
-                  Navigator.pop(context);
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Passwords do not match!")),
-                  );
-                }
-              },
+              onPressed: _isLoading ? null : _changePassword,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue,
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                textStyle: const TextStyle(fontSize: 16),
               ),
-              child: const Text("Save"),
+              child: _isLoading
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text("Save"),
             ),
-          TextButton(
-  onPressed: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => ForgotPasswordPage()),
-    );
-  },
-  child: const Text("Forgot Password?"),
-),
-
           ],
         ),
       ),
@@ -119,10 +166,50 @@ class ChangePasswordPage extends StatelessWidget {
   }
 }
 
-class ForgotPasswordPage extends StatelessWidget {
-  final TextEditingController _emailController = TextEditingController();
+class ForgotPasswordPage extends StatefulWidget {
+  const ForgotPasswordPage({super.key});
 
-  ForgotPasswordPage({super.key});
+  @override
+  _ForgotPasswordPageState createState() => _ForgotPasswordPageState();
+}
+
+class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
+  final _emailController = TextEditingController();
+  final _auth = FirebaseAuth.instance;
+  bool _isLoading = false;
+
+  Future<void> _sendResetLink() async {
+    if (_emailController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please enter your email")),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      await _auth.sendPasswordResetEmail(email: _emailController.text.trim());
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Password reset link sent to ${_emailController.text}"),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } on FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message ?? "Failed to send reset link"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -130,54 +217,48 @@ class ForgotPasswordPage extends StatelessWidget {
       appBar: AppBar(
         title: const Text("Forgot Password"),
         centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: ListView(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Text(
-              "Forgot Password",
+              "Reset Password",
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
               ),
-              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 16),
             Text(
-              "Enter your registered email to reset password",
-              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+              "Enter your email address to receive a password reset link",
+              style: TextStyle(color: Colors.grey[600]),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 32),
             TextField(
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
               decoration: const InputDecoration(
                 labelText: "Email",
                 border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.email_outlined),
               ),
             ),
             const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () {
-                // Handle forgot password logic here
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text("Reset link sent to ${_emailController.text}!")),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                textStyle: const TextStyle(fontSize: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _sendResetLink,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                child: _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text("Send Reset Link"),
               ),
-              child: const Text("Send Reset Link"),
             ),
           ],
         ),
@@ -185,4 +266,3 @@ class ForgotPasswordPage extends StatelessWidget {
     );
   }
 }
-
