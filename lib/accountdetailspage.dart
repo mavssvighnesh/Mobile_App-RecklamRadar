@@ -7,6 +7,7 @@ import 'constants/user_fields.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
+import 'package:recklamradar/providers/theme_provider.dart';
 
 class AccountDetailsPage extends StatefulWidget {
   const AccountDetailsPage({super.key});
@@ -179,220 +180,211 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Account Details"),
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: ThemeProvider.backgroundGradient,
         ),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  GestureDetector(
-                    onTap: _pickImage,
-                    child: Stack(
-                      children: [
-                        CircleAvatar(
-                          radius: 50,
-                          backgroundImage: _currentProfileImage != null
-                              ? NetworkImage(_currentProfileImage!)
-                              : _auth.currentUser?.photoURL != null
-                                  ? NetworkImage(_auth.currentUser!.photoURL!)
-                                  : const AssetImage('assets/images/default_avatar.png')
-                                      as ImageProvider,
+        child: SafeArea(
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : CustomScrollView(
+                  slivers: [
+                    SliverAppBar(
+                      expandedHeight: 200,
+                      floating: false,
+                      pinned: true,
+                      backgroundColor: Colors.transparent,
+                      flexibleSpace: FlexibleSpaceBar(
+                        title: Text(
+                          'Account Details',
+                          style: TextStyle(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                        Positioned(
-                          bottom: 0,
-                          right: 0,
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: const BoxDecoration(
-                              color: Colors.blue,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.edit,
-                              color: Colors.white,
-                              size: 20,
+                        background: Container(
+                          decoration: BoxDecoration(
+                            gradient: ThemeProvider.cardGradient,
+                          ),
+                          child: Center(
+                            child: GestureDetector(
+                              onTap: _pickImage,
+                              child: Stack(
+                                alignment: Alignment.bottomRight,
+                                children: [
+                                  CircleAvatar(
+                                    radius: 60,
+                                    backgroundImage: _currentProfileImage != null
+                                        ? NetworkImage(_currentProfileImage!)
+                                        : null,
+                                    child: _currentProfileImage == null
+                                        ? const Icon(Icons.person, size: 60)
+                                        : null,
+                                  ),
+                                  CircleAvatar(
+                                    radius: 18,
+                                    backgroundColor: theme.colorScheme.primary,
+                                    child: const Icon(
+                                      Icons.camera_alt,
+                                      size: 18,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Editable Fields with Edit Button
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        "Account Details",
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
-                      IconButton(
-                        icon: Icon(
-                          _isEditing ? Icons.done : Icons.edit,
-                          color: Colors.blue,
+                    ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            _buildProfileSection(
+                              context,
+                              'Personal Information',
+                              [
+                                _buildTextField(
+                                  'Full Name',
+                                  _nameController,
+                                  Icons.person_outline,
+                                ),
+                                const SizedBox(height: 16),
+                                _buildTextField(
+                                  'Email',
+                                  _emailController,
+                                  Icons.email_outlined,
+                                  enabled: false,
+                                ),
+                                const SizedBox(height: 16),
+                                _buildTextField(
+                                  'Phone',
+                                  _phoneController,
+                                  Icons.phone_outlined,
+                                ),
+                                const SizedBox(height: 16),
+                                _buildTextField(
+                                  'Age',
+                                  _ageController,
+                                  Icons.calendar_today_outlined,
+                                  keyboardType: TextInputType.number,
+                                ),
+                                const SizedBox(height: 16),
+                                _buildDropdownField('Gender', _selectedGender),
+                              ],
+                            ),
+                            const SizedBox(height: 24),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton(
+                                    onPressed: _updateUserData,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: theme.colorScheme.primary,
+                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                    ),
+                                    child: const Text('Save Changes'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                        onPressed: () {
-                          setState(() {
-                            if (_isEditing) {
-                              _updateUserData();
-                            }
-                            _isEditing = !_isEditing;
-                          });
-                        },
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  _buildEditableField("Name", _nameController, _isEditing),
-                  const SizedBox(height: 16),
-                  _buildDropdownField("Gender", _selectedGender, _isEditing),
-                  const SizedBox(height: 16),
-                  _buildEditableField("Age", _ageController, _isEditing,
-                      keyboardType: TextInputType.number),
-                  const SizedBox(height: 16),
-                  _buildEditableField("Phone Number", _phoneController, _isEditing,
-                      keyboardType: TextInputType.phone),
-                  const SizedBox(height: 16),
-                  _buildEditableField("Email Address", _emailController, _isEditing,
-                      keyboardType: TextInputType.emailAddress),
-                  const SizedBox(height: 24),
-
-                  // Change Password Button
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => ChangePasswordPage()),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      textStyle: const TextStyle(fontSize: 16),
                     ),
-                    child: const Text("Change Password"),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Delete Account Button
-                  ElevatedButton(
-                    onPressed: () {
-                      _showDeleteAccountDialog(context);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      textStyle: const TextStyle(fontSize: 16),
-                    ),
-                    child: const Text("Delete Account"),
-                  ),
-                ],
-              ),
-            ),
+                  ],
+                ),
+        ),
+      ),
     );
   }
 
-  Widget _buildEditableField(String label, TextEditingController controller, bool isEditable,
-      {TextInputType keyboardType = TextInputType.text}) {
-    if (isEditable) {
-      return TextField(
-        controller: controller,
-        keyboardType: keyboardType,
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
+  Widget _buildProfileSection(BuildContext context, String title, List<Widget> children) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.white.withOpacity(0.95),
+            Colors.white.withOpacity(0.85),
+          ],
         ),
-      );
-    } else {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: TextStyle(fontSize: 14, color: Colors.grey[600])),
-          const SizedBox(height: 8),
-          Text(
-            controller.text,
-            style: const TextStyle(fontSize: 16, color: Colors.black),
-          ),
-          const Divider(),
-        ],
-      );
-    }
-  }
-
-  Widget _buildDropdownField(String label, String value, bool isEditable) {
-    if (isEditable) {
-      return DropdownButtonFormField<String>(
-        value: value,
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
-        ),
-        items: ["Male", "Female", "Other"]
-            .map((gender) => DropdownMenuItem(value: gender, child: Text(gender)))
-            .toList(),
-        onChanged: (newValue) {
-          setState(() {
-            _selectedGender = newValue!;
-          });
-        },
-      );
-    } else {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: TextStyle(fontSize: 14, color: Colors.grey[600])),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 16, color: Colors.black),
-          ),
-          const Divider(),
-        ],
-      );
-    }
-  }
-
-  void _showDeleteAccountDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Delete Account"),
-        content: const Text("Are you sure you want to delete your account? This action cannot be undone."),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
-            child: const Text("Cancel"),
-          ),
-          TextButton(
-            onPressed: () {
-              // Perform account deletion
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Account deleted successfully!")),
-              );
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => LoginScreen()), // Redirect to Login Page
-              );
-            },
-            child: const Text("Delete", style: TextStyle(color: Colors.red)),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+            blurRadius: 10,
+            spreadRadius: 2,
           ),
         ],
       ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 20),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTextField(
+    String label,
+    TextEditingController controller,
+    IconData icon, {
+    bool enabled = true,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return TextField(
+      controller: controller,
+      enabled: enabled,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDropdownField(String label, String value) {
+    return DropdownButtonFormField<String>(
+      value: value.isNotEmpty ? value : null,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: const Icon(Icons.person_outline),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+      items: ['Male', 'Female', 'Other']
+          .map((gender) => DropdownMenuItem(
+                value: gender,
+                child: Text(gender),
+              ))
+          .toList(),
+      onChanged: (newValue) {
+        setState(() {
+          _selectedGender = newValue!;
+        });
+      },
     );
   }
 

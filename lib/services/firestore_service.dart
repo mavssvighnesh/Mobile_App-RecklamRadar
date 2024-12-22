@@ -1,10 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'dart:io';
 import '../constants/user_fields.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
 
   // User Profile Methods
   Future<void> createUserProfile(String userId, Map<String, dynamic> data) async {
@@ -93,22 +96,19 @@ class FirestoreService {
   }
 
   // Favorites/Bookmarks
-  Future<void> toggleFavorite(String adId) async {
-    final userId = _auth.currentUser?.uid;
-    if (userId == null) return;
-
+  Future<void> toggleFavorite(String userId, String dealId) async {
     final docRef = _firestore
         .collection('users')
         .doc(userId)
         .collection('favorites')
-        .doc(adId);
+        .doc(dealId);
     
     final doc = await docRef.get();
     if (doc.exists) {
       await docRef.delete();
     } else {
       await docRef.set({
-        'timestamp': FieldValue.serverTimestamp(),
+        'addedAt': FieldValue.serverTimestamp(),
       });
     }
   }
@@ -147,5 +147,50 @@ class FirestoreService {
         .collection('reviews')
         .orderBy('timestamp', descending: true)
         .snapshots();
+  }
+
+  // Store Methods
+  Stream<QuerySnapshot> getStores() {
+    return _firestore.collection('stores').snapshots();
+  }
+
+  Future<DocumentSnapshot> getStore(String storeId) {
+    return _firestore.collection('stores').doc(storeId).get();
+  }
+
+  // Products/Deals Methods
+  Stream<QuerySnapshot> getStoreDeals(String storeId) {
+    return _firestore
+        .collection('stores')
+        .doc(storeId)
+        .collection('deals')
+        .snapshots();
+  }
+
+  Stream<QuerySnapshot> getAllDeals() {
+    return _firestore.collection('deals').snapshots();
+  }
+
+  Stream<QuerySnapshot> getFavoriteDeals(String userId) {
+    return _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('favorites')
+        .snapshots();
+  }
+
+  // Store Assets (Icons, Images)
+  Future<String> uploadStoreAsset(String storeName, File file) async {
+    final ref = _storage.ref().child('stores/$storeName/${DateTime.now()}.png');
+    await ref.putFile(file);
+    return ref.getDownloadURL();
+  }
+
+  Future<QuerySnapshot> searchStores(String query) {
+    return _firestore
+        .collection('stores')
+        .where('name', isGreaterThanOrEqualTo: query.toLowerCase())
+        .where('name', isLessThan: query.toLowerCase() + 'z')
+        .get();
   }
 } 

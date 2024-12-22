@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:recklamradar/constants/user_fields.dart';
@@ -9,7 +8,6 @@ import 'firestore_service.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final FirestoreService _firestoreService = FirestoreService();
@@ -97,49 +95,6 @@ class AuthService {
     }
   }
 
-  // Google Sign In
-  Future<UserCredential?> signInWithGoogle() async {
-    try {
-      // Start the interactive sign-in process
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) return null;
-
-      // Obtain auth details from request
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-
-      // Create a new credential for Firebase
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      // Sign in to Firebase with the Google credential
-      final userCredential = await _auth.signInWithCredential(credential);
-      
-      // Check if this is a new user
-      final isNewUser = userCredential.additionalUserInfo?.isNewUser ?? false;
-      
-      if (isNewUser) {
-        // Create new user profile for first-time users
-        await _firestoreService.createUserProfile(
-          userCredential.user!.uid,
-          {
-            UserFields.name: userCredential.user!.displayName,
-            UserFields.email: userCredential.user!.email,
-            UserFields.profileImage: userCredential.user!.photoURL,
-            UserFields.isBusiness: false,
-            UserFields.createdAt: FieldValue.serverTimestamp(),
-          },
-        );
-      }
-
-      return userCredential;
-    } catch (e) {
-      print('Google sign in error: $e');
-      rethrow;  // Rethrow to handle in UI
-    }
-  }
-
   // Facebook Sign In
   Future<UserCredential?> signInWithFacebook() async {
     try {
@@ -194,7 +149,6 @@ class AuthService {
   // Sign Out
   Future<void> signOut() async {
     await _auth.signOut();
-    await _googleSignIn.signOut();
     await FacebookAuth.instance.logOut();
   }
 

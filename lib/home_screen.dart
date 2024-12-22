@@ -1,15 +1,19 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'storedealspage.dart';
-
-
+import 'providers/theme_provider.dart';
+import 'storedealspage.dart';
 import 'favoritespage.dart';
 import 'settingspage.dart';
 
 
 import 'cartpage.dart';
+import 'services/firestore_service.dart';
+import 'models/store.dart';
+import 'models/deal.dart';
 
 class UserHomeScreen extends StatefulWidget {
   const UserHomeScreen({super.key});
@@ -32,65 +36,96 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final size = MediaQuery.of(context).size;
+    
     return Scaffold(
-      // Removed the AppBar
-      body: PageView(
-        controller: _pageController,
-        onPageChanged: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        children: _pages,
+      body: SafeArea(
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: ThemeProvider.subtleGradient,
+          ),
+          child: PageView(
+            controller: _pageController,
+            onPageChanged: (index) {
+              setState(() {
+                _currentIndex = index;
+              });
+            },
+            children: _pages,
+          ),
+        ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-            _pageController.animateToPage(
-              index,
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-            );
-          });
-        },
-        items: [
-          BottomNavigationBarItem(
-            icon: Image.asset(
-              'assets/icons/home.png',
-              color: _currentIndex == 0 ? Colors.blue : Colors.grey,
-              height: 24,
-            ),
-            label: 'Home',
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              theme.colorScheme.surface.withOpacity(0.9),
+              theme.colorScheme.surface.withOpacity(0.8),
+            ],
           ),
-          BottomNavigationBarItem(
-            icon: Image.asset(
-              'assets/icons/search.png',
-              color: _currentIndex == 1 ? Colors.blue : Colors.grey,
-              height: 24,
+          boxShadow: [
+            BoxShadow(
+              color: theme.colorScheme.primary.withOpacity(0.1),
+              blurRadius: 8,
+              spreadRadius: 2,
+              offset: const Offset(0, -2),
             ),
-            label: 'Search',
-          ),
-          BottomNavigationBarItem(
-            icon: Image.asset(
-              'assets/icons/cart.png',
-              color: _currentIndex == 2 ? Colors.blue : Colors.grey,
-              height: 24,
+          ],
+        ),
+        child: BottomNavigationBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          selectedItemColor: theme.colorScheme.primary,
+          unselectedItemColor: Colors.grey.shade400,
+          currentIndex: _currentIndex,
+          onTap: (index) {
+            setState(() {
+              _currentIndex = index;
+              _pageController.animateToPage(
+                index,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+              );
+            });
+          },
+          items: [
+            BottomNavigationBarItem(
+              icon: Image.asset(
+                'assets/icons/home.png',
+                color: _currentIndex == 0 ? Colors.blue : Colors.grey,
+                height: 24,
+              ),
+              label: 'Home',
             ),
-            label: 'Cart',
-          ),
-          BottomNavigationBarItem(
-            icon: Image.asset(
-              'assets/icons/settings.png',
-              color: _currentIndex == 3 ? Colors.blue : Colors.grey,
-              height: 24,
+            BottomNavigationBarItem(
+              icon: Image.asset(
+                'assets/icons/search.png',
+                color: _currentIndex == 1 ? Colors.blue : Colors.grey,
+                height: 24,
+              ),
+              label: 'Search',
             ),
-            label: 'Settings',
-          ),
-        ],
-        selectedItemColor: Colors.blue,
-        unselectedItemColor: Colors.grey,
+            BottomNavigationBarItem(
+              icon: Image.asset(
+                'assets/icons/cart.png',
+                color: _currentIndex == 2 ? Colors.blue : Colors.grey,
+                height: 24,
+              ),
+              label: 'Cart',
+            ),
+            BottomNavigationBarItem(
+              icon: Image.asset(
+                'assets/icons/settings.png',
+                color: _currentIndex == 3 ? Colors.blue : Colors.grey,
+                height: 24,
+              ),
+              label: 'Settings',
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -107,60 +142,65 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final List<Map<String, dynamic>> stores = [
-    {"name": "City Gross", "image": "assets/images/city_gross.png"},
-    {"name": "Willys", "image": "assets/images/willys.png"},
-    {"name": "Coop", "image": "assets/images/coop.png"},
-    {"name": "Xtra", "image": "assets/images/xtra.png"},
-    {"name": "JYSK", "image": "assets/images/jysk.png"},
-    {"name": "Rusta", "image": "assets/images/rusta.png"},
-    {"name": "Lidl", "image": "assets/images/lidl.png"},
-    {"name": "Maxi ICA", "image": "assets/images/maxi.png"},
-  ];
-
-  bool isSearchActive = false; // Tracks whether search is active
-  TextEditingController searchController = TextEditingController();
-  List<dynamic> searchResults = []; // Dynamic list for search results
-  List<dynamic> products = []; // List to store fetched products
-
-  @override
-  void initState() {
-    super.initState();
-    fetchProducts(); // Fetch products from an online API
+  final FirestoreService _firestoreService = FirestoreService();
+  bool isSearchActive = false;
+  final TextEditingController searchController = TextEditingController();
+  List<Map<String, dynamic>> searchResults = [];
+  
+  bool get isFriday => DateTime.now().weekday == DateTime.friday;
+  
+  String get thisWeekDates {
+    final now = DateTime.now();
+    final monday = now.subtract(Duration(days: now.weekday - 1));
+    final sunday = monday.add(const Duration(days: 6));
+    return '${DateFormat('MMM d').format(monday)} - ${DateFormat('MMM d').format(sunday)}';
+  }
+  
+  String get nextWeekDates {
+    final now = DateTime.now();
+    final nextMonday = now.add(Duration(days: 8 - now.weekday));
+    final nextSunday = nextMonday.add(const Duration(days: 6));
+    return '${DateFormat('MMM d').format(nextMonday)} - ${DateFormat('MMM d').format(nextSunday)}';
   }
 
-  // Fetch products from an API
-  Future<void> fetchProducts() async {
-    final response = await http.get(Uri.parse('https://fakestoreapi.com/products'));
-    if (response.statusCode == 200) {
+  Future<void> performSearch(String query) async {
+    if (query.isEmpty) {
       setState(() {
-        products = json.decode(response.body);
+        searchResults.clear();
       });
-    } else {
-      print('Failed to fetch products');
+      return;
+    }
+
+    try {
+      final storeSnapshot = await _firestoreService.searchStores(query);
+      final stores = storeSnapshot.docs.map((doc) {
+        final store = Store.fromFirestore(doc);
+        return {
+          "name": store.name,
+          "image": store.imageUrl,
+          "isStore": true,
+        };
+      }).toList();
+
+      setState(() {
+        searchResults = stores;
+      });
+    } catch (e) {
+      print('Error performing search: $e');
     }
   }
 
   @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // Check if today is Friday
-    bool isFriday = DateTime.now().weekday == DateTime.friday;
-
-    // Calculate dates for "This Week" and "Next Week"
-    DateTime today = DateTime.now();
-    DateTime startOfWeek = today.subtract(Duration(days: today.weekday - 1));
-    DateTime endOfWeek = startOfWeek.add(const Duration(days: 6));
-    DateTime startOfNextWeek = startOfWeek.add(const Duration(days: 7));
-    DateTime endOfNextWeek = startOfNextWeek.add(const Duration(days: 6));
-
-    String thisWeekDates =
-        "${DateFormat('dd.MM.yyyy').format(startOfWeek)} - ${DateFormat('dd.MM.yyyy').format(endOfWeek)}";
-    String nextWeekDates =
-        "${DateFormat('dd.MM.yyyy').format(startOfNextWeek)} - ${DateFormat('dd.MM.yyyy').format(endOfNextWeek)}";
-
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         title: isSearchActive
             ? TextField(
@@ -170,25 +210,10 @@ class _HomePageState extends State<HomePage> {
                   border: InputBorder.none,
                 ),
                 onChanged: (value) {
-                  // Update search results dynamically as user types
-                  setState(() {
-                    searchResults = [
-                      ...stores.where((store) =>
-                          store["name"].toLowerCase().contains(value.toLowerCase())),
-                      ...products.where((product) =>
-                          product["title"].toLowerCase().contains(value.toLowerCase())),
-                    ];
-                  });
+                  performSearch(value);
                 },
               )
-            : const Text(
-                "Welcome Back!",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
-                  color: Colors.black87,
-                ),
-              ),
+            : const Text("ReklamRadar"),
         actions: [
           IconButton(
             icon: Icon(isSearchActive ? Icons.close : Icons.search, color: Colors.black54),
@@ -211,152 +236,189 @@ class _HomePageState extends State<HomePage> {
             ),
         ],
       ),
-      body: Column(
-        children: [
-          // Display search results or placeholder
-          if (isSearchActive && searchResults.isNotEmpty)
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: ThemeProvider.subtleGradient,
+        ),
+        child: Column(
+          children: [
+            // Display search results or placeholder
+            if (isSearchActive && searchResults.isNotEmpty)
+              Expanded(
+                child: ListView.builder(
+                  itemCount: searchResults.length,
+                  itemBuilder: (context, index) {
+                    final result = searchResults[index];
+                    return ListTile(
+                      leading: result.containsKey("image")
+                          ? Image.asset(result["image"], width: 50, height: 50, fit: BoxFit.cover)
+                          : Image.network(result["image"], width: 50, height: 50, fit: BoxFit.cover),
+                      title: Text(result["name"] ?? result["title"]),
+                      onTap: () {
+                        // Navigate to store deals or product details
+                        if (result.containsKey("name")) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => StoreDealsPage(storeName: result["name"]),
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text("Selected: ${result["title"]}")),
+                          );
+                        }
+                      },
+                    );
+                  },
+                ),
+              )
+            else if (isSearchActive && searchResults.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text(
+                  "No results found. Try searching for something else.",
+                  style: TextStyle(fontSize: 16, color: Colors.grey),
+                ),
+              ),
+
+            // Grid for Stores
             Expanded(
-              child: ListView.builder(
-                itemCount: searchResults.length,
-                itemBuilder: (context, index) {
-                  final result = searchResults[index];
-                  return ListTile(
-                    leading: result.containsKey("image")
-                        ? Image.asset(result["image"], width: 50, height: 50, fit: BoxFit.cover)
-                        : Image.network(result["image"], width: 50, height: 50, fit: BoxFit.cover),
-                    title: Text(result["name"] ?? result["title"]),
-                    onTap: () {
-                      // Navigate to store deals or product details
-                      if (result.containsKey("name")) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => StoreDealsPage(storeName: result["name"]),
+              child: StreamBuilder<QuerySnapshot>(
+                stream: _firestoreService.getStores(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return Center(child: Text('Error: ${snapshot.error}'));
+                  }
+
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  final stores = snapshot.data?.docs
+                      .map((doc) => Store.fromFirestore(doc))
+                      .toList() ?? [];
+
+                  return GridView.builder(
+                    padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.04),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
+                      crossAxisSpacing: MediaQuery.of(context).size.width * 0.04,
+                      mainAxisSpacing: MediaQuery.of(context).size.width * 0.04,
+                      childAspectRatio: 0.8,
+                    ),
+                    itemCount: stores.length,
+                    itemBuilder: (context, index) {
+                      final store = stores[index];
+                      return GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => StoreDealsPage(storeName: store.name),
+                            )
+                          );
+                        },
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Colors.white.withOpacity(0.9),
+                                Colors.white.withOpacity(0.7),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 5,
+                                spreadRadius: 1,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
                           ),
-                        );
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text("Selected: ${result["title"]}")),
-                        );
-                      }
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Image.network(
+                                store.imageUrl,
+                                height: 80,
+                                width: 80,
+                                fit: BoxFit.contain,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                store.name,
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
                     },
                   );
                 },
               ),
-            )
-          else if (isSearchActive && searchResults.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text(
-                "No results found. Try searching for something else.",
-                style: TextStyle(fontSize: 16, color: Colors.grey),
-              ),
             ),
 
-          // Grid for Stores
-          if (!isSearchActive)
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: GridView.builder(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2, // Two items per row
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
+            // Display selection menu if today is Friday
+            if (isFriday)
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.white.withOpacity(0.9),
+                      Colors.white.withOpacity(0.7),
+                    ],
                   ),
-                  itemCount: stores.length,
-                  itemBuilder: (context, index) {
-                    final store = stores[index];
-                    return GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => StoreDealsPage(storeName: store["name"]),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Reklam Options:",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButton<String>(
+                      isExpanded: true,
+                      items: [
+                        DropdownMenuItem(
+                          value: "this_week",
+                          child: Text("This Week: $thisWeekDates"),
+                        ),
+                        DropdownMenuItem(
+                          value: "next_week",
+                          child: Text("Next Week: $nextWeekDates"),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        // Handle selection
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text("Selected: ${value == 'this_week' ? 'This Week' : 'Next Week'}"),
                           ),
                         );
                       },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.grey[200],
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.grey.withOpacity(0.2),
-                              blurRadius: 5,
-                              spreadRadius: 1,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Image.asset(
-                              store["image"],
-                              height: 80,
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              store["name"],
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
+                      hint: const Text("Select Reklam"),
+                    ),
+                  ],
                 ),
               ),
-            ),
-
-          // Display selection menu if today is Friday
-          if (isFriday)
-            Container(
-              color: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Reklam Options:",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  DropdownButton<String>(
-                    isExpanded: true,
-                    items: [
-                      DropdownMenuItem(
-                        value: "this_week",
-                        child: Text("This Week: $thisWeekDates"),
-                      ),
-                      DropdownMenuItem(
-                        value: "next_week",
-                        child: Text("Next Week: $nextWeekDates"),
-                      ),
-                    ],
-                    onChanged: (value) {
-                      // Handle selection
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text("Selected: ${value == 'this_week' ? 'This Week' : 'Next Week'}"),
-                        ),
-                      );
-                    },
-                    hint: const Text("Select Reklam"),
-                  ),
-                ],
-              ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }

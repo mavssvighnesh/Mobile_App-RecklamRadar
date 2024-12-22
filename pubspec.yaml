@@ -16,12 +16,13 @@ dependencies:
   firebase_auth: ^4.17.9
   firebase_storage: ^11.6.10
   cloud_firestore: ^4.15.9
-  google_sign_in: ^6.2.1
+  firebase_analytics: ^10.8.10
   flutter_facebook_auth: ^6.0.4
   cupertino_icons: ^1.0.8
   http: ^1.2.2
   intl: ^0.20.0
   font_awesome_flutter: ^10.8.0
+  provider: ^6.1.1
 
 dev_dependencies:
   flutter_test:
