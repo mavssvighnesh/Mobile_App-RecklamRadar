@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-
-
+import 'package:recklamradar/models/deal.dart';
+import 'package:recklamradar/utils/message_utils.dart';
+import 'package:recklamradar/services/firestore_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class CartPage extends StatefulWidget {
   const CartPage({super.key});
@@ -10,8 +12,10 @@ class CartPage extends StatefulWidget {
 }
 
 class _CartPageState extends State<CartPage> {
+  final FirestoreService _firestoreService = FirestoreService();
   final TextEditingController _budgetController = TextEditingController();
   double? maxBudget;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   // Example data
   final Map<String, List<Map<String, dynamic>>> cartItems = {
@@ -57,6 +61,27 @@ class _CartPageState extends State<CartPage> {
     setState(() {
       cartItems[store]![index]["quantity"] = newQuantity;
     });
+  }
+
+  Future<void> addToCart(Deal deal) async {
+    try {
+      final userId = _auth.currentUser?.uid;
+      if (userId != null) {
+        await _firestoreService.addToCart(userId, deal);
+        showMessage(context, "Added to cart successfully", true);
+      }
+    } catch (e) {
+      showMessage(context, "Error adding to cart: $e", false);
+    }
+  }
+
+  Future<void> removeFromCart(String cartItemId) async {
+    try {
+      await _firestoreService.removeFromCart(cartItemId);
+      showMessage(context, "Removed from cart successfully", true);
+    } catch (e) {
+      showMessage(context, "Error removing from cart: $e", false);
+    }
   }
 
   @override

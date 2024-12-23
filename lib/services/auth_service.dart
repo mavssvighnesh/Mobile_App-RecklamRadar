@@ -166,4 +166,14 @@ class AuthService {
       throw e;
     }
   }
+
+  Future<UserCredential> signInWithEmailAndPassword({
+    required String email,
+    required String password,
+  }) async {
+    return await _auth.signInWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+  }
 }

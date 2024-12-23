@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
+import 'package:recklamradar/home_screen.dart';
 import 'firebase_options.dart';
 import 'providers/theme_provider.dart';
 import 'login_screen.dart';
+import 'admin_home_screen.dart';
+import 'package:recklamradar/home_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,7 +36,22 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'ReklamRadar',
       theme: themeProvider.theme,
-      home: const LoginScreen(),
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          
+          if (snapshot.hasData) {
+            final user = snapshot.data!;
+            final isAdmin = user.email?.toLowerCase().endsWith('@rr.com') ?? false;
+            return isAdmin ? const AdminHomeScreen() : const UserHomeScreen();
+          }
+          
+          return const LoginScreen();
+        },
+      ),
     );
   }
 }

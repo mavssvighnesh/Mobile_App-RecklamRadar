@@ -6,7 +6,7 @@ import 'registration_page.dart';
 import 'passwordpage.dart';
 import 'admin_home_screen.dart';
 import 'package:recklamradar/providers/theme_provider.dart';
-
+import 'package:recklamradar/utils/message_utils.dart';
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -21,40 +21,23 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isPasswordVisible = false;
   bool _isLoading = false;
 
-  Future<void> _handleSignIn() async {
-    setState(() {
-      _isLoading = true;
-    });
+  Future<void> _signIn() async {
+    setState(() => _isLoading = true);
     try {
-      final email = _emailController.text.trim();
-      final password = _passwordController.text.trim();
-
-      if (email.isEmpty || password.isEmpty) {
-        throw 'Please enter both email and password';
-      }
-
-      final result = await _auth.signInWithEmail(email, password);
-
-      if (result != null) {
-        final isBusiness = email.toLowerCase().endsWith('@rr.com');
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) =>
-                isBusiness ? const AdminHomeScreen() : const UserHomeScreen(),
-          ),
-        );
-      } else {
-        throw 'Invalid credentials';
+      await _auth.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+      if (mounted) {
+        showMessage(context, "Successfully logged in!", true);
+        // Navigate to home screen
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+      if (mounted) {
+        showMessage(context, "Login failed: $e", false);
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -203,7 +186,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 24),
                       ElevatedButton(
-                        onPressed: _isLoading ? null : _handleSignIn,
+                        onPressed: _isLoading ? null : _signIn,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: theme.colorScheme.primary,
                           foregroundColor: Colors.white,

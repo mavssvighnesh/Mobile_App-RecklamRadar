@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 import 'package:recklamradar/providers/theme_provider.dart';
+import 'package:recklamradar/utils/message_utils.dart';
 
 class AccountDetailsPage extends StatefulWidget {
   const AccountDetailsPage({super.key});
@@ -62,6 +63,12 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
 
   Future<void> _updateUserData() async {
     try {
+      final age = int.tryParse(_ageController.text);
+      if (age == null || age < 14 || age > 100) {
+        showMessage(context, 'Please enter a valid age between 14 and 100', false);
+        return;
+      }
+
       final user = _auth.currentUser;
       if (user != null) {
         final isAdmin = user.email?.toLowerCase().endsWith('@rr.com') ?? false;
@@ -70,70 +77,28 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
           {
             UserFields.name: _nameController.text,
             UserFields.phone: _phoneController.text,
-            UserFields.age: int.tryParse(_ageController.text),
+            UserFields.age: age,
             UserFields.gender: _selectedGender,
           },
           isAdmin,
         );
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully')),
-        );
+        showMessage(context, "Profile updated successfully", true);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error updating profile: $e')),
-      );
+      showMessage(context, "Error updating profile: $e", false);
     }
   }
 
   Future<void> _pickImage() async {
     try {
-      showModalBottomSheet(
-        context: context,
-        builder: (context) => SafeArea(
-          child: Wrap(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.camera_alt),
-                title: const Text('Take a Picture'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  final XFile? image = await _picker.pickImage(
-                    source: ImageSource.camera,
-                    maxWidth: 512,
-                    maxHeight: 512,
-                    imageQuality: 75,
-                  );
-                  if (image != null) {
-                    await _uploadProfileImage(File(image.path));
-                  }
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.photo_library),
-                title: const Text('Choose from Gallery'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  final XFile? image = await _picker.pickImage(
-                    source: ImageSource.gallery,
-                    maxWidth: 512,
-                    maxHeight: 512,
-                    imageQuality: 75,
-                  );
-                  if (image != null) {
-                    await _uploadProfileImage(File(image.path));
-                  }
-                },
-              ),
-            ],
-          ),
-        ),
-      );
+      final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+      if (pickedFile != null) {
+        await _uploadProfileImage(File(pickedFile.path));
+        showMessage(context, "Profile picture updated successfully", true);
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking image: $e')),
-      );
+      showMessage(context, "Error updating profile picture: $e", false);
     }
   }
 
@@ -205,37 +170,10 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
+                        titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
                         background: Container(
                           decoration: BoxDecoration(
                             gradient: ThemeProvider.cardGradient,
-                          ),
-                          child: Center(
-                            child: GestureDetector(
-                              onTap: _pickImage,
-                              child: Stack(
-                                alignment: Alignment.bottomRight,
-                                children: [
-                                  CircleAvatar(
-                                    radius: 60,
-                                    backgroundImage: _currentProfileImage != null
-                                        ? NetworkImage(_currentProfileImage!)
-                                        : null,
-                                    child: _currentProfileImage == null
-                                        ? const Icon(Icons.person, size: 60)
-                                        : null,
-                                  ),
-                                  CircleAvatar(
-                                    radius: 18,
-                                    backgroundColor: theme.colorScheme.primary,
-                                    child: const Icon(
-                                      Icons.camera_alt,
-                                      size: 18,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
                           ),
                         ),
                       ),
@@ -245,6 +183,35 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
                         padding: const EdgeInsets.all(16),
                         child: Column(
                           children: [
+                            Center(
+                              child: GestureDetector(
+                                onTap: _pickImage,
+                                child: Stack(
+                                  alignment: Alignment.bottomRight,
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 60,
+                                      backgroundImage: _currentProfileImage != null
+                                          ? NetworkImage(_currentProfileImage!)
+                                          : null,
+                                      child: _currentProfileImage == null
+                                          ? const Icon(Icons.person, size: 60)
+                                          : null,
+                                    ),
+                                    CircleAvatar(
+                                      radius: 18,
+                                      backgroundColor: theme.colorScheme.primary,
+                                      child: const Icon(
+                                        Icons.camera_alt,
+                                        size: 18,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
                             _buildProfileSection(
                               context,
                               'Personal Information',
@@ -273,9 +240,43 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
                                   _ageController,
                                   Icons.calendar_today_outlined,
                                   keyboardType: TextInputType.number,
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return 'Please enter your age';
+                                    }
+
+                                    // Check if it's a valid number
+                                    final age = int.tryParse(value);
+                                    if (age == null) {
+                                      return 'Please enter a valid number';
+                                    }
+
+                                    // Check age range
+                                    if (age < 14) {
+                                      return 'You must be at least 14 years old';
+                                    }
+                                    if (age > 100) {
+                                      return 'Age cannot be more than 100';
+                                    }
+
+                                    return null;
+                                  },
+                                  onChanged: (value) {
+                                    // Remove non-numeric characters
+                                    final newValue = value.replaceAll(RegExp(r'[^0-9]'), '');
+                                    if (newValue != value) {
+                                      _ageController.text = newValue;
+                                      _ageController.selection = TextSelection.fromPosition(
+                                        TextPosition(offset: newValue.length),
+                                      );
+                                    }
+                                  },
                                 ),
                                 const SizedBox(height: 16),
-                                _buildDropdownField('Gender', _selectedGender),
+                                _buildDropdownField('Gender', _selectedGender, validator: (value) {
+                                  if (value?.isEmpty ?? true) return 'Please select a gender';
+                                  return null;
+                                }),
                               ],
                             ),
                             const SizedBox(height: 24),
@@ -289,6 +290,45 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
                                       padding: const EdgeInsets.symmetric(vertical: 16),
                                     ),
                                     child: const Text('Save Changes'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 24),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton(
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => const ChangePasswordPage(),
+                                        ),
+                                      );
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: theme.colorScheme.primary,
+                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                    ),
+                                    child: const Text('Change Password'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton(
+                                    onPressed: () {
+                                      _showDeleteAccountDialog();
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.red,
+                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                    ),
+                                    child: const Text('Delete Account'),
                                   ),
                                 ),
                               ],
@@ -349,31 +389,68 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
     IconData icon, {
     bool enabled = true,
     TextInputType keyboardType = TextInputType.text,
+    String? Function(String?)? validator,
+    void Function(String)? onChanged,
   }) {
-    return TextField(
+    return TextFormField(
       controller: controller,
       enabled: enabled,
       keyboardType: keyboardType,
+      validator: validator,
+      onChanged: onChanged,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon),
+        filled: true,
+        fillColor: Colors.white,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: Theme.of(context).colorScheme.primary,
+            width: 2,
+          ),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.red, width: 1),
         ),
       ),
     );
   }
 
-  Widget _buildDropdownField(String label, String value) {
+  Widget _buildDropdownField(String label, String value, {required String? Function(dynamic value) validator}) {
     return DropdownButtonFormField<String>(
       value: value.isNotEmpty ? value : null,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: const Icon(Icons.person_outline),
+        filled: true,
+        fillColor: Colors.white,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
         ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+          ),
+        ),
       ),
+      dropdownColor: Colors.white,
+      style: TextStyle(
+        color: Theme.of(context).colorScheme.primary,
+        fontSize: 16,
+      ),
+      validator: validator,
       items: ['Male', 'Female', 'Other']
           .map((gender) => DropdownMenuItem(
                 value: gender,
@@ -395,5 +472,62 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
     _phoneController.dispose();
     _ageController.dispose();
     super.dispose();
+  }
+
+  Future<void> _showDeleteAccountDialog() async {
+    return showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        title: const Text(
+          'Delete Account',
+          style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+        ),
+        content: Container(
+          decoration: BoxDecoration(
+            color: Colors.red.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          padding: const EdgeInsets.all(16),
+          child: const Text(
+            'Are you sure you want to delete your account? This action cannot be undone.',
+            style: TextStyle(fontSize: 16),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                await _auth.currentUser?.delete();
+                if (mounted) {
+                  showMessage(context, "Account deleted successfully", true);
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (context) => const LoginScreen()),
+                    (route) => false,
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  showMessage(context, "Error deleting account: $e", false);
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
   }
 }

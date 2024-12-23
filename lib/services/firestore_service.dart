@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:recklamradar/models/deal.dart';
+import 'package:recklamradar/models/store.dart';
 import 'dart:io';
 import '../constants/user_fields.dart';
 
@@ -150,8 +152,13 @@ class FirestoreService {
   }
 
   // Store Methods
-  Stream<QuerySnapshot> getStores() {
-    return _firestore.collection('stores').snapshots();
+  Stream<List<Store>> getStores() {
+    return _firestore
+        .collection('stores')
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => Store.fromFirestore(doc))
+            .toList());
   }
 
   Future<DocumentSnapshot> getStore(String storeId) {
@@ -159,12 +166,16 @@ class FirestoreService {
   }
 
   // Products/Deals Methods
-  Stream<QuerySnapshot> getStoreDeals(String storeId) {
+  Stream<List<Deal>> getStoreDeals(String storeId) {
     return _firestore
-        .collection('stores')
-        .doc(storeId)
         .collection('deals')
-        .snapshots();
+        .where('storeId', isEqualTo: storeId)
+        .where('endDate', isGreaterThan: Timestamp.fromDate(DateTime.now()))
+        .orderBy('endDate')
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => Deal.fromFirestore(doc))
+            .toList());
   }
 
   Stream<QuerySnapshot> getAllDeals() {
@@ -192,5 +203,88 @@ class FirestoreService {
         .where('name', isGreaterThanOrEqualTo: query.toLowerCase())
         .where('name', isLessThan: query.toLowerCase() + 'z')
         .get();
+  }
+
+  // Add a deal to favorites
+  Future<void> addToFavorites(String dealId) async {
+    final userId = _auth.currentUser?.uid;
+    if (userId == null) return;
+
+    await _firestore.collection('favorites').add({
+      'userId': userId,
+      'dealId': dealId,
+      'addedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // Remove from favorites
+  Future<void> removeFromFavorites(String dealId) async {
+    final userId = _auth.currentUser?.uid;
+    if (userId == null) return;
+
+    final querySnapshot = await _firestore
+        .collection('favorites')
+        .where('userId', isEqualTo: userId)
+        .where('dealId', isEqualTo: dealId)
+        .get();
+
+    for (var doc in querySnapshot.docs) {
+      await doc.reference.delete();
+    }
+  }
+
+  // Check if a deal is favorited
+  Future<bool> isFavorited(String dealId) async {
+    final userId = _auth.currentUser?.uid;
+    if (userId == null) return false;
+
+    final querySnapshot = await _firestore
+        .collection('favorites')
+        .where('userId', isEqualTo: userId)
+        .where('dealId', isEqualTo: dealId)
+        .get();
+
+    return querySnapshot.docs.isNotEmpty;
+  }
+
+  // Update user preferences
+  Future<void> updateUserPreferences({
+    required String userId,
+    String? language,
+    String? currency,
+    bool? notificationsEnabled,
+    bool? darkModeEnabled,
+  }) async {
+    final data = <String, dynamic>{};
+    if (language != null) data['language'] = language;
+    if (currency != null) data['currency'] = currency;
+    if (notificationsEnabled != null) {
+      data['notificationsEnabled'] = notificationsEnabled;
+    }
+    if (darkModeEnabled != null) data['darkModeEnabled'] = darkModeEnabled;
+
+    await _firestore
+        .collection('users')
+        .doc(userId)
+        .set({'preferences': data}, SetOptions(merge: true));
+  }
+
+  // Get user preferences
+  Future<Map<String, dynamic>> getUserPreferences(String userId) async {
+    final doc = await _firestore.collection('users').doc(userId).get();
+    return doc.data()?['preferences'] ?? {};
+  }
+
+  Future<void> addToCart(String userId, Deal deal) async {
+    await _firestore.collection('carts').add({
+      'userId': userId,
+      'dealId': deal.id,
+      'quantity': 1,
+      'addedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> removeFromCart(String cartItemId) async {
+    await _firestore.collection('carts').doc(cartItemId).delete();
   }
 } 

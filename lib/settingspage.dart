@@ -22,8 +22,7 @@ class _SettingsPageState extends State<SettingsPage> {
   String? _profileImage;
   String _selectedLanguage = 'English';
   String _selectedCurrency = 'SEK';
-  bool _notificationsEnabled = true;
-  bool _darkModeEnabled = false;
+  bool _isDarkMode = false;
 
   @override
   void initState() {
@@ -44,8 +43,7 @@ class _SettingsPageState extends State<SettingsPage> {
             _profileImage = userData[UserFields.profileImage];
             _selectedLanguage = userData['language'] ?? 'English';
             _selectedCurrency = userData['currency'] ?? 'SEK';
-            _notificationsEnabled = userData['notifications'] ?? true;
-            _darkModeEnabled = userData['darkMode'] ?? false;
+            _isDarkMode = userData['darkMode'] ?? false;
           });
         }
       }
@@ -56,27 +54,10 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  Future<void> _signOut() async {
-    try {
-      await _auth.signOut();
-      if (mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
-          (route) => false,
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error signing out: $e')),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final size = MediaQuery.of(context).size;
-
+    
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -88,10 +69,10 @@ class _SettingsPageState extends State<SettingsPage> {
               : CustomScrollView(
                   slivers: [
                     SliverAppBar(
-                      expandedHeight: size.height * 0.25,
+                      expandedHeight: 120,
                       floating: false,
                       pinned: true,
-                      backgroundColor: Colors.transparent,
+                      backgroundColor: const Color.fromARGB(0, 239, 237, 237),
                       flexibleSpace: FlexibleSpaceBar(
                         title: Text(
                           'Settings',
@@ -104,143 +85,247 @@ class _SettingsPageState extends State<SettingsPage> {
                           decoration: BoxDecoration(
                             gradient: ThemeProvider.cardGradient,
                           ),
-                          child: Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                CircleAvatar(
-                                  radius: 50,
-                                  backgroundImage: _profileImage != null
-                                      ? NetworkImage(_profileImage!)
-                                      : null,
-                                  child: _profileImage == null
-                                      ? Icon(Icons.person,
-                                          size: 50,
-                                          color: theme.colorScheme.onPrimary)
-                                      : null,
+                        ),
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Profile Section
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    Colors.white.withOpacity(0.95),
+                                    Colors.white.withOpacity(0.85),
+                                  ],
                                 ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  _userName,
-                                  style: TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                    color: theme.colorScheme.onPrimary,
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: theme.colorScheme.primary.withOpacity(0.1),
+                                    blurRadius: 8,
+                                    spreadRadius: 2,
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  CircleAvatar(
+                                    radius: 60,
+                                    backgroundImage: _profileImage != null
+                                        ? NetworkImage(_profileImage!)
+                                        : null,
+                                    child: _profileImage == null
+                                        ? const Icon(Icons.person, size: 60)
+                                        : null,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    _userName,
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _userEmail,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.grey[700],
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+
+                            // App Settings Section
+                            _buildSettingsSection(
+                              'App Settings',
+                              [
+                                ListTile(
+                                  leading: const Icon(Icons.language),
+                                  title: const Text('Language'),
+                                  trailing: Container(
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                        colors: [
+                                          theme.colorScheme.primary.withOpacity(0.1),
+                                          theme.colorScheme.primary.withOpacity(0.05),
+                                        ],
+                                      ),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: theme.colorScheme.primary.withOpacity(0.3),
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: theme.colorScheme.primary.withOpacity(0.1),
+                                          blurRadius: 4,
+                                          spreadRadius: 0,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                    child: DropdownButton<String>(
+                                      value: _selectedLanguage,
+                                      underline: const SizedBox(),
+                                      icon: Icon(
+                                        Icons.arrow_drop_down,
+                                        color: theme.colorScheme.primary,
+                                      ),
+                                      style: TextStyle(
+                                        color: theme.colorScheme.primary,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      dropdownColor: Colors.white,
+                                      items: ['English', 'Swedish']
+                                          .map((lang) => DropdownMenuItem(
+                                                value: lang,
+                                                child: Text(lang),
+                                              ))
+                                          .toList(),
+                                      onChanged: (value) {
+                                        setState(() => _selectedLanguage = value!);
+                                      },
+                                    ),
+                                  ),
+                                ),
+                                ListTile(
+                                  leading: const Icon(Icons.attach_money),
+                                  title: const Text('Currency'),
+                                  trailing: Container(
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                        colors: [
+                                          theme.colorScheme.primary.withOpacity(0.1),
+                                          theme.colorScheme.primary.withOpacity(0.05),
+                                        ],
+                                      ),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: theme.colorScheme.primary.withOpacity(0.3),
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: theme.colorScheme.primary.withOpacity(0.1),
+                                          blurRadius: 4,
+                                          spreadRadius: 0,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                    child: DropdownButton<String>(
+                                      value: _selectedCurrency,
+                                      underline: const SizedBox(),
+                                      icon: Icon(
+                                        Icons.arrow_drop_down,
+                                        color: theme.colorScheme.primary,
+                                      ),
+                                      style: TextStyle(
+                                        color: theme.colorScheme.primary,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      dropdownColor: Colors.white,
+                                      items: ['SEK', 'USD', 'EUR']
+                                          .map((currency) => DropdownMenuItem(
+                                                value: currency,
+                                                child: Text(currency),
+                                              ))
+                                          .toList(),
+                                      onChanged: (value) {
+                                        setState(() => _selectedCurrency = value!);
+                                      },
+                                    ),
+                                  ),
+                                ),
+                                ListTile(
+                                  leading: Icon(
+                                    _isDarkMode ? Icons.dark_mode : Icons.light_mode,
+                                  ),
+                                  title: const Text('Dark Mode'),
+                                  trailing: Switch(
+                                    value: _isDarkMode,
+                                    onChanged: (value) async {
+                                      setState(() => _isDarkMode = value);
+                                      final user = _auth.currentUser;
+                                      if (user != null) {
+                                        await _firestoreService.updateUserProfile(
+                                          user.uid,
+                                          {'darkMode': value},
+                                          user.email?.toLowerCase().endsWith('@rr.com') ?? false,
+                                        );
+                                      }
+                                    },
                                   ),
                                 ),
                               ],
                             ),
-                          ),
+
+                            const SizedBox(height: 16),
+
+                            // Account Settings Section
+                            _buildSettingsSection(
+                              'Account Settings',
+                              [
+                                ListTile(
+                                  leading: const Icon(Icons.person),
+                                  title: const Text('Account Details'),
+                                  trailing: const Icon(Icons.arrow_forward_ios),
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => const AccountDetailsPage(),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                ListTile(
+                                  leading: const Icon(Icons.logout, color: Colors.red),
+                                  title: const Text(
+                                    'Logout',
+                                    style: TextStyle(color: Colors.red),
+                                  ),
+                                  onTap: () async {
+                                    await _auth.signOut();
+                                    if (mounted) {
+                                      Navigator.pushAndRemoveUntil(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => const LoginScreen(),
+                                        ),
+                                        (route) => false,
+                                      );
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                    SliverList(
-                      delegate: SliverChildListDelegate([
-                        _buildSettingsSection(
-                          context,
-                          'Account',
-                          [
-                            ListTile(
-                              leading: const Icon(Icons.person_outline),
-                              title: const Text('Account Details'),
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const AccountDetailsPage(),
-                                  ),
-                                );
-                              },
-                            ),
-                            ListTile(
-                              leading: const Icon(Icons.notifications_outlined),
-                              title: const Text('Notifications'),
-                              trailing: Switch(
-                                value: _notificationsEnabled,
-                                onChanged: (value) {
-                                  setState(() => _notificationsEnabled = value);
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                        _buildSettingsSection(
-                          context,
-                          'Preferences',
-                          [
-                            ListTile(
-                              leading: const Icon(Icons.language),
-                              title: const Text('Language'),
-                              trailing: DropdownButton<String>(
-                                value: _selectedLanguage,
-                                items: ['English', 'Svenska']
-                                    .map((lang) => DropdownMenuItem(
-                                          value: lang,
-                                          child: Text(lang),
-                                        ))
-                                    .toList(),
-                                onChanged: (value) {
-                                  setState(() => _selectedLanguage = value!);
-                                },
-                              ),
-                            ),
-                            ListTile(
-                              leading: const Icon(Icons.monetization_on_outlined),
-                              title: const Text('Currency'),
-                              trailing: DropdownButton<String>(
-                                value: _selectedCurrency,
-                                items: ['SEK', 'EUR', 'USD']
-                                    .map((currency) => DropdownMenuItem(
-                                          value: currency,
-                                          child: Text(currency),
-                                        ))
-                                    .toList(),
-                                onChanged: (value) {
-                                  setState(() => _selectedCurrency = value!);
-                                },
-                              ),
-                            ),
-                            ListTile(
-                              leading: const Icon(Icons.dark_mode_outlined),
-                              title: const Text('Dark Mode'),
-                              trailing: Switch(
-                                value: _darkModeEnabled,
-                                onChanged: (value) {
-                                  setState(() => _darkModeEnabled = value);
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                        _buildSettingsSection(
-                          context,
-                          'Other',
-                          [
-                            ListTile(
-                              leading: const Icon(Icons.help_outline),
-                              title: const Text('Help & Support'),
-                              onTap: () {
-                                // Navigate to Help & Support
-                              },
-                            ),
-                            ListTile(
-                              leading: const Icon(Icons.info_outline),
-                              title: const Text('About'),
-                              onTap: () {
-                                // Navigate to About page
-                              },
-                            ),
-                            ListTile(
-                              leading: const Icon(Icons.logout, color: Colors.red),
-                              title: const Text(
-                                'Sign Out',
-                                style: TextStyle(color: Colors.red),
-                              ),
-                              onTap: _signOut,
-                            ),
-                          ],
-                        ),
-                      ]),
                     ),
                   ],
                 ),
@@ -249,35 +334,40 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildSettingsSection(
-      BuildContext context, String title, List<Widget> items) {
+  Widget _buildSettingsSection(String title, List<Widget> children) {
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(12),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.white.withOpacity(0.9),
+            Colors.white.withOpacity(0.7),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 4,
-            spreadRadius: 1,
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+            blurRadius: 8,
+            spreadRadius: 2,
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(
-              title,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
             ),
           ),
-          ...items,
+          const SizedBox(height: 16),
+          ...children,
         ],
       ),
     );

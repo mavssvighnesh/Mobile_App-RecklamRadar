@@ -5,7 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:recklamradar/models/deal.dart';
 import 'package:recklamradar/services/firestore_service.dart';
 import 'package:recklamradar/models/deal.dart';
-
+import 'package:recklamradar/utils/message_utils.dart';
 class FavoritesPage extends StatefulWidget {
   const FavoritesPage({super.key});
 
@@ -30,26 +30,46 @@ class _FavoritesPageState extends State<FavoritesPage> {
 
   Future<void> loadDeals() async {
     try {
+      final userId = _auth.currentUser?.uid;
+      if (userId == null) return;
+
       final querySnapshot = await FirebaseFirestore.instance
           .collection('favorites')
+          .where('userId', isEqualTo: userId)
           .get();
-      final List<Map<String, dynamic>> allDeals = querySnapshot.docs.map((doc) {
+
+      final List<Map<String, dynamic>> allDeals = [];
+      
+      for (var doc in querySnapshot.docs) {
         final data = doc.data();
-        return {
-          'name': data['name'],
-          'store': data['store'],
-          'price': data['price'],
-          'category': data['category'],
-          'imageUrl': data['imageUrl'],
-        };
-      }).toList();
+        // Fetch the actual deal details
+        final dealDoc = await FirebaseFirestore.instance
+            .collection('deals')
+            .doc(data['dealId'])
+            .get();
+            
+        if (dealDoc.exists) {
+          final dealData = dealDoc.data()!;
+          allDeals.add({
+            'id': dealDoc.id,
+            'name': dealData['name'],
+            'store': dealData['store'],
+            'price': dealData['price'],
+            'memberPrice': dealData['memberPrice'],
+            'category': dealData['category'],
+            'imageUrl': dealData['imageUrl'],
+            'startDate': dealData['startDate'],
+            'endDate': dealData['endDate'],
+          });
+        }
+      }
 
       setState(() {
         deals = allDeals;
         displayedDeals = deals;
       });
     } catch (e) {
-      print("Error loading data: $e");
+      print("Error loading favorites: $e");
     }
   }
 
@@ -79,6 +99,22 @@ class _FavoritesPageState extends State<FavoritesPage> {
             .toList();
       }
     });
+  }
+
+  Future<void> toggleFavorite(String dealId) async {
+    try {
+      final userId = _auth.currentUser?.uid;
+      if (userId != null) {
+        await _firestoreService.toggleFavorite(userId, dealId);
+        showMessage(
+          context, 
+          "Updated favorites successfully", 
+          true
+        );
+      }
+    } catch (e) {
+      showMessage(context, "Error updating favorites: $e", false);
+    }
   }
 
   @override

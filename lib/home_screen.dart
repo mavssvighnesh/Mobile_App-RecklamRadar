@@ -284,7 +284,7 @@ class _HomePageState extends State<HomePage> {
 
             // Grid for Stores
             Expanded(
-              child: StreamBuilder<QuerySnapshot>(
+              child: StreamBuilder<List<Store>>(
                 stream: _firestoreService.getStores(),
                 builder: (context, snapshot) {
                   if (snapshot.hasError) {
@@ -295,9 +295,7 @@ class _HomePageState extends State<HomePage> {
                     return const Center(child: CircularProgressIndicator());
                   }
 
-                  final stores = snapshot.data?.docs
-                      .map((doc) => Store.fromFirestore(doc))
-                      .toList() ?? [];
+                  final stores = snapshot.data ?? [];
 
                   return GridView.builder(
                     padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.04),
