@@ -13,42 +13,56 @@ class FirestoreService {
 
   // User Profile Methods
   Future<void> createUserProfile(String userId, Map<String, dynamic> data) async {
-    final isAdmin = data[UserFields.isBusiness] ?? false;
-    final collection = isAdmin ? 'admins' : 'users';
-    await _firestore.collection(collection).doc(userId).set(data);
+    try {
+      print('Creating user profile: $data'); // Debug print
+      
+      final isAdmin = data[UserFields.isAdmin] ?? false;
+      final collection = isAdmin ? 'admins' : 'users';
+      
+      await _firestore.collection(collection).doc(userId).set(
+        {
+          ...data,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+      
+      print('User profile created successfully'); // Debug print
+    } catch (e) {
+      print('Error in createUserProfile: $e'); // Debug print
+      rethrow;
+    }
   }
 
   Future<Map<String, dynamic>?> getUserProfile(String userId) async {
     try {
-      var doc = await _firestore.collection('admins').doc(userId).get();
-      if (doc.exists) {
+      print('Getting user profile for ID: $userId'); // Debug print
+      
+      // Check users collection first
+      var userDoc = await _firestore.collection('users').doc(userId).get();
+      
+      if (userDoc.exists) {
+        print('Found user in users collection: ${userDoc.data()}'); // Debug print
+        return userDoc.data();
+      }
+      
+      // If not found in users, check admins collection
+      var adminDoc = await _firestore.collection('admins').doc(userId).get();
+      
+      if (adminDoc.exists) {
+        print('Found user in admins collection: ${adminDoc.data()}'); // Debug print
         return {
+          ...adminDoc.data()!,
           'isAdmin': true,
-          UserFields.name: doc.data()?[UserFields.name],
-          UserFields.email: doc.data()?[UserFields.email],
-          UserFields.phone: doc.data()?[UserFields.phone],
-          UserFields.age: doc.data()?[UserFields.age],
-          UserFields.gender: doc.data()?[UserFields.gender],
-          UserFields.profileImage: doc.data()?[UserFields.profileImage],
         };
       }
-
-      doc = await _firestore.collection('users').doc(userId).get();
-      if (doc.exists) {
-        return {
-          'isAdmin': false,
-          UserFields.name: doc.data()?[UserFields.name],
-          UserFields.email: doc.data()?[UserFields.email],
-          UserFields.phone: doc.data()?[UserFields.phone],
-          UserFields.age: doc.data()?[UserFields.age],
-          UserFields.gender: doc.data()?[UserFields.gender],
-          UserFields.profileImage: doc.data()?[UserFields.profileImage],
-        };
-      }
+      
+      print('No user document found'); // Debug print
       return null;
     } catch (e) {
-      print('Error getting user profile: $e');
-      return null;
+      print('Error in getUserProfile: $e'); // Debug print
+      rethrow;
     }
   }
 

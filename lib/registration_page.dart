@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:recklamradar/constants/user_fields.dart';
+import 'package:recklamradar/services/firestore_service.dart';
+import 'package:recklamradar/utils/message_utils.dart';
 import 'services/auth_service.dart';
 import 'home_screen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:recklamradar/admin_home_screen.dart';
 import 'providers/theme_provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 
 class RegistrationPage extends StatefulWidget {
@@ -18,7 +22,9 @@ class RegistrationPage extends StatefulWidget {
 }
 
 class _RegistrationPageState extends State<RegistrationPage> {
-  final AuthService _auth = AuthService();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirestoreService _firestoreService = FirestoreService();
+  final FirebaseStorage _storage = FirebaseStorage.instance;
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
@@ -31,151 +37,114 @@ class _RegistrationPageState extends State<RegistrationPage> {
   bool _isBusiness = false;
   File? _profileImage;
 
-  Future<void> _pickImage() async {
-    final ImagePicker picker = ImagePicker();
+  Future<void> _uploadProfileImage(String userId) async {
+    if (_profileImage == null) return;
+
     try {
-      showModalBottomSheet(
-        context: context,
-        builder: (context) => SafeArea(
-          child: Wrap(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.camera_alt),
-                title: const Text('Take a Picture'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  final XFile? pickedFile = await picker.pickImage(
-                    source: ImageSource.camera,
-                    maxWidth: 512,
-                    maxHeight: 512,
-                    imageQuality: 75,
-                  );
-                  if (pickedFile != null) {
-                    setState(() => _profileImage = File(pickedFile.path));
-                  }
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.photo_library),
-                title: const Text('Choose from Gallery'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  final XFile? pickedFile = await picker.pickImage(
-                    source: ImageSource.gallery,
-                    maxWidth: 512,
-                    maxHeight: 512,
-                    imageQuality: 75,
-                  );
-                  if (pickedFile != null) {
-                    setState(() => _profileImage = File(pickedFile.path));
-                  }
-                },
-              ),
-            ],
-          ),
-        ),
+      // Create a reference to the profile image location
+      final storageRef = _storage.ref().child('profile_images/$userId.jpg');
+      
+      // Upload the file
+      await storageRef.putFile(_profileImage!);
+      
+      // Get the download URL
+      final imageUrl = await storageRef.getDownloadURL();
+      
+      // Update user profile with image URL
+      await _firestoreService.updateUserProfile(
+        userId,
+        {'profileImage': imageUrl},
+        false, // isAdmin parameter
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking image: $e')),
-      );
+      print('Error uploading profile image: $e');
+      rethrow;
     }
   }
 
-  Future<String?> _uploadImage(String userId) async {
-    if (_profileImage == null) return null;
-    
-    try {
-      final ref = FirebaseStorage.instance
-          .ref()
-          .child('user_profiles')
-          .child('$userId.jpg');
-          
-      await ref.putFile(_profileImage!);
-      return await ref.getDownloadURL();
-    } catch (e) {
-      print('Error uploading image: $e');
-      return null;
-    }
-  }
-
-  Future<String?> _uploadImageTemp(String tempUserId, File imageFile) async {
-    try {
-      final ref = FirebaseStorage.instance
-          .ref()
-          .child('temp_profiles')
-          .child('$tempUserId.jpg');
-          
-      await ref.putFile(imageFile);
-      return await ref.getDownloadURL();
-    } catch (e) {
-      print('Error uploading temp image: $e');
-      return null;
-    }
-  }
-
-  Future<void> _registerUser() async {
+  Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_profileImage == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a profile picture')),
-      );
-      return;
-    }
 
     setState(() => _isLoading = true);
-
     try {
-      final email = _emailController.text.trim();
-      final isBusiness = email.toLowerCase().endsWith('@rr.com');
-      
-      // Upload image first
-      String? imageUrl;
-      if (_profileImage != null) {
-        final tempUserId = DateTime.now().millisecondsSinceEpoch.toString(); // Temporary ID before user creation
-        imageUrl = await _uploadImageTemp(tempUserId, _profileImage!);
-      }
-
-      // Register user with image URL
-      final result = await _auth.signUpWithEmail(
-        email,
-        _passwordController.text.trim(),
-        _nameController.text.trim(),
-        isBusiness,
-        imageUrl,
+      // Create user with email and password
+      final credential = await _auth.createUserWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
       );
 
-      if (result != null && mounted) {
-        // Additional profile data
-        await _auth.updateUserProfile(
-          result.user!.uid,
-          {
-            UserFields.phone: _phoneController.text.trim(),
-            UserFields.age: int.tryParse(_ageController.text.trim()),
-            UserFields.gender: _gender,
-            UserFields.isBusiness: isBusiness,
-          },
-        );
-
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => isBusiness 
-                  ? const AdminHomeScreen()
-                  : const UserHomeScreen(),
-            ),
-          );
+      final userId = credential.user?.uid;
+      if (userId != null) {
+        String? profileImageUrl;
+        
+        // Upload profile image if selected
+        if (_profileImage != null) {
+          final storageRef = _storage.ref().child('profile_images/$userId.jpg');
+          await storageRef.putFile(_profileImage!);
+          profileImageUrl = await storageRef.getDownloadURL();
         }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Registration failed: $e')),
+
+        // Create complete user profile
+        final userData = {
+          UserFields.name: _nameController.text.trim(),
+          UserFields.email: _emailController.text.trim(),
+          UserFields.phone: _phoneController.text.trim(),
+          UserFields.age: int.tryParse(_ageController.text.trim()) ?? 0,
+          UserFields.gender: _gender,
+          UserFields.isBusiness: _isBusiness,
+          UserFields.isAdmin: _emailController.text.trim().toLowerCase().endsWith('@rr.com'),
+          UserFields.profileImage: profileImageUrl,
+          UserFields.createdAt: FieldValue.serverTimestamp(),
+          UserFields.updatedAt: FieldValue.serverTimestamp(),
+        };
+
+        // Create user document in Firestore
+        await _firestoreService.createUserProfile(userId, userData);
+
+        if (!mounted) return;
+        showMessage(context, 'Registration successful!', true);
+        
+        // Navigate based on user role
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => userData[UserFields.isAdmin] == true 
+              ? const AdminHomeScreen() 
+              : const UserHomeScreen(),
+          ),
         );
       }
+    } on FirebaseAuthException catch (e) {
+      String message = 'Registration failed';
+      if (e.code == 'weak-password') {
+        message = 'The password provided is too weak';
+      } else if (e.code == 'email-already-in-use') {
+        message = 'An account already exists for that email';
+      }
+      showMessage(context, message, false);
+    } catch (e) {
+      showMessage(context, 'Registration failed: $e', false);
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final pickedFile = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 75,
+      );
+
+      if (pickedFile != null) {
+        setState(() {
+          _profileImage = File(pickedFile.path);
+        });
+      }
+    } catch (e) {
+      showMessage(context, 'Error picking image: $e', false);
     }
   }
 
@@ -268,25 +237,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                       controller: _nameController,
                       decoration: InputDecoration(
                         labelText: 'Full Name',
-                        prefixIcon: const Icon(Icons.person_outline),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey[300]!),
-                        ),
-                      ),
-                      validator: (value) => 
-                          value?.isEmpty ?? true ? 'Please enter your name' : null,
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: InputDecoration(
-                        labelText: 'Email',
-                        prefixIcon: const Icon(Icons.email_outlined),
+                        prefixIcon: const Icon(Icons.person),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -296,8 +247,43 @@ class _RegistrationPageState extends State<RegistrationPage> {
                         ),
                       ),
                       validator: (value) {
-                        if (value?.isEmpty ?? true) return 'Please enter an email';
-                        if (!value!.contains('@')) return 'Please enter a valid email';
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter your name';
+                        }
+                        if (value.length < 2) {
+                          return 'Name must be at least 2 characters';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: InputDecoration(
+                        labelText: 'Email',
+                        prefixIcon: const Icon(Icons.email),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter your email';
+                        }
+                        if (!value.contains('@')) {
+                          return 'Please enter a valid email';
+                        }
+                        if (!value.contains('.')) {
+                          return 'Please enter a valid email domain';
+                        }
+                        if (value.length < 5) {
+                          return 'Email is too short';
+                        }
                         return null;
                       },
                     ),
@@ -307,13 +293,12 @@ class _RegistrationPageState extends State<RegistrationPage> {
                       obscureText: !_isPasswordVisible,
                       decoration: InputDecoration(
                         labelText: 'Password',
-                        prefixIcon: const Icon(Icons.lock_outline),
+                        prefixIcon: const Icon(Icons.lock),
                         suffixIcon: IconButton(
-                          icon: Icon(_isPasswordVisible 
-                              ? Icons.visibility_off 
-                              : Icons.visibility),
-                          onPressed: () => setState(() => 
-                              _isPasswordVisible = !_isPasswordVisible),
+                          icon: Icon(
+                            _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                          ),
+                          onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -324,8 +309,18 @@ class _RegistrationPageState extends State<RegistrationPage> {
                         ),
                       ),
                       validator: (value) {
-                        if (value?.isEmpty ?? true) return 'Please enter a password';
-                        if (value!.length < 6) return 'Password must be at least 6 characters';
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter a password';
+                        }
+                        if (value.length < 6) {
+                          return 'Password must be at least 6 characters';
+                        }
+                        if (!value.contains(RegExp(r'[A-Z]'))) {
+                          return 'Password must contain at least one uppercase letter';
+                        }
+                        if (!value.contains(RegExp(r'[0-9]'))) {
+                          return 'Password must contain at least one number';
+                        }
                         return null;
                       },
                     ),
@@ -335,26 +330,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                       keyboardType: TextInputType.phone,
                       decoration: InputDecoration(
                         labelText: 'Phone Number',
-                        prefixIcon: const Icon(Icons.phone_outlined),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey[300]!),
-                        ),
-                      ),
-                      validator: (value) => 
-                          value?.isEmpty ?? true ? 'Please enter your phone number' : null,
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _ageController,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: 'Age',
-                        hintText: '14-100',
-                        prefixIcon: const Icon(Icons.calendar_today_outlined),
+                        prefixIcon: const Icon(Icons.phone),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -364,11 +340,44 @@ class _RegistrationPageState extends State<RegistrationPage> {
                         ),
                       ),
                       validator: (value) {
-                        if (value?.isEmpty ?? true) return 'Please enter your age';
-                        final age = int.tryParse(value!);
-                        if (age == null) return 'Please enter a valid number';
-                        if (age < 14) return 'You must be at least 14 years old';
-                        if (age > 100) return 'Age cannot be more than 100';
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter your phone number';
+                        }
+                        if (!RegExp(r'^\d{10}$').hasMatch(value)) {
+                          return 'Please enter a valid 10-digit phone number';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _ageController,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: 'Age',
+                        prefixIcon: const Icon(Icons.calendar_today),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter your age';
+                        }
+                        final age = int.tryParse(value);
+                        if (age == null) {
+                          return 'Please enter a valid number';
+                        }
+                        if (age < 13) {
+                          return 'You must be at least 13 years old';
+                        }
+                        if (age > 120) {
+                          return 'Please enter a valid age';
+                        }
                         return null;
                       },
                     ),
@@ -398,7 +407,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                     ),
                     const SizedBox(height: 32),
                     ElevatedButton(
-                      onPressed: _isLoading ? null : _registerUser,
+                      onPressed: _isLoading ? null : _register,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Theme.of(context).primaryColor,
                         foregroundColor: Colors.white,

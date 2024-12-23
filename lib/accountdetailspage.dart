@@ -18,46 +18,68 @@ class AccountDetailsPage extends StatefulWidget {
 }
 
 class _AccountDetailsPageState extends State<AccountDetailsPage> {
-  final FirestoreService _firestoreService = FirestoreService();
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirestoreService _firestoreService = FirestoreService();
   final ImagePicker _picker = ImagePicker();
-  
-  String? _currentProfileImage;
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _ageController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  String _selectedGender = '';
-  bool _isEditing = false;
+  final _formKey = GlobalKey<FormState>();
   bool _isLoading = true;
+  String? _currentProfileImage;
+
+  late TextEditingController _nameController;
+  late TextEditingController _emailController;
+  late TextEditingController _phoneController;
+  late TextEditingController _ageController;
+  String? _gender;
 
   @override
   void initState() {
     super.initState();
+    _nameController = TextEditingController();
+    _emailController = TextEditingController();
+    _phoneController = TextEditingController();
+    _ageController = TextEditingController();
     _loadUserData();
   }
 
   Future<void> _loadUserData() async {
     setState(() => _isLoading = true);
     try {
-      final user = _auth.currentUser;
-      if (user != null) {
-        final userData = await _firestoreService.getUserProfile(user.uid);
-        if (userData != null) {
+      final userId = _auth.currentUser?.uid;
+      if (userId != null) {
+        // Debug print
+        print('Fetching data for user: $userId');
+        
+        final userData = await _firestoreService.getUserProfile(userId);
+        
+        // Debug print
+        print('Fetched user data: $userData');
+
+        if (mounted && userData != null) {
           setState(() {
-            _nameController.text = userData[UserFields.name] ?? '';
-            _emailController.text = userData[UserFields.email] ?? '';
-            _phoneController.text = userData[UserFields.phone] ?? '';
+            _nameController.text = userData[UserFields.name]?.toString() ?? '';
+            _emailController.text = userData[UserFields.email]?.toString() ?? '';
+            _phoneController.text = userData[UserFields.phone]?.toString() ?? '';
             _ageController.text = userData[UserFields.age]?.toString() ?? '';
-            _selectedGender = userData[UserFields.gender] ?? '';
+            _gender = userData[UserFields.gender]?.toString();
             _currentProfileImage = userData[UserFields.profileImage];
+            // Debug prints
+            print('Name: ${_nameController.text}');
+            print('Email: ${_emailController.text}');
+            print('Phone: ${_phoneController.text}');
+            print('Age: ${_ageController.text}');
+            print('Gender: $_gender');
           });
         }
       }
     } catch (e) {
       print('Error loading user data: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading profile: $e')),
+      );
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -78,7 +100,7 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
             UserFields.name: _nameController.text,
             UserFields.phone: _phoneController.text,
             UserFields.age: age,
-            UserFields.gender: _selectedGender,
+            UserFields.gender: _gender,
           },
           isAdmin,
         );
@@ -273,7 +295,7 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
                                   },
                                 ),
                                 const SizedBox(height: 16),
-                                _buildDropdownField('Gender', _selectedGender, validator: (value) {
+                                _buildDropdownField('Gender', _gender, validator: (value) {
                                   if (value?.isEmpty ?? true) return 'Please select a gender';
                                   return null;
                                 }),
@@ -427,9 +449,9 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
     );
   }
 
-  Widget _buildDropdownField(String label, String value, {required String? Function(dynamic value) validator}) {
+  Widget _buildDropdownField(String label, String? value, {required String? Function(dynamic value) validator}) {
     return DropdownButtonFormField<String>(
-      value: value.isNotEmpty ? value : null,
+      value: value,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: const Icon(Icons.person_outline),
@@ -459,7 +481,7 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
           .toList(),
       onChanged: (newValue) {
         setState(() {
-          _selectedGender = newValue!;
+          _gender = newValue!;
         });
       },
     );

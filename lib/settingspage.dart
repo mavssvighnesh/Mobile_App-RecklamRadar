@@ -35,22 +35,45 @@ class _SettingsPageState extends State<SettingsPage> {
     try {
       final user = _auth.currentUser;
       if (user != null) {
+        // Get user profile data from Firestore
         final userData = await _firestoreService.getUserProfile(user.uid);
-        if (userData != null) {
+        
+        if (mounted && userData != null) {
           setState(() {
-            _userName = userData[UserFields.name] ?? '';
-            _userEmail = userData[UserFields.email] ?? '';
+            _userName = userData[UserFields.name] ?? 'No Name';
+            _userEmail = userData[UserFields.email] ?? user.email ?? 'No Email';
             _profileImage = userData[UserFields.profileImage];
-            _selectedLanguage = userData['language'] ?? 'English';
-            _selectedCurrency = userData['currency'] ?? 'SEK';
-            _isDarkMode = userData['darkMode'] ?? false;
+            
+            // Print for debugging
+            print('Loaded User Data:');
+            print('Name: $_userName');
+            print('Email: $_userEmail');
+            print('Profile Image: $_profileImage');
+          });
+        } else {
+          print('No user data found in Firestore');
+          // Use Firebase Auth data as fallback
+          setState(() {
+            _userName = user.displayName ?? 'No Name';
+            _userEmail = user.email ?? 'No Email';
+            _profileImage = user.photoURL;
           });
         }
+      } else {
+        print('No authenticated user found');
       }
     } catch (e) {
       print('Error loading user data: $e');
+      // Show error message to user
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading profile: $e')),
+        );
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -120,18 +143,44 @@ class _SettingsPageState extends State<SettingsPage> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
-                                  CircleAvatar(
-                                    radius: 60,
-                                    backgroundImage: _profileImage != null
-                                        ? NetworkImage(_profileImage!)
-                                        : null,
-                                    child: _profileImage == null
-                                        ? const Icon(Icons.person, size: 60)
-                                        : null,
+                                  GestureDetector(
+                                    onTap: () {
+                                      // Add image picker functionality here if needed
+                                    },
+                                    child: Stack(
+                                      children: [
+                                        CircleAvatar(
+                                          radius: 60,
+                                          backgroundColor: Colors.grey[200],
+                                          backgroundImage: _profileImage != null && _profileImage!.isNotEmpty
+                                              ? NetworkImage(_profileImage!)
+                                              : null,
+                                          child: _profileImage == null || _profileImage!.isEmpty
+                                              ? const Icon(Icons.person, size: 60, color: Colors.grey)
+                                              : null,
+                                        ),
+                                        Positioned(
+                                          bottom: 0,
+                                          right: 0,
+                                          child: Container(
+                                            padding: const EdgeInsets.all(4),
+                                            decoration: const BoxDecoration(
+                                              color: Colors.white,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: Icon(
+                                              Icons.camera_alt,
+                                              size: 20,
+                                              color: Theme.of(context).colorScheme.primary,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                   const SizedBox(height: 16),
                                   Text(
-                                    _userName,
+                                    _userName.isNotEmpty ? _userName : 'No Name',
                                     style: const TextStyle(
                                       fontSize: 20,
                                       fontWeight: FontWeight.bold,
@@ -140,7 +189,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    _userEmail,
+                                    _userEmail.isNotEmpty ? _userEmail : 'No Email',
                                     style: TextStyle(
                                       fontSize: 16,
                                       color: Colors.grey[700],

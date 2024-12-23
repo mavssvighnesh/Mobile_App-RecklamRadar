@@ -7,6 +7,9 @@ import 'passwordpage.dart';
 import 'admin_home_screen.dart';
 import 'package:recklamradar/providers/theme_provider.dart';
 import 'package:recklamradar/utils/message_utils.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:recklamradar/services/firestore_service.dart';
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -15,7 +18,8 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final AuthService _auth = AuthService();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirestoreService _firestoreService = FirestoreService();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _isPasswordVisible = false;
@@ -24,18 +28,52 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _signIn() async {
     setState(() => _isLoading = true);
     try {
-      await _auth.signInWithEmailAndPassword(
+      // Sign in with Firebase
+      final credential = await _auth.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
-      if (mounted) {
+
+      if (!mounted) return;
+
+      final userId = credential.user?.uid;
+      if (userId != null) {
+        // Create user profile if it doesn't exist
+        final userProfile = await _firestoreService.getUserProfile(userId);
+        if (userProfile == null) {
+          await _firestoreService.createUserProfile(userId, {
+            'email': _emailController.text.trim(),
+            'name': credential.user?.displayName ?? 'User',
+            'isAdmin': _emailController.text.trim().toLowerCase().endsWith('@rr.com'),
+          });
+        }
+
+        final isAdmin = userProfile?['isAdmin'] ?? 
+                       _emailController.text.trim().toLowerCase().endsWith('@rr.com');
+
         showMessage(context, "Successfully logged in!", true);
-        // Navigate to home screen
+
+        // Navigate based on user role
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => isAdmin 
+              ? const AdminHomeScreen() 
+              : const UserHomeScreen(),
+          ),
+        );
       }
+    } on FirebaseAuthException catch (e) {
+      String message = 'An error occurred';
+      if (e.code == 'user-not-found') {
+        message = 'No user found with this email';
+      } else if (e.code == 'wrong-password') {
+        message = 'Wrong password provided';
+      }
+      showMessage(context, message, false);
     } catch (e) {
-      if (mounted) {
-        showMessage(context, "Login failed: $e", false);
-      }
+      showMessage(context, "Login failed: $e", false);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
