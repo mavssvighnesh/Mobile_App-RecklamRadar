@@ -9,6 +9,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 import 'package:recklamradar/providers/theme_provider.dart';
 import 'package:recklamradar/utils/message_utils.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AccountDetailsPage extends StatefulWidget {
   const AccountDetailsPage({super.key});
@@ -30,6 +31,8 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
   late TextEditingController _phoneController;
   late TextEditingController _ageController;
   String? _gender;
+
+  final _firestore = FirebaseFirestore.instance;
 
   @override
   void initState() {
@@ -162,6 +165,80 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
       }
     } finally {
       setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _deleteAccount() async {
+    try {
+      setState(() => _isLoading = true);
+      final user = _auth.currentUser;
+      
+      if (user != null) {
+        final userId = user.uid;
+        final isAdmin = user.email?.toLowerCase().endsWith('@rr.com') ?? false;
+        
+        // 1. Delete profile image from Storage if exists
+        if (_currentProfileImage != null) {
+          try {
+            final storageRef = FirebaseStorage.instance.refFromURL(_currentProfileImage!);
+            await storageRef.delete();
+            print('Profile image deleted successfully');
+          } catch (e) {
+            print('Error deleting profile image: $e');
+          }
+        }
+
+        // 2. Delete user data from Firestore
+        try {
+          // Delete from appropriate collection (users or admins)
+          final collection = isAdmin ? 'admins' : 'users';
+          await _firestore.collection(collection).doc(userId).delete();
+          
+          // Delete user's favorites
+          final favoritesSnapshot = await _firestore
+              .collection('favorites')
+              .where('userId', isEqualTo: userId)
+              .get();
+          
+          for (var doc in favoritesSnapshot.docs) {
+            await doc.reference.delete();
+          }
+          
+          // Delete user's cart items
+          final cartSnapshot = await _firestore
+              .collection('carts')
+              .where('userId', isEqualTo: userId)
+              .get();
+              
+          for (var doc in cartSnapshot.docs) {
+            await doc.reference.delete();
+          }
+          
+          print('User data deleted successfully');
+        } catch (e) {
+          print('Error deleting user data: $e');
+        }
+
+        // 3. Delete Firebase Auth account
+        await user.delete();
+        
+        if (mounted) {
+          showMessage(context, 'Account deleted successfully', true);
+          // Navigate to login screen
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
+            (route) => false,
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        showMessage(context, 'Error deleting account: $e', false);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -515,7 +592,7 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
           ),
           padding: const EdgeInsets.all(16),
           child: const Text(
-            'Are you sure you want to delete your account? This action cannot be undone.',
+            'Are you sure you want to delete your account? This action cannot be undone and will delete all your data.',
             style: TextStyle(fontSize: 16),
           ),
         ),
@@ -525,28 +602,15 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () async {
-              try {
-                await _auth.currentUser?.delete();
-                if (mounted) {
-                  showMessage(context, "Account deleted successfully", true);
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(builder: (context) => const LoginScreen()),
-                    (route) => false,
-                  );
-                }
-              } catch (e) {
-                if (mounted) {
-                  showMessage(context, "Error deleting account: $e", false);
-                }
-              }
-            },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Delete'),
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteAccount();
+            },
+            child: const Text('Delete Account'),
           ),
         ],
       ),
