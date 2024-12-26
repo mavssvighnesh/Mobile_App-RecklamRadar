@@ -16,6 +16,7 @@ import 'models/store.dart';
 import 'models/deal.dart';
 import 'utils/size_config.dart';
 import 'widgets/store_card.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class UserHomeScreen extends StatefulWidget {
   const UserHomeScreen({super.key});
@@ -148,97 +149,328 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final FirestoreService _firestoreService = FirestoreService();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   bool isSearchActive = false;
   final TextEditingController searchController = TextEditingController();
   List<Map<String, dynamic>> searchResults = [];
-  
-  bool get isFriday => DateTime.now().weekday == DateTime.friday;
-  
-  String get thisWeekDates {
-    final now = DateTime.now();
-    final monday = now.subtract(Duration(days: now.weekday - 1));
-    final sunday = monday.add(const Duration(days: 6));
-    return '${DateFormat('MMM d').format(monday)} - ${DateFormat('MMM d').format(sunday)}';
-  }
-  
-  String get nextWeekDates {
-    final now = DateTime.now();
-    final nextMonday = now.add(Duration(days: 8 - now.weekday));
-    final nextSunday = nextMonday.add(const Duration(days: 6));
-    return '${DateFormat('MMM d').format(nextMonday)} - ${DateFormat('MMM d').format(nextSunday)}';
-  }
-
-  Future<void> performSearch(String query) async {
-    if (query.isEmpty) {
-      setState(() {
-        searchResults.clear();
-      });
-      return;
-    }
-
-    try {
-      final storeSnapshot = await _firestoreService.searchStores(query);
-      final stores = storeSnapshot.docs.map((doc) {
-        final store = Store.fromFirestore(doc);
-        return {
-          "name": store.name,
-          "image": store.imageUrl,
-          "isStore": true,
-        };
-      }).toList();
-
-      setState(() {
-        searchResults = stores;
-      });
-    } catch (e) {
-      print('Error performing search: $e');
-    }
-  }
+  List<Map<String, dynamic>> stores = [];
+  bool isLoading = true;
+  String userName = '';
 
   @override
-  void dispose() {
-    searchController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    loadStores();
+    loadUserName();
+  }
+
+  Future<void> loadUserName() async {
+    try {
+      final userId = _auth.currentUser?.uid;
+      if (userId != null) {
+        final userData = await _firestoreService.getUserProfile(userId);
+        if (mounted && userData != null) {
+          setState(() {
+            userName = userData['name'] ?? 'User';
+          });
+        }
+      }
+    } catch (e) {
+      print('Error loading user name: $e');
+    }
+  }
+
+  Future<void> loadStores() async {
+    try {
+      setState(() => isLoading = true);
+      
+      final storesList = [
+        {
+          "id": "1",
+          "name": "City Gross",
+          "image": "assets/images/stores/city_gross.png",
+          "description": "City Gross Supermarket",
+        },
+        {
+          "id": "2",
+          "name": "Willys",
+          "image": "assets/images/stores/willys.png",
+          "description": "Willys Supermarket",
+        },
+        {
+          "id": "3",
+          "name": "Coop",
+          "image": "assets/images/stores/coop.png",
+          "description": "Coop Supermarket",
+        },
+        {
+          "id": "4",
+          "name": "Xtra",
+          "image": "assets/images/stores/xtra.png",
+          "description": "Xtra Supermarket",
+        },
+        {
+          "id": "5",
+          "name": "JYSK",
+          "image": "assets/images/stores/jysk.png",
+          "description": "JYSK Store",
+        },
+        {
+          "id": "6",
+          "name": "Rusta",
+          "image": "assets/images/stores/rusta.png",
+          "description": "Rusta Store",
+        },
+        {
+          "id": "7",
+          "name": "Lidl",
+          "image": "assets/images/stores/lidl.png",
+          "description": "Lidl Supermarket",
+        },
+        {
+          "id": "8",
+          "name": "Maxi",
+          "image": "assets/images/stores/maxi.png",
+          "description": "Maxi ICA Stormarknad",
+        },
+      ];
+
+      setState(() {
+        stores = storesList;
+        isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading stores: $e');
+      setState(() => isLoading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return Container(
-            constraints: BoxConstraints(
-              minHeight: constraints.maxHeight,
-              minWidth: constraints.maxWidth,
-            ),
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  // Your existing content
-                  if (isFriday) 
-                    Container(
-                      // Your Friday container content
-                    ),
-                  Container(
-                    height: constraints.maxHeight * 0.8,
-                    child: GridView.builder(
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
-                        crossAxisSpacing: SizeConfig.blockSizeHorizontal * 2,
-                        mainAxisSpacing: SizeConfig.blockSizeVertical * 2,
-                      ),
-                      itemCount: searchResults.length,
-                      itemBuilder: (context, index) {
-                        final store = searchResults[index];
-                        return StoreCard(store: store);
-                      },
-                    ),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: ThemeProvider.subtleGradient,
+        ),
+        child: Column(
+          children: [
+            // Enhanced App Bar
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              decoration: BoxDecoration(
+                gradient: ThemeProvider.cardGradient,
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(24),
+                  bottomRight: Radius.circular(24),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
+              child: SafeArea(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Welcome Back!',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.white70,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              userName,
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            isSearchActive ? Icons.close : Icons.search,
+                            color: Colors.white,
+                            size: 28,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              isSearchActive = !isSearchActive;
+                              if (!isSearchActive) {
+                                searchController.clear();
+                                // Reset search results
+                              }
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                    if (isSearchActive) ...[
+                      const SizedBox(height: 20),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(15),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                        child: TextField(
+                          controller: searchController,
+                          autofocus: true,
+                          decoration: InputDecoration(
+                            hintText: 'Search stores...',
+                            hintStyle: TextStyle(
+                              color: Colors.grey[400],
+                              fontSize: 16,
+                            ),
+                            prefixIcon: Icon(
+                              Icons.search,
+                              color: Theme.of(context).primaryColor,
+                            ),
+                            suffixIcon: IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                searchController.clear();
+                                // Reset search results
+                              },
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 15,
+                            ),
+                          ),
+                          onChanged: (value) {
+                            // Implement search functionality
+                            // Filter stores based on search query
+                            setState(() {
+                              if (value.isEmpty) {
+                                searchResults = stores;
+                              } else {
+                                searchResults = stores
+                                    .where((store) => store["name"]!
+                                        .toLowerCase()
+                                        .contains(value.toLowerCase()))
+                                    .toList();
+                              }
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ),
-          );
-        },
+
+            // Stores Grid
+            Expanded(
+              child: isLoading
+                  ? Center(
+                      child: CircularProgressIndicator(
+                        color: Theme.of(context).primaryColor,
+                      ),
+                    )
+                  : GridView.builder(
+                      padding: const EdgeInsets.all(20),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        childAspectRatio: 0.85,
+                        crossAxisSpacing: 20,
+                        mainAxisSpacing: 20,
+                      ),
+                      itemCount: isSearchActive ? searchResults.length : stores.length,
+                      itemBuilder: (context, index) {
+                        final store = isSearchActive ? searchResults[index] : stores[index];
+                        return _buildStoreCard(store);
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStoreCard(Map<String, dynamic> store) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            spreadRadius: 1,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            // Navigate to store details
+          },
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    child: Image.asset(
+                      store["image"]!,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  store["name"]!,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  store["description"]!,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
