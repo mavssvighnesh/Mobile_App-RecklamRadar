@@ -301,4 +301,30 @@ class FirestoreService {
   Future<void> removeFromCart(String cartItemId) async {
     await _firestore.collection('carts').doc(cartItemId).delete();
   }
+
+  Future<List<Map<String, dynamic>>> getStoreItems(String storeId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('stores')
+          .doc(storeId)
+          .collection('items')
+          .get();
+
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'id': doc.id,
+          'name': data['name'] ?? '',
+          'category': data['category'] ?? '',
+          'price': data['price'] ?? 0.0,
+          'salePrice': data['salePrice'] ?? 0.0,
+          'imageUrl': data['imageUrl'] ?? '',
+          'quantity': 0,
+        };
+      }).toList();
+    } catch (e) {
+      print('Error getting store items: $e');
+      return [];
+    }
+  }
 } 
