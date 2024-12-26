@@ -116,18 +116,81 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
   }
 
   Future<void> _pickImage() async {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_camera),
+                title: const Text('Take a Photo'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final image = await _picker.pickImage(source: ImageSource.camera);
+                  if (image != null) {
+                    _uploadProfileImage(image.path);
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Choose from Gallery'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final image = await _picker.pickImage(source: ImageSource.gallery);
+                  if (image != null) {
+                    _uploadProfileImage(image.path);
+                  }
+                },
+              ),
+              if (_currentProfileImage != null)
+                ListTile(
+                  leading: const Icon(Icons.delete, color: Colors.red),
+                  title: const Text('Remove Photo', style: TextStyle(color: Colors.red)),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await _removeProfileImage();
+                  },
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _removeProfileImage() async {
     try {
-      final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-      if (pickedFile != null) {
-        await _uploadProfileImage(File(pickedFile.path));
-        showMessage(context, "Profile picture updated successfully", true);
+      setState(() => _isLoading = true);
+      
+      if (_currentProfileImage != null) {
+        // Delete from Storage
+        final storageRef = FirebaseStorage.instance.refFromURL(_currentProfileImage!);
+        await storageRef.delete();
+        
+        // Update Firestore
+        final user = _auth.currentUser;
+        if (user != null) {
+          await _firestoreService.updateUserProfile(
+            user.uid,
+            {'profileImage': null},
+            user.email?.toLowerCase().endsWith('@rr.com') ?? false,
+          );
+        }
+        
+        setState(() {
+          _currentProfileImage = null;
+        });
       }
     } catch (e) {
-      showMessage(context, "Error updating profile picture: $e", false);
+      showMessage(context, 'Error removing profile photo: $e', false);
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _uploadProfileImage(File imageFile) async {
+  Future<void> _uploadProfileImage(String imagePath) async {
     try {
       setState(() => _isLoading = true);
       
@@ -136,7 +199,7 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
           .child('profile_images')
           .child('${_auth.currentUser!.uid}_${DateTime.now().millisecondsSinceEpoch}.jpg');
       
-      await ref.putFile(imageFile);
+      await ref.putFile(File(imagePath));
       final imageUrl = await ref.getDownloadURL();
 
       // Update Auth profile

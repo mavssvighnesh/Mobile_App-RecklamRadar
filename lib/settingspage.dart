@@ -144,53 +144,26 @@ class _SettingsPageState extends State<SettingsPage> {
                             children: [
                               GestureDetector(
                                 onTap: () {
-                                  // Add image picker functionality here if needed
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const AccountDetailsPage(),
+                                    ),
+                                  );
                                 },
-                                child: Stack(
-                                  children: [
-                                    CircleAvatar(
-                                      radius: SizeConfig.blockSizeVertical * 8,
-                                      backgroundColor: Colors.grey[200],
-                                      child: _profileImage != null && _profileImage!.isNotEmpty
-                                        ? ClipRRect(
-                                            borderRadius: BorderRadius.circular(SizeConfig.blockSizeVertical * 8),
-                                            child: Image.network(
-                                              _profileImage!,
-                                              width: SizeConfig.blockSizeVertical * 16,
-                                              height: SizeConfig.blockSizeVertical * 16,
-                                              fit: BoxFit.cover,
-                                              errorBuilder: (context, error, stackTrace) {
-                                                return Icon(
-                                                  Icons.person,
-                                                  size: SizeConfig.blockSizeVertical * 8,
-                                                  color: Colors.grey,
-                                                );
-                                              },
-                                            ),
-                                          )
-                                        : Icon(
-                                            Icons.person,
-                                            size: SizeConfig.blockSizeVertical * 8,
-                                            color: Colors.grey,
-                                          ),
-                                    ),
-                                    Positioned(
-                                      bottom: 0,
-                                      right: 0,
-                                      child: Container(
-                                        padding: const EdgeInsets.all(4),
-                                        decoration: const BoxDecoration(
-                                          color: Colors.white,
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: Icon(
-                                          Icons.camera_alt,
-                                          size: 20,
-                                          color: Theme.of(context).colorScheme.primary,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                                child: CircleAvatar(
+                                  radius: SizeConfig.blockSizeVertical * 8,
+                                  backgroundColor: Colors.grey[200],
+                                  backgroundImage: _profileImage != null 
+                                    ? NetworkImage(_profileImage!)
+                                    : null,
+                                  child: _profileImage == null
+                                    ? Icon(
+                                        Icons.person,
+                                        size: SizeConfig.blockSizeVertical * 8,
+                                        color: Colors.grey[400],
+                                      )
+                                    : null,
                                 ),
                               ),
                               const SizedBox(height: 16),
