@@ -285,25 +285,86 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> {
             showMessage(context, "Store items refreshed", true);
           }
         },
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            SliverAppBar(
-              // ... existing app bar
-            ),
-            SliverToBoxAdapter(
-              child: _buildSearchBar(),
-            ),
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  final item = filteredItems[index];
-                  return _buildItemCard(item, index);
-                },
-                childCount: filteredItems.length,
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: ThemeProvider.subtleGradient,
+          ),
+          child: Column(
+            children: [
+              // App Bar
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  gradient: ThemeProvider.cardGradient,
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(24),
+                    bottomRight: Radius.circular(24),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: SafeArea(
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.arrow_back, color: Colors.white),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                          Text(
+                            widget.storeName,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const Spacer(),
+                          IconButton(
+                            icon: Icon(
+                              isSearchActive ? Icons.close : Icons.search,
+                              color: Colors.white,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                isSearchActive = !isSearchActive;
+                                if (!isSearchActive) {
+                                  searchController.clear();
+                                  filteredItems = items;
+                                }
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                      if (isSearchActive) _buildSearchBar(),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ],
+
+              // Items List
+              Expanded(
+                child: isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : ListView.builder(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.all(16),
+                        itemCount: filteredItems.length,
+                        itemBuilder: (context, index) {
+                          final item = filteredItems[index];
+                          return _buildItemCard(item, index);
+                        },
+                      ),
+              ),
+            ],
+          ),
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -314,10 +375,7 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> {
               builder: (context) => ItemAddingPage(
                 storeId: widget.storeId,
                 storeName: widget.storeName,
-                onItemAdded: () {
-                  // Reload items when new item is added
-                  loadStoreItems();
-                },
+                onItemAdded: loadStoreItems,
               ),
             ),
           );

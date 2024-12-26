@@ -334,207 +334,216 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
     return Scaffold(
       body: RefreshIndicator(
         onRefresh: _loadUserData,
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            SliverAppBar(
-              expandedHeight: 120,
-              floating: false,
-              pinned: true,
-              backgroundColor: Colors.transparent,
-              leading: IconButton(
-                icon: const Icon(
-                  Icons.arrow_back_ios,
-                  color: Colors.black87,
-                ),
-                onPressed: () => Navigator.pop(context),
-              ),
-              flexibleSpace: LayoutBuilder(
-                builder: (BuildContext context, BoxConstraints constraints) {
-                  final top = constraints.biggest.height;
-                  return FlexibleSpaceBar(
-                    centerTitle: false,
-                    titlePadding: EdgeInsets.only(
-                      left: top <= 80 ? 50.0 : 16.0,  // Adjust left padding based on scroll
-                      bottom: 16.0,
-                    ),
-                    title: Text(
-                      'Account Details',
-                      style: TextStyle(
-                        color: top <= 80 ? Colors.black87 : Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: top <= 80 ? 20 : 24,
-                      ),
-                    ),
-                    background: Container(
-                      decoration: BoxDecoration(
-                        gradient: ThemeProvider.cardGradient,
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    Center(
-                      child: GestureDetector(
-                        onTap: _pickImage,
-                        child: Stack(
-                          alignment: Alignment.bottomRight,
-                          children: [
-                            CircleAvatar(
-                              radius: 60,
-                              backgroundImage: _currentProfileImage != null
-                                  ? NetworkImage(_currentProfileImage!)
-                                  : null,
-                              child: _currentProfileImage == null
-                                  ? const Icon(Icons.person, size: 60)
-                                  : null,
-                            ),
-                            CircleAvatar(
-                              radius: 18,
-                              backgroundColor: theme.colorScheme.primary,
-                              child: const Icon(
-                                Icons.camera_alt,
-                                size: 18,
-                                color: Colors.white,
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: ThemeProvider.backgroundGradient,
+          ),
+          child: SafeArea(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : CustomScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    slivers: [
+                      SliverAppBar(
+                        expandedHeight: 120,
+                        floating: false,
+                        pinned: true,
+                        backgroundColor: Colors.transparent,
+                        leading: IconButton(
+                          icon: const Icon(
+                            Icons.arrow_back_ios,
+                            color: Colors.black87,
+                          ),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                        flexibleSpace: LayoutBuilder(
+                          builder: (BuildContext context, BoxConstraints constraints) {
+                            final top = constraints.biggest.height;
+                            return FlexibleSpaceBar(
+                              centerTitle: false,
+                              titlePadding: EdgeInsets.only(
+                                left: top <= 80 ? 50.0 : 16.0,
+                                bottom: 16.0,
                               ),
-                            ),
-                          ],
+                              title: Text(
+                                'Account Details',
+                                style: TextStyle(
+                                  color: top <= 80 ? Colors.black87 : Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: top <= 80 ? 20 : 24,
+                                ),
+                              ),
+                              background: Container(
+                                decoration: BoxDecoration(
+                                  gradient: ThemeProvider.cardGradient,
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 24),
-                    _buildProfileSection(
-                      context,
-                      'Personal Information',
-                      [
-                        _buildTextField(
-                          'Full Name',
-                          _nameController,
-                          Icons.person_outline,
-                        ),
-                        const SizedBox(height: 16),
-                        _buildTextField(
-                          'Email',
-                          _emailController,
-                          Icons.email_outlined,
-                          enabled: false,
-                        ),
-                        const SizedBox(height: 16),
-                        _buildTextField(
-                          'Phone',
-                          _phoneController,
-                          Icons.phone_outlined,
-                        ),
-                        const SizedBox(height: 16),
-                        _buildTextField(
-                          'Age',
-                          _ageController,
-                          Icons.calendar_today_outlined,
-                          keyboardType: TextInputType.number,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter your age';
-                            }
-
-                            // Check if it's a valid number
-                            final age = int.tryParse(value);
-                            if (age == null) {
-                              return 'Please enter a valid number';
-                            }
-
-                            // Check age range
-                            if (age < 14) {
-                              return 'You must be at least 14 years old';
-                            }
-                            if (age > 100) {
-                              return 'Age cannot be more than 100';
-                            }
-
-                            return null;
-                          },
-                          onChanged: (value) {
-                            // Remove non-numeric characters
-                            final newValue = value.replaceAll(RegExp(r'[^0-9]'), '');
-                            if (newValue != value) {
-                              _ageController.text = newValue;
-                              _ageController.selection = TextSelection.fromPosition(
-                                TextPosition(offset: newValue.length),
-                              );
-                            }
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        _buildDropdownField('Gender', _gender, validator: (value) {
-                          if (value?.isEmpty ?? true) return 'Please select a gender';
-                          return null;
-                        }),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: _updateUserData,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: theme.colorScheme.primary,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                            ),
-                            child: const Text('Save Changes'),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const ChangePasswordPage(),
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            children: [
+                              Center(
+                                child: GestureDetector(
+                                  onTap: _pickImage,
+                                  child: Stack(
+                                    alignment: Alignment.bottomRight,
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 60,
+                                        backgroundImage: _currentProfileImage != null
+                                            ? NetworkImage(_currentProfileImage!)
+                                            : null,
+                                        child: _currentProfileImage == null
+                                            ? const Icon(Icons.person, size: 60)
+                                            : null,
+                                      ),
+                                      CircleAvatar(
+                                        radius: 18,
+                                        backgroundColor: theme.colorScheme.primary,
+                                        child: const Icon(
+                                          Icons.camera_alt,
+                                          size: 18,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              );
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: theme.colorScheme.primary,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                            ),
-                            child: const Text('Change Password'),
+                              ),
+                              const SizedBox(height: 24),
+                              _buildProfileSection(
+                                context,
+                                'Personal Information',
+                                [
+                                  _buildTextField(
+                                    'Full Name',
+                                    _nameController,
+                                    Icons.person_outline,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  _buildTextField(
+                                    'Email',
+                                    _emailController,
+                                    Icons.email_outlined,
+                                    enabled: false,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  _buildTextField(
+                                    'Phone',
+                                    _phoneController,
+                                    Icons.phone_outlined,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  _buildTextField(
+                                    'Age',
+                                    _ageController,
+                                    Icons.calendar_today_outlined,
+                                    keyboardType: TextInputType.number,
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Please enter your age';
+                                      }
+
+                                      // Check if it's a valid number
+                                      final age = int.tryParse(value);
+                                      if (age == null) {
+                                        return 'Please enter a valid number';
+                                      }
+
+                                      // Check age range
+                                      if (age < 14) {
+                                        return 'You must be at least 14 years old';
+                                      }
+                                      if (age > 100) {
+                                        return 'Age cannot be more than 100';
+                                      }
+
+                                      return null;
+                                    },
+                                    onChanged: (value) {
+                                      // Remove non-numeric characters
+                                      final newValue = value.replaceAll(RegExp(r'[^0-9]'), '');
+                                      if (newValue != value) {
+                                        _ageController.text = newValue;
+                                        _ageController.selection = TextSelection.fromPosition(
+                                          TextPosition(offset: newValue.length),
+                                        );
+                                      }
+                                    },
+                                  ),
+                                  const SizedBox(height: 16),
+                                  _buildDropdownField('Gender', _gender, validator: (value) {
+                                    if (value?.isEmpty ?? true) return 'Please select a gender';
+                                    return null;
+                                  }),
+                                ],
+                              ),
+                              const SizedBox(height: 24),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: ElevatedButton(
+                                      onPressed: _updateUserData,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: theme.colorScheme.primary,
+                                        padding: const EdgeInsets.symmetric(vertical: 16),
+                                      ),
+                                      child: const Text('Save Changes'),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 24),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: ElevatedButton(
+                                      onPressed: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => const ChangePasswordPage(),
+                                          ),
+                                        );
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: theme.colorScheme.primary,
+                                        padding: const EdgeInsets.symmetric(vertical: 16),
+                                      ),
+                                      child: const Text('Change Password'),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: ElevatedButton(
+                                      onPressed: () {
+                                        _showDeleteAccountDialog();
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.red,
+                                        padding: const EdgeInsets.symmetric(vertical: 16),
+                                      ),
+                                      child: const Text('Delete Account'),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () {
-                              _showDeleteAccountDialog();
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                            ),
-                            child: const Text('Delete Account'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
+                      ),
+                    ],
+                  ),
+          ),
         ),
       ),
     );
