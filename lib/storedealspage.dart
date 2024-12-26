@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
+import 'package:recklamradar/utils/size_config.dart';
 
 
 
@@ -228,17 +229,28 @@ class _StoreDealsPageState extends State<StoreDealsPage> {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     // Product Image
-                    Padding(
+                    Container(
+                      width: SizeConfig.blockSizeHorizontal * 25,
+                      height: SizeConfig.blockSizeVertical * 12,
                       padding: const EdgeInsets.all(8.0),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: Image.asset(
+                        child: Image.network(
                           item["image"]!,
-                          height: 60,
-                          width: 60,
-                          fit: BoxFit.cover,
+                          fit: BoxFit.contain,
                           errorBuilder: (context, error, stackTrace) {
                             return const Icon(Icons.image_not_supported, size: 60);
+                          },
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Center(
+                              child: CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded / 
+                                      loadingProgress.expectedTotalBytes!
+                                    : null,
+                              ),
+                            );
                           },
                         ),
                       ),

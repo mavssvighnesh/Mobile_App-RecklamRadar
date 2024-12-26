@@ -257,24 +257,41 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
               : CustomScrollView(
                   slivers: [
                     SliverAppBar(
-                      expandedHeight: 200,
+                      expandedHeight: 120,
                       floating: false,
                       pinned: true,
                       backgroundColor: Colors.transparent,
-                      flexibleSpace: FlexibleSpaceBar(
-                        title: Text(
-                          'Account Details',
-                          style: TextStyle(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.bold,
-                          ),
+                      leading: IconButton(
+                        icon: const Icon(
+                          Icons.arrow_back_ios,
+                          color: Colors.black87,
                         ),
-                        titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
-                        background: Container(
-                          decoration: BoxDecoration(
-                            gradient: ThemeProvider.cardGradient,
-                          ),
-                        ),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                      flexibleSpace: LayoutBuilder(
+                        builder: (BuildContext context, BoxConstraints constraints) {
+                          final top = constraints.biggest.height;
+                          return FlexibleSpaceBar(
+                            centerTitle: false,
+                            titlePadding: EdgeInsets.only(
+                              left: top <= 80 ? 50.0 : 16.0,  // Adjust left padding based on scroll
+                              bottom: 16.0,
+                            ),
+                            title: Text(
+                              'Account Details',
+                              style: TextStyle(
+                                color: top <= 80 ? Colors.black87 : Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: top <= 80 ? 20 : 24,
+                              ),
+                            ),
+                            background: Container(
+                              decoration: BoxDecoration(
+                                gradient: ThemeProvider.cardGradient,
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ),
                     SliverToBoxAdapter(

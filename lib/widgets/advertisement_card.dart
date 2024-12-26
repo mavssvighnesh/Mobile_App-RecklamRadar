@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import '../models/advertisement.dart';
+import '../utils/size_config.dart';
 
 class AdvertisementCard extends StatelessWidget {
   final Advertisement advertisement;
@@ -15,8 +16,8 @@ class AdvertisementCard extends StatelessWidget {
     
     return Container(
       margin: EdgeInsets.symmetric(
-        horizontal: size.width * 0.04,
-        vertical: size.height * 0.01,
+        horizontal: SizeConfig.blockSizeHorizontal * 4,
+        vertical: SizeConfig.blockSizeVertical * 1,
       ),
       decoration: BoxDecoration(
         gradient: LinearGradient(
