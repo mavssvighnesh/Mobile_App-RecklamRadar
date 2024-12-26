@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:recklamradar/models/deal.dart';
-import 'package:recklamradar/utils/message_utils.dart';
-import 'package:recklamradar/services/firestore_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:recklamradar/services/firestore_service.dart';
+import 'package:recklamradar/providers/theme_provider.dart';
+import 'package:recklamradar/utils/message_utils.dart';
 
 class CartPage extends StatefulWidget {
   const CartPage({super.key});
@@ -41,47 +41,115 @@ class _CartPageState extends State<CartPage> {
     return total;
   }
 
-  void updatePickedStatus(String store, int index) {
+  void _removeItem(String store, Map<String, dynamic> item) {
     setState(() {
-      cartItems[store]![index]["picked"] =
-          !cartItems[store]![index]["picked"]; // Toggle picked status
-    });
-  }
-
-  void deleteItem(String store, int index) {
-    setState(() {
-      cartItems[store]!.removeAt(index);
-      if (cartItems[store]!.isEmpty) {
-        cartItems.remove(store); // Remove store section if no items are left
+      cartItems[store]?.remove(item);
+      if (cartItems[store]?.isEmpty ?? false) {
+        cartItems.remove(store);
       }
     });
+    showMessage(context, "${item['name']} removed from cart", true);
   }
 
-  void editItemQuantity(String store, int index, int newQuantity) {
-    setState(() {
-      cartItems[store]![index]["quantity"] = newQuantity;
-    });
-  }
-
-  Future<void> addToCart(Deal deal) async {
-    try {
-      final userId = _auth.currentUser?.uid;
-      if (userId != null) {
-        await _firestoreService.addToCart(userId, deal);
-        showMessage(context, "Added to cart successfully", true);
-      }
-    } catch (e) {
-      showMessage(context, "Error adding to cart: $e", false);
-    }
-  }
-
-  Future<void> removeFromCart(String cartItemId) async {
-    try {
-      await _firestoreService.removeFromCart(cartItemId);
-      showMessage(context, "Removed from cart successfully", true);
-    } catch (e) {
-      showMessage(context, "Error removing from cart: $e", false);
-    }
+  void _editQuantity(String store, Map<String, dynamic> item) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        backgroundColor: Colors.white,
+        title: Text(
+          'Edit ${item['name']} Quantity',
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        content: Container(
+          decoration: BoxDecoration(
+            color: Colors.grey[50],
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: Colors.grey[200]!,
+            ),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: TextField(
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              labelText: 'New Quantity',
+              labelStyle: TextStyle(color: Theme.of(context).primaryColor),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Theme.of(context).primaryColor),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: Theme.of(context).primaryColor,
+                  width: 2,
+                ),
+              ),
+              filled: true,
+              fillColor: Colors.white,
+              prefixIcon: Icon(
+                Icons.shopping_cart,
+                color: Theme.of(context).primaryColor,
+              ),
+            ),
+            controller: TextEditingController(text: item['quantity'].toString()),
+            onChanged: (value) {
+              int? newQuantity = int.tryParse(value);
+              if (newQuantity != null && newQuantity > 0) {
+                setState(() {
+                  item['quantity'] = newQuantity;
+                });
+              }
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          Container(
+            decoration: BoxDecoration(
+              gradient: ThemeProvider.cardGradient,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                showMessage(context, "Quantity updated", true);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.transparent,
+                shadowColor: Colors.transparent,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                'Save',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -90,225 +158,264 @@ class _CartPageState extends State<CartPage> {
     double balance = (maxBudget ?? 0) - total;
 
     return Material(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return Container(
-            constraints: BoxConstraints(
-              minHeight: constraints.maxHeight,
-              minWidth: constraints.maxWidth,
-            ),
-            child: Column(
-              children: [
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: cartItems.keys.length,
-                    itemBuilder: (context, index) {
-                      final store = cartItems.keys.elementAt(index);
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: ThemeProvider.subtleGradient,
+        ),
+        child: Column(
+          children: [
+            // Budget Section
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: ThemeProvider.cardGradient,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  const Text(
+                    'Shopping Cart',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: TextField(
+                      controller: _budgetController,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: 'Set Maximum Budget (SEK)',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        prefixIcon: const Icon(Icons.account_balance_wallet),
+                      ),
+                      onChanged: (value) {
+                        setState(() {
+                          maxBudget = double.tryParse(value);
+                        });
+                      },
+                    ),
+                  ),
+                  if (maxBudget != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: balance >= 0 ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
+                          Icon(
+                            balance >= 0 ? Icons.check_circle : Icons.warning,
+                            color: balance >= 0 ? Colors.green : Colors.red,
+                          ),
+                          const SizedBox(width: 8),
                           Text(
-                            store,
-                            style: const TextStyle(
-                              fontSize: 18,
+                            'Remaining: ${balance.toStringAsFixed(2)} SEK',
+                            style: TextStyle(
+                              color: balance >= 0 ? Colors.green : Colors.red,
                               fontWeight: FontWeight.bold,
-                              color: Colors.black87,
                             ),
                           ),
-                          ...cartItems[store]!.asMap().entries.map((entry) {
-                            int index = entry.key;
-                            Map<String, dynamic> item = entry.value;
-                            return Dismissible(
-                              key: Key("${store}_${item['name']}"),
-                              direction: DismissDirection.horizontal,
-                              onDismissed: (direction) {
-                                if (direction == DismissDirection.startToEnd) {
-                                  updatePickedStatus(store, index);
-                                } else if (direction ==
-                                    DismissDirection.endToStart) {
-                                  deleteItem(store, index);
-                                }
-                              },
-                              background: Container(
-                                color: Colors.green,
-                                alignment: Alignment.centerLeft,
-                                padding: const EdgeInsets.only(left: 16),
-                                child: const Icon(Icons.check_circle, color: Colors.white),
-                              ),
-                              secondaryBackground: Container(
-                                color: Colors.red,
-                                alignment: Alignment.centerRight,
-                                padding: const EdgeInsets.only(right: 16),
-                                child: const Icon(Icons.delete, color: Colors.white),
-                              ),
-                              child: Container(
-                                margin: const EdgeInsets.only(top: 8),
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(8),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.grey.withOpacity(0.2),
-                                      blurRadius: 5,
-                                      spreadRadius: 1,
-                                      offset: const Offset(0, 3),
-                                    ),
-                                  ],
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    // Item Details
-                                    Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          item["name"],
-                                          style: const TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.black87,
-                                          ),
-                                        ),
-                                        Text(
-                                          "${item["price"]} SEK",
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: Colors.grey[700],
-                                          ),
-                                        ),
-                                        Text(
-                                          "${item["quantity"]} kg",
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: Colors.grey[500],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-
-                                    // Actions
-                                    Row(
-                                      children: [
-                                        IconButton(
-                                          icon: const Icon(Icons.edit, color: Colors.blue),
-                                          onPressed: () {
-                                            // Open dialog to edit quantity
-                                            showDialog(
-                                              context: context,
-                                              builder: (context) {
-                                                TextEditingController
-                                                    quantityController =
-                                                    TextEditingController(
-                                                        text: item["quantity"]
-                                                            .toString());
-                                                return AlertDialog(
-                                                 title: Text("Edit Quantity: ${item['name']}"),
-                                                  content: TextField(
-                                                    controller: quantityController,
-                                                    keyboardType:
-                                                        TextInputType.number,
-                                                    decoration: const InputDecoration(
-                                                      labelText: "Quantity",
-                                                      border: OutlineInputBorder(),
-                                                    ),
-                                                  ),
-                                                  actions: [
-                                                    TextButton(
-                                                      onPressed: () {
-                                                        Navigator.pop(context);
-                                                      },
-                                                      child: const Text("Cancel"),
-                                                    ),
-                                                    ElevatedButton(
-                                                      onPressed: () {
-                                                        int? newQuantity = int
-                                                            .tryParse(
-                                                                quantityController
-                                                                    .text);
-                                                        if (newQuantity != null &&
-                                                            newQuantity > 0) {
-                                                          editItemQuantity(
-                                                              store, index,
-                                                              newQuantity);
-                                                          Navigator.pop(context);
-                                                        }
-                                                      },
-                                                      child: const Text("Save"),
-                                                    ),
-                                                  ],
-                                                );
-                                              },
-                                            );
-                                          },
-                                        ),
-                                        IconButton(
-                                          icon: Icon(
-                                            item["picked"]
-                                                ? Icons.check_circle
-                                                : Icons.radio_button_unchecked,
-                                            color: item["picked"]
-                                                ? Colors.green
-                                                : Colors.grey,
-                                          ),
-                                          onPressed: () {
-                                            updatePickedStatus(store, index);
-                                          },
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(Icons.delete,
-                                              color: Colors.red),
-                                          onPressed: () {
-                                            deleteItem(store, index);
-                                          },
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          }),
                         ],
-                      );
-                    },
-                  ),
-                ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
 
-                // Floating Total
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.blue,
-                    borderRadius: BorderRadius.circular(8),
+            // Cart Items List
+            Expanded(
+              child: ListView.builder(
+                itemCount: cartItems.length,
+                itemBuilder: (context, index) {
+                  final store = cartItems.keys.elementAt(index);
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            Icon(Icons.store, color: Theme.of(context).primaryColor),
+                            const SizedBox(width: 8),
+                            Text(
+                              store,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      ...cartItems[store]!.map((item) => _buildCartItem(store, item)).toList(),
+                    ],
+                  );
+                },
+              ),
+            ),
+
+            // Total Section
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: ThemeProvider.cardGradient,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, -2),
                   ),
-                  child: Row(
+                ],
+              ),
+              child: Column(
+                children: [
+                  Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
-                        "Total:",
+                        'Total:',
                         style: TextStyle(
-                          fontSize: 18,
-                          color: Colors.white,
+                          fontSize: 20,
                           fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
                       ),
                       Text(
-                        "${total.toStringAsFixed(2)} SEK",
+                        '${total.toStringAsFixed(2)} SEK',
                         style: const TextStyle(
-                          fontSize: 18,
-                          color: Colors.white,
+                          fontSize: 20,
                           fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
                       ),
                     ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        // Implement checkout
+                        showMessage(context, "Proceeding to checkout...", true);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Theme.of(context).primaryColor,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text(
+                        'Proceed to Checkout',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          );
-        },
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCartItem(String store, Map<String, dynamic> item) {
+    return Dismissible(
+      key: Key('${store}-${item['name']}'),
+      background: Container(
+        color: Colors.red,
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.only(left: 20),
+        child: const Icon(Icons.delete, color: Colors.white),
+      ),
+      secondaryBackground: Container(
+        color: Colors.blue,
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        child: const Icon(Icons.edit, color: Colors.white),
+      ),
+      onDismissed: (direction) {
+        if (direction == DismissDirection.startToEnd) {
+          _removeItem(store, item);
+        }
+      },
+      confirmDismiss: (direction) async {
+        if (direction == DismissDirection.endToStart) {
+          _editQuantity(store, item);
+          return false;
+        }
+        return true;
+      },
+      child: Card(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          leading: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).primaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              Icons.shopping_cart,
+              color: Theme.of(context).primaryColor,
+            ),
+          ),
+          title: Text(
+            item['name'],
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          subtitle: Text('${item['price']} SEK x ${item['quantity']}'),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '${(item['price'] * item['quantity']).toStringAsFixed(2)} SEK',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              Checkbox(
+                value: item['picked'],
+                onChanged: (bool? value) {
+                  setState(() {
+                    item['picked'] = value;
+                  });
+                },
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
