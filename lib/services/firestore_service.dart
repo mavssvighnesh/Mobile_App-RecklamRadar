@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:recklamradar/models/deal.dart';
 import 'package:recklamradar/models/store.dart';
+import 'package:recklamradar/models/store_item.dart';
 import 'dart:io';
 import '../constants/user_fields.dart';
 
@@ -302,26 +303,18 @@ class FirestoreService {
     await _firestore.collection('carts').doc(cartItemId).delete();
   }
 
-  Future<List<Map<String, dynamic>>> getStoreItems(String storeId) async {
+  Future<List<StoreItem>> getStoreItems(String storeId) async {
     try {
       final snapshot = await _firestore
           .collection('stores')
           .doc(storeId)
           .collection('items')
+          .orderBy('category')
           .get();
 
-      return snapshot.docs.map((doc) {
-        final data = doc.data();
-        return {
-          'id': doc.id,
-          'name': data['name'] ?? '',
-          'category': data['category'] ?? '',
-          'price': data['price'] ?? 0.0,
-          'salePrice': data['salePrice'] ?? 0.0,
-          'imageUrl': data['imageUrl'] ?? '',
-          'quantity': 0,
-        };
-      }).toList();
+      return snapshot.docs
+          .map((doc) => StoreItem.fromFirestore(doc))
+          .toList();
     } catch (e) {
       print('Error getting store items: $e');
       return [];

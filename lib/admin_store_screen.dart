@@ -1,73 +1,95 @@
-
-import 'package:flutter/material.dart' show AppBar, BoxFit, BuildContext, Colors, FloatingActionButton, Icon, Icons, Image, ListView, MaterialPageRoute, Navigator, Scaffold, ScaffoldMessenger, SnackBar, StatelessWidget, Text, Widget;
+import 'package:flutter/material.dart' show AppBar, BoxFit, BuildContext, CircularProgressIndicator, Colors, FloatingActionButton, Icon, Icons, Image, ListView, MaterialPageRoute, Navigator, Scaffold, ScaffoldMessenger, SnackBar, StatelessWidget, Text, Theme, Widget;
 import 'package:flutter/widgets.dart';
+import 'package:recklamradar/providers/theme_provider.dart';
 import 'item_adding_page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:recklamradar/providers/theme_provider.dart';
+import 'package:recklamradar/utils/size_config.dart';
 
 class AdminStoreScreen extends StatelessWidget {
+  final String storeId;
   final String storeName;
 
-  const AdminStoreScreen({super.key, required this.storeName});
+  const AdminStoreScreen({
+    super.key,
+    required this.storeId,
+    required this.storeName,
+  });
 
   @override
   Widget build(BuildContext context) {
-    // List of items with additional data
-    final List<Map<String, String>> items = [
-      {
-        "name": "Carrots",
-        "price": "SEK 11.99/KG",
-        "memberPrice": "SEK 9.99/KG",
-        "dateRange": "2024-01-01 to 2024-01-15",
-        "image": "assets/images/carrots.png"
-      },
-      {
-        "name": "Cabbage",
-        "price": "SEK 15.99/KG",
-        "memberPrice": "SEK 13.99/KG",
-        "dateRange": "2024-01-05 to 2024-01-20",
-        "image": "assets/images/cabbage.png"
-      },
-      {
-        "name": "Beetroot",
-        "price": "SEK 19.99/KG",
-        "memberPrice": "SEK 16.99/KG",
-        "dateRange": "2024-01-10 to 2024-01-25",
-        "image": "assets/images/beetroot.png"
-      },
-
-    ];
-
     return Scaffold(
       appBar: AppBar(
         title: Text(storeName),
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: ThemeProvider.cardGradient,
+          ),
+        ),
       ),
-      body: ListView.builder(
-  itemCount: items.length,
-  itemBuilder: (context, index) {
-    final item = items[index];
-    return InteractiveItemCard(item: item);
-  },
-),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: ThemeProvider.subtleGradient,
+        ),
+        child: StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('stores')
+              .doc(storeId)
+              .collection('items')
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return const Center(child: Text('Something went wrong'));
+            }
 
-      floatingActionButton: FloatingActionButton(
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Center(child: CircularProgressIndicator());
+            }
+
+            final items = snapshot.data?.docs ?? [];
+
+            return ListView.builder(
+              itemCount: items.length,
+              itemBuilder: (context, index) {
+                final item = items[index].data() as Map<String, dynamic>;
+                return InteractiveItemCard(item: item);
+              },
+            );
+          },
+        ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const ItemAddingPage()),
+            MaterialPageRoute(
+              builder: (context) => ItemAddingPage(
+                storeId: storeId,
+                storeName: storeName,
+                onItemAdded: () {
+                  // No need to manually refresh with StreamBuilder
+                },
+              ),
+            ),
           );
         },
-        child: const Icon(Icons.add),
+        icon: const Icon(Icons.add),
+        label: const Text('Add Item'),
+        backgroundColor: Theme.of(context).primaryColor,
       ),
     );
   }
 }
 
 class InteractiveItemCard extends StatelessWidget {
-  final Map<String, String> item;
+  final Map<String, dynamic> item;
 
   const InteractiveItemCard({super.key, required this.item});
 
   @override
   Widget build(BuildContext context) {
+    SizeConfig().init(context);
+    
     final String name = item["name"]!;
     final String price = item["price"]!;
     final String memberPrice = item["memberPrice"] ?? "N/A";
@@ -85,7 +107,10 @@ class InteractiveItemCard extends StatelessWidget {
         cursor: SystemMouseCursors.click,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+          margin: EdgeInsets.symmetric(
+            vertical: SizeConfig.blockSizeVertical,
+            horizontal: SizeConfig.blockSizeHorizontal * 4,
+          ),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white,
