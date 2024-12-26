@@ -118,42 +118,64 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
   Future<void> _pickImage() async {
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(20),
+        ),
+      ),
       builder: (BuildContext context) {
         return SafeArea(
-          child: Wrap(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.photo_camera),
-                title: const Text('Take a Photo'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  final image = await _picker.pickImage(source: ImageSource.camera);
-                  if (image != null) {
-                    _uploadProfileImage(image.path);
-                  }
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.photo_library),
-                title: const Text('Choose from Gallery'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  final image = await _picker.pickImage(source: ImageSource.gallery);
-                  if (image != null) {
-                    _uploadProfileImage(image.path);
-                  }
-                },
-              ),
-              if (_currentProfileImage != null)
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Wrap(
+              children: [
                 ListTile(
-                  leading: const Icon(Icons.delete, color: Colors.red),
-                  title: const Text('Remove Photo', style: TextStyle(color: Colors.red)),
+                  leading: const Icon(Icons.photo_camera, color: Colors.blue),
+                  title: const Text(
+                    'Take a Photo',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                  ),
                   onTap: () async {
                     Navigator.pop(context);
-                    await _removeProfileImage();
+                    final image = await _picker.pickImage(source: ImageSource.camera);
+                    if (image != null) {
+                      _uploadProfileImage(image.path);
+                    }
                   },
                 ),
-            ],
+                ListTile(
+                  leading: const Icon(Icons.photo_library, color: Colors.blue),
+                  title: const Text(
+                    'Choose from Gallery',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                  ),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final image = await _picker.pickImage(source: ImageSource.gallery);
+                    if (image != null) {
+                      _uploadProfileImage(image.path);
+                    }
+                  },
+                ),
+                if (_currentProfileImage != null)
+                  ListTile(
+                    leading: const Icon(Icons.delete, color: Colors.red),
+                    title: const Text(
+                      'Remove Photo',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.red,
+                      ),
+                    ),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      await _removeProfileImage();
+                    },
+                  ),
+              ],
+            ),
           ),
         );
       },
