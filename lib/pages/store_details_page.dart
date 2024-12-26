@@ -6,6 +6,7 @@ import 'package:recklamradar/models/store_item.dart';
 import 'package:recklamradar/item_adding_page.dart';
 import 'package:recklamradar/models/store_item.dart';
 import 'package:recklamradar/utils/size_config.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class StoreDetailsPage extends StatefulWidget {
   final String storeId;
@@ -64,9 +65,9 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> {
 
   void _updateQuantity(int index, bool increment) {
     setState(() {
-      if (increment) {
+      if (increment && filteredItems[index].quantity < 99) {
         filteredItems[index].quantity += 1;
-      } else if (filteredItems[index].quantity > 0) {
+      } else if (!increment && filteredItems[index].quantity > 0) {
         filteredItems[index].quantity -= 1;
       }
     });
@@ -94,225 +95,213 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> {
     // Implementation of _removeFromCart
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: ThemeProvider.subtleGradient,
-        ),
-        child: Column(
+  Widget _buildItemCard(StoreItem item, int index) {
+    return Dismissible(
+      key: Key(item.id),
+      direction: DismissDirection.startToEnd,
+      background: Container(
+        color: Colors.green,
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.only(left: 20),
+        child: const Row(
           children: [
-            // App Bar
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                gradient: ThemeProvider.cardGradient,
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(24),
-                  bottomRight: Radius.circular(24),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+            Icon(Icons.shopping_cart_checkout, color: Colors.white),
+            SizedBox(width: 8),
+            Text(
+              'Add to Cart',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
               ),
-              child: SafeArea(
+            ),
+          ],
+        ),
+      ),
+      confirmDismiss: (direction) async {
+        if (direction == DismissDirection.startToEnd) {
+          try {
+            final user = FirebaseAuth.instance.currentUser;
+            if (user != null) {
+              if (item.quantity <= 0) {
+                showMessage(context, "Please select quantity first", false);
+                return false;
+              }
+              
+              await _firestoreService.addToCart(
+                user.uid,
+                item,
+                widget.storeName,
+              );
+              
+              if (mounted) {
+                showMessage(
+                  context, 
+                  "${item.quantity}x ${item.name} added to cart", 
+                  true
+                );
+                // Reset quantity after adding to cart
+                setState(() {
+                  item.quantity = 0;
+                });
+              }
+            } else {
+              if (mounted) {
+                showMessage(context, "Please login to add items to cart", false);
+              }
+            }
+          } catch (e) {
+            print('Error adding to cart: $e');
+            if (mounted) {
+              showMessage(context, "Failed to add item to cart", false);
+            }
+          }
+        }
+        return false;
+      },
+      child: Card(
+        margin: EdgeInsets.only(bottom: SizeConfig.blockSizeVertical * 1.5),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(SizeConfig.blockSizeHorizontal * 4),
+        ),
+        elevation: 2,
+        child: Padding(
+          padding: EdgeInsets.all(SizeConfig.blockSizeHorizontal * 3),
+          child: Row(
+            children: [
+              Container(
+                width: SizeConfig.getProportionateScreenWidth(80),
+                height: SizeConfig.getProportionateScreenWidth(80),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(SizeConfig.blockSizeHorizontal * 3),
+                  image: DecorationImage(
+                    image: NetworkImage(item.imageUrl),
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+              SizedBox(width: SizeConfig.blockSizeHorizontal * 4),
+              Expanded(
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Text(
+                      item.name,
+                      style: TextStyle(
+                        fontSize: SizeConfig.fontSize * 1.1,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      item.category,
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
                     Row(
                       children: [
-                        IconButton(
-                          icon: const Icon(Icons.arrow_back, color: Colors.white),
-                          onPressed: () => Navigator.pop(context),
-                        ),
                         Text(
-                          widget.storeName,
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
+                          'SEK ${item.price}/${item.unit}',
+                          style: item.salePrice != null 
+                              ? const TextStyle(
+                                  decoration: TextDecoration.lineThrough,
+                                  color: Colors.grey,
+                                )
+                              : const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
                         ),
-                        const Spacer(),
-                        IconButton(
-                          icon: Icon(
-                            isSearchActive ? Icons.close : Icons.search,
-                            color: Colors.white,
+                        if (item.salePrice != null) ...[
+                          const SizedBox(width: 8),
+                          Text(
+                            'SEK ${item.salePrice}/${item.unit}',
+                            style: const TextStyle(
+                              color: Colors.green,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                          onPressed: () {
-                            setState(() {
-                              isSearchActive = !isSearchActive;
-                              if (!isSearchActive) {
-                                searchController.clear();
-                                filteredItems = items;
-                              }
-                            });
-                          },
-                        ),
+                        ],
                       ],
                     ),
-                    if (isSearchActive) ...[
-                      const SizedBox(height: 12),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: TextField(
-                          controller: searchController,
-                          autofocus: true,
-                          onChanged: _searchItems,
-                          decoration: const InputDecoration(
-                            hintText: 'Search items...',
-                            prefixIcon: Icon(Icons.search),
-                            border: InputBorder.none,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 16),
-                          ),
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
-            ),
-
-            // Items List
-            Expanded(
-              child: isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: filteredItems.length,
-                      itemBuilder: (context, index) {
-                        final item = filteredItems[index];
-                        return Dismissible(
-                          key: Key(item.id),
-                          direction: DismissDirection.endToStart,
-                          background: Container(
-                            alignment: Alignment.centerRight,
-                            padding: EdgeInsets.only(right: SizeConfig.blockSizeHorizontal * 4),
-                            color: Colors.green,
-                            child: Icon(
-                              Icons.shopping_cart,
-                              color: Colors.white,
-                              size: SizeConfig.blockSizeHorizontal * 8,
-                            ),
-                          ),
-                          onDismissed: (direction) {
-                            _addToCart(item);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('${item.name} added to cart'),
-                                action: SnackBarAction(
-                                  label: 'UNDO',
-                                  onPressed: () => _removeFromCart(item),
-                                ),
-                              ),
-                            );
-                          },
-                          child: Card(
-                            margin: EdgeInsets.only(bottom: SizeConfig.blockSizeVertical * 1.5),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(SizeConfig.blockSizeHorizontal * 4),
-                            ),
-                            elevation: 2,
-                            child: Padding(
-                              padding: EdgeInsets.all(SizeConfig.blockSizeHorizontal * 3),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: SizeConfig.getProportionateScreenWidth(80),
-                                    height: SizeConfig.getProportionateScreenWidth(80),
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(SizeConfig.blockSizeHorizontal * 3),
-                                      image: DecorationImage(
-                                        image: NetworkImage(item.imageUrl),
-                                        fit: BoxFit.cover,
-                                      ),
-                                    ),
-                                  ),
-                                  SizedBox(width: SizeConfig.blockSizeHorizontal * 4),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          item.name,
-                                          style: TextStyle(
-                                            fontSize: SizeConfig.fontSize * 1.1,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        Text(
-                                          item.category,
-                                          style: TextStyle(
-                                            color: Colors.grey[600],
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Row(
-                                          children: [
-                                            Text(
-                                              'SEK ${item.price}/${item.unit}',
-                                              style: item.salePrice != null 
-                                                  ? const TextStyle(
-                                                      decoration: TextDecoration.lineThrough,
-                                                      color: Colors.grey,
-                                                    )
-                                                  : const TextStyle(
-                                                      fontWeight: FontWeight.bold,
-                                                    ),
-                                            ),
-                                            if (item.salePrice != null) ...[
-                                              const SizedBox(width: 8),
-                                              Text(
-                                                'SEK ${item.salePrice}/${item.unit}',
-                                                style: const TextStyle(
-                                                  color: Colors.green,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ],
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  
-                                  // Quantity Controls
-                                  Row(
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(Icons.remove_circle_outline),
-                                        onPressed: () => _updateQuantity(index, false),
-                                        color: Theme.of(context).primaryColor,
-                                      ),
-                                      Text(
-                                        '${item.quantity}',
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.add_circle_outline),
-                                        onPressed: () => _updateQuantity(index, true),
-                                        color: Theme.of(context).primaryColor,
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      },
+              
+              // Quantity Controls
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.remove_circle_outline),
+                    onPressed: () => _updateQuantity(index, false),
+                    color: Theme.of(context).primaryColor,
+                  ),
+                  Text(
+                    '${item.quantity}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
                     ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.add_circle_outline),
+                    onPressed: () => _updateQuantity(index, true),
+                    color: Theme.of(context).primaryColor,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: TextField(
+        controller: searchController,
+        onChanged: _searchItems,
+        decoration: InputDecoration(
+          hintText: 'Search items...',
+          prefixIcon: const Icon(Icons.search),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await loadStoreItems();
+          if (mounted) {
+            showMessage(context, "Store items refreshed", true);
+          }
+        },
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverAppBar(
+              // ... existing app bar
+            ),
+            SliverToBoxAdapter(
+              child: _buildSearchBar(),
+            ),
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final item = filteredItems[index];
+                  return _buildItemCard(item, index);
+                },
+                childCount: filteredItems.length,
+              ),
             ),
           ],
         ),

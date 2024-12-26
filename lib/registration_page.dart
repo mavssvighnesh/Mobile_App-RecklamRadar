@@ -12,7 +12,9 @@ import 'package:recklamradar/admin_home_screen.dart';
 import 'providers/theme_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class RegistrationPage extends StatefulWidget {
   const RegistrationPage({super.key});
@@ -25,6 +27,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirestoreService _firestoreService = FirestoreService();
   final FirebaseStorage _storage = FirebaseStorage.instance;
+  final AuthService _authService = AuthService();
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
@@ -36,6 +39,8 @@ class _RegistrationPageState extends State<RegistrationPage> {
   bool _isLoading = false;
   bool _isBusiness = false;
   File? _profileImage;
+  File? _imageFile;
+  final ImagePicker _picker = ImagePicker();
 
   Future<void> _uploadProfileImage(String userId) async {
     if (_profileImage == null) return;
@@ -63,89 +68,117 @@ class _RegistrationPageState extends State<RegistrationPage> {
   }
 
   Future<void> _register() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isLoading = true);
-    try {
-      // Create user with email and password
-      final credential = await _auth.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
-
-      final userId = credential.user?.uid;
-      if (userId != null) {
-        String? profileImageUrl;
-        
-        // Upload profile image if selected
-        if (_profileImage != null) {
-          final storageRef = _storage.ref().child('profile_images/$userId.jpg');
-          await storageRef.putFile(_profileImage!);
-          profileImageUrl = await storageRef.getDownloadURL();
+    if (_formKey.currentState?.validate() ?? false) {
+      setState(() => _isLoading = true);
+      try {
+        String? imageUrl;
+        if (_imageFile != null) {
+          // Upload image first
+          imageUrl = await _authService.uploadProfileImage(
+            DateTime.now().millisecondsSinceEpoch.toString(),
+            _imageFile!,
+          );
         }
 
-        // Create complete user profile
-        final userData = {
-          UserFields.name: _nameController.text.trim(),
-          UserFields.email: _emailController.text.trim(),
-          UserFields.phone: _phoneController.text.trim(),
-          UserFields.age: int.tryParse(_ageController.text.trim()) ?? 0,
-          UserFields.gender: _gender,
-          UserFields.isBusiness: _isBusiness,
-          UserFields.isAdmin: _emailController.text.trim().toLowerCase().endsWith('@rr.com'),
-          UserFields.profileImage: profileImageUrl,
-          UserFields.createdAt: FieldValue.serverTimestamp(),
-          UserFields.updatedAt: FieldValue.serverTimestamp(),
-        };
-
-        // Create user document in Firestore
-        await _firestoreService.createUserProfile(userId, userData);
-
-        if (!mounted) return;
-        showMessage(context, 'Registration successful!', true);
-        
-        // Navigate based on user role
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => userData[UserFields.isAdmin] == true 
-              ? const AdminHomeScreen() 
-              : const UserHomeScreen(),
-          ),
+        final userCredential = await _authService.signUpWithEmail(
+          _emailController.text.trim(),
+          _passwordController.text,
+          _nameController.text.trim(),
+          _isBusiness,
+          imageUrl,
         );
+
+        if (userCredential != null && mounted) {
+          showMessage(context, "Registration successful!", true);
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => _isBusiness 
+                ? const AdminHomeScreen() 
+                : const UserHomeScreen(),
+            ),
+          );
+        }
+      } catch (e) {
+        showMessage(context, "Registration failed: $e", false);
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
       }
-    } on FirebaseAuthException catch (e) {
-      String message = 'Registration failed';
-      if (e.code == 'weak-password') {
-        message = 'The password provided is too weak';
-      } else if (e.code == 'email-already-in-use') {
-        message = 'An account already exists for that email';
-      }
-      showMessage(context, message, false);
-    } catch (e) {
-      showMessage(context, 'Registration failed: $e', false);
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _pickImage() async {
+  Future<void> _pickImage(ImageSource source) async {
     try {
-      final pickedFile = await ImagePicker().pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 512,
-        maxHeight: 512,
-        imageQuality: 75,
+      final XFile? pickedFile = await _picker.pickImage(
+        source: source,
+        maxWidth: 1000,
+        maxHeight: 1000,
+        imageQuality: 85,
       );
 
       if (pickedFile != null) {
         setState(() {
-          _profileImage = File(pickedFile.path);
+          _imageFile = File(pickedFile.path);
         });
       }
     } catch (e) {
-      showMessage(context, 'Error picking image: $e', false);
+      showMessage(context, "Failed to pick image: $e", false);
     }
+  }
+
+  Widget _buildImagePicker() {
+    return GestureDetector(
+      onTap: () {
+        showModalBottomSheet(
+          context: context,
+          builder: (BuildContext context) {
+            return SafeArea(
+              child: Wrap(
+                children: <Widget>[
+                  ListTile(
+                    leading: const Icon(Icons.photo_camera),
+                    title: const Text('Take a photo'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _pickImage(ImageSource.camera);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.photo_library),
+                    title: const Text('Choose from gallery'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _pickImage(ImageSource.gallery);
+                    },
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+      child: Container(
+        width: 120,
+        height: 120,
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          shape: BoxShape.circle,
+          image: _imageFile != null
+              ? DecorationImage(
+                  image: FileImage(_imageFile!),
+                  fit: BoxFit.cover,
+                )
+              : null,
+        ),
+        child: _imageFile == null
+            ? Icon(
+                Icons.add_a_photo,
+                size: 40,
+                color: Theme.of(context).primaryColor,
+              )
+            : null,
+      ),
+    );
   }
 
   @override
@@ -199,19 +232,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                     Center(
                       child: Stack(
                         children: [
-                          GestureDetector(
-                            onTap: _pickImage,
-                            child: CircleAvatar(
-                              radius: 60,
-                              backgroundColor: Colors.grey[200],
-                              backgroundImage: _profileImage != null 
-                                  ? FileImage(_profileImage!) 
-                                  : null,
-                              child: _profileImage == null
-                                  ? const Icon(Icons.camera_alt, size: 40, color: Colors.grey)
-                                  : null,
-                            ),
-                          ),
+                          _buildImagePicker(),
                           if (_profileImage != null)
                             Positioned(
                               right: 0,

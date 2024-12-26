@@ -3,6 +3,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:recklamradar/services/firestore_service.dart';
 import 'package:recklamradar/providers/theme_provider.dart';
 import 'package:recklamradar/utils/message_utils.dart';
+import 'package:flutter/services.dart';
+import 'dart:async';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class CartPage extends StatefulWidget {
   const CartPage({super.key});
@@ -16,42 +20,106 @@ class _CartPageState extends State<CartPage> {
   final TextEditingController _budgetController = TextEditingController();
   double? maxBudget;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  Timer? _debounceTimer;
+  final _formKey = GlobalKey<FormState>();
+  late Stream<Map<String, List<Map<String, dynamic>>>> _cartStream;
+  final ScrollController _scrollController = ScrollController();
+  bool _isScrolled = false;
+  double _titleOpacity = 0.0;
+  static const String _budgetKey = 'cart_max_budget';
+  bool _isLoading = false;
 
-  // Example data
-  final Map<String, List<Map<String, dynamic>>> cartItems = {
-    "Willys": [
-      {"name": "Carrot", "price": 9.9, "quantity": 3, "picked": false},
-    ],
-    "Lidl": [
-      {"name": "Cabbage", "price": 8.5, "quantity": 2, "picked": false},
-      {"name": "Notebook", "price": 25.0, "quantity": 1, "picked": false},
-    ],
-    "Xtra": [
-      {"name": "Apple", "price": 5.0, "quantity": 4, "picked": false},
-    ],
-  };
+  @override
+  void initState() {
+    super.initState();
+    _initializeCartStream();
+    _loadSavedBudget();
+    _scrollController.addListener(_onScroll);
+  }
 
-  double calculateTotal() {
+  void _onScroll() {
+    final scrollOffset = _scrollController.offset;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    
+    setState(() {
+      _isScrolled = scrollOffset > 0;
+      _titleOpacity = (scrollOffset / 100).clamp(0.0, 1.0);
+      
+      // Hide keyboard when scrolling
+      FocusScope.of(context).unfocus();
+    });
+  }
+
+  void _initializeCartStream() {
+    if (_auth.currentUser == null) {
+      _cartStream = Stream.value({});
+      return;
+    }
+
+    _cartStream = _firestoreService
+        .getCartItems(_auth.currentUser!.uid)
+        .map((cartItems) {
+      Map<String, List<Map<String, dynamic>>> groupedItems = {};
+      for (var item in cartItems) {
+        String storeName = item['storeName'] ?? 'Unknown Store';
+        if (!groupedItems.containsKey(storeName)) {
+          groupedItems[storeName] = [];
+        }
+        groupedItems[storeName]!.add(item);
+      }
+      return groupedItems;
+    });
+  }
+
+  Future<void> _loadSavedBudget() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedBudget = prefs.getDouble(_budgetKey);
+    if (savedBudget != null && mounted) {
+      setState(() {
+        maxBudget = savedBudget;
+        _budgetController.text = savedBudget.toString();
+      });
+    }
+  }
+
+  void _updateBudget() async {
+    if (_formKey.currentState?.validate() ?? false) {
+      final newBudget = double.tryParse(_budgetController.text);
+      if (newBudget != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setDouble(_budgetKey, newBudget);
+        setState(() => maxBudget = newBudget);
+        showMessage(context, "Budget updated successfully", true);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _debounceTimer?.cancel();
+    _budgetController.dispose();
+    super.dispose();
+  }
+
+  double calculateTotal(Map<String, List<Map<String, dynamic>>> items) {
     double total = 0.0;
-    cartItems.forEach((store, items) {
-      for (var item in items) {
-        total += item["price"] * item["quantity"];
+    items.forEach((store, storeItems) {
+      for (var item in storeItems) {
+        total += (item["price"] ?? 0.0) * (item["quantity"] ?? 1);
       }
     });
     return total;
   }
 
-  void _removeItem(String store, Map<String, dynamic> item) {
-    setState(() {
-      cartItems[store]?.remove(item);
-      if (cartItems[store]?.isEmpty ?? false) {
-        cartItems.remove(store);
-      }
-    });
+  void _removeItem(String store, Map<String, dynamic> item) async {
+    await _firestoreService.removeFromCart(_auth.currentUser!.uid, item['id']);
     showMessage(context, "${item['name']} removed from cart", true);
   }
 
   void _editQuantity(String store, Map<String, dynamic> item) {
+    final TextEditingController quantityController = TextEditingController(text: item['quantity'].toString());
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -98,7 +166,7 @@ class _CartPageState extends State<CartPage> {
                 color: Theme.of(context).primaryColor,
               ),
             ),
-            controller: TextEditingController(text: item['quantity'].toString()),
+            controller: quantityController,
             onChanged: (value) {
               int? newQuantity = int.tryParse(value);
               if (newQuantity != null && newQuantity > 0) {
@@ -126,9 +194,17 @@ class _CartPageState extends State<CartPage> {
               borderRadius: BorderRadius.circular(8),
             ),
             child: ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                showMessage(context, "Quantity updated", true);
+              onPressed: () async {
+                int? newQuantity = int.tryParse(quantityController.text);
+                if (newQuantity != null && newQuantity > 0) {
+                  await _firestoreService.updateCartItemQuantity(
+                    _auth.currentUser!.uid,
+                    item['id'],
+                    newQuantity,
+                  );
+                  Navigator.pop(context);
+                  showMessage(context, "Quantity updated", true);
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.transparent,
@@ -152,198 +228,336 @@ class _CartPageState extends State<CartPage> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    double total = calculateTotal();
-    double balance = (maxBudget ?? 0) - total;
+  String? _validateBudget(String? value) {
+    if (value == null || value.isEmpty) {
+      return null;
+    }
+    if (double.tryParse(value) == null) {
+      return 'Please enter a valid number';
+    }
+    if (double.parse(value) <= 0) {
+      return 'Budget must be greater than 0';
+    }
+    return null;
+  }
 
-    return Material(
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: ThemeProvider.subtleGradient,
+  Widget _buildBudgetField() {
+    return Form(
+      key: _formKey,
+      child: TextField(
+        controller: _budgetController,
+        keyboardType: TextInputType.numberWithOptions(decimal: true),
+        textInputAction: TextInputAction.done,
+        onSubmitted: (_) {
+          FocusScope.of(context).unfocus();
+          _updateBudget();
+        },
+        decoration: InputDecoration(
+          labelText: 'Set Maximum Budget (SEK)',
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          prefixIcon: const Icon(Icons.account_balance_wallet),
+          errorText: _validateBudget(_budgetController.text),
+          suffixIcon: IconButton(
+            icon: const Icon(Icons.check),
+            onPressed: () {
+              FocusScope.of(context).unfocus();
+              _updateBudget();
+            },
+          ),
         ),
-        child: Column(
-          children: [
-            // Budget Section
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: ThemeProvider.cardGradient,
-                boxShadow: [
+        inputFormatters: [
+          FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyCart() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.shopping_cart_outlined,
+            size: 64,
+            color: Theme.of(context).primaryColor.withOpacity(0.5),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Your cart is empty',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTotalSection(double total) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text(
+            'Total:',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            '${total.toStringAsFixed(2)} SEK',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).primaryColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  PreferredSize _buildAppBar() {
+    return PreferredSize(
+      preferredSize: const Size.fromHeight(kToolbarHeight),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(
+          color: _isScrolled 
+              ? Theme.of(context).primaryColor 
+              : Colors.transparent,
+          boxShadow: _isScrolled
+              ? [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.1),
-                    blurRadius: 8,
+                    blurRadius: 4,
                     offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  const Text(
-                    'Shopping Cart',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: TextField(
-                      controller: _budgetController,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: 'Set Maximum Budget (SEK)',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        prefixIcon: const Icon(Icons.account_balance_wallet),
-                      ),
-                      onChanged: (value) {
-                        setState(() {
-                          maxBudget = double.tryParse(value);
-                        });
-                      },
-                    ),
-                  ),
-                  if (maxBudget != null) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: balance >= 0 ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            balance >= 0 ? Icons.check_circle : Icons.warning,
-                            color: balance >= 0 ? Colors.green : Colors.red,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Remaining: ${balance.toStringAsFixed(2)} SEK',
-                            style: TextStyle(
-                              color: balance >= 0 ? Colors.green : Colors.red,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-
-            // Cart Items List
-            Expanded(
-              child: ListView.builder(
-                itemCount: cartItems.length,
-                itemBuilder: (context, index) {
-                  final store = cartItems.keys.elementAt(index);
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          children: [
-                            Icon(Icons.store, color: Theme.of(context).primaryColor),
-                            const SizedBox(width: 8),
-                            Text(
-                              store,
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      ...cartItems[store]!.map((item) => _buildCartItem(store, item)).toList(),
-                    ],
-                  );
-                },
-              ),
-            ),
-
-            // Total Section
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: ThemeProvider.cardGradient,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, -2),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Total:',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      Text(
-                        '${total.toStringAsFixed(2)} SEK',
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        // Implement checkout
-                        showMessage(context, "Proceeding to checkout...", true);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Theme.of(context).primaryColor,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Text(
-                        'Proceed to Checkout',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                  )
+                ]
+              : [],
+        ),
+        child: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          title: AnimatedOpacity(
+            duration: const Duration(milliseconds: 200),
+            opacity: _titleOpacity,
+            child: const Text('Shopping Cart'),
+          ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _initializeCartStream,
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildLoadingOverlay() {
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 200),
+      opacity: _isLoading ? 1.0 : 0.0,
+      child: _isLoading
+          ? Container(
+              color: Colors.black26,
+              child: const Center(
+                child: CircularProgressIndicator(),
+              ),
+            )
+          : const SizedBox.shrink(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
+      appBar: _buildAppBar(),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: ThemeProvider.subtleGradient,
+        ),
+        child: StreamBuilder<Map<String, List<Map<String, dynamic>>>>(
+          stream: _cartStream,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            if (snapshot.hasError) {
+              print('Cart stream error: ${snapshot.error}');
+              return Center(child: Text('Error: ${snapshot.error}'));
+            }
+
+            final cartItems = snapshot.data ?? {};
+            final total = calculateTotal(cartItems);
+            final balance = (maxBudget ?? 0) - total;
+
+            return Scaffold(
+              body: RefreshIndicator(
+                onRefresh: () async {
+                  _initializeCartStream();
+                  await Future.delayed(const Duration(milliseconds: 500));
+                },
+                child: CustomScrollView(
+                  physics: const BouncingScrollPhysics(
+                    parent: AlwaysScrollableScrollPhysics(),
+                  ),
+                  controller: _scrollController,
+                  slivers: [
+                    // Budget Section
+                    SliverToBoxAdapter(
+                      child: Container(
+                        padding: EdgeInsets.only(
+                          top: MediaQuery.of(context).padding.top + 80,
+                          left: 16,
+                          right: 16,
+                          bottom: 16,
+                        ),
+                        decoration: BoxDecoration(
+                          gradient: ThemeProvider.cardGradient,
+                          borderRadius: const BorderRadius.only(
+                            bottomLeft: Radius.circular(24),
+                            bottomRight: Radius.circular(24),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            const Text(
+                              'Shopping Cart',
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            _buildBudgetField(),
+                            if (maxBudget != null) ...[
+                              const SizedBox(height: 12),
+                              _buildBudgetInfo(balance),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // Cart Items
+                    SliverPadding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      sliver: cartItems.isEmpty
+                          ? SliverFillRemaining(child: _buildEmptyCart())
+                          : SliverList(
+                              delegate: SliverChildBuilderDelegate(
+                                (context, index) {
+                                  final store = cartItems.keys.elementAt(index);
+                                  final storeItems = cartItems[store]!;
+                                  return _buildStoreSection(store, storeItems);
+                                },
+                                childCount: cartItems.length,
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+              bottomNavigationBar: _buildTotalSection(total),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBudgetInfo(double balance) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: balance >= 0 ? Colors.green.withOpacity(0.3) : Colors.red.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            balance >= 0 ? Icons.check_circle : Icons.warning,
+            color: balance >= 0 ? Colors.green : Colors.red,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Remaining: ${balance.toStringAsFixed(2)} SEK',
+            style: TextStyle(
+              color: balance >= 0 ? Colors.green : Colors.red,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStoreSection(String store, List<Map<String, dynamic>> items) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.store,
+                  color: Theme.of(context).primaryColor,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                store,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+        ...items.map((item) => _buildCartItem(store, item)).toList(),
+      ],
     );
   }
 
@@ -352,68 +566,126 @@ class _CartPageState extends State<CartPage> {
       key: Key('${store}-${item['name']}'),
       background: Container(
         color: Colors.red,
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.only(left: 20),
-        child: const Icon(Icons.delete, color: Colors.white),
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Text(
+              'Delete',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(width: 8),
+            Icon(Icons.delete, color: Colors.white),
+          ],
+        ),
       ),
       secondaryBackground: Container(
         color: Colors.blue,
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        child: const Icon(Icons.edit, color: Colors.white),
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.only(left: 20),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.edit, color: Colors.white),
+            SizedBox(width: 8),
+            Text(
+              'Edit',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
       ),
       onDismissed: (direction) {
-        if (direction == DismissDirection.startToEnd) {
+        if (direction == DismissDirection.endToStart) {
           _removeItem(store, item);
         }
       },
       confirmDismiss: (direction) async {
-        if (direction == DismissDirection.endToStart) {
+        if (direction == DismissDirection.startToEnd) {
           _editQuantity(store, item);
           return false;
         }
         return true;
       },
-      child: Card(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          leading: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Theme.of(context).primaryColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              Icons.shopping_cart,
-              color: Theme.of(context).primaryColor,
-            ),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+        child: Card(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
           ),
-          title: Text(
-            item['name'],
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          subtitle: Text('${item['price']} SEK x ${item['quantity']}'),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '${(item['price'] * item['quantity']).toStringAsFixed(2)} SEK',
-                style: const TextStyle(fontWeight: FontWeight.bold),
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            leading: CachedNetworkImage(
+              imageUrl: item['imageUrl'] ?? '',
+              placeholder: (context, url) => Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.shopping_cart,
+                  color: Theme.of(context).primaryColor,
+                ),
               ),
-              Checkbox(
-                value: item['picked'],
-                onChanged: (bool? value) {
-                  setState(() {
-                    item['picked'] = value;
-                  });
-                },
+              errorWidget: (context, url, error) => Icon(
+                Icons.error,
+                color: Theme.of(context).primaryColor,
               ),
-            ],
+            ),
+            title: Text(
+              item['name'],
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text('${item['price']} SEK x ${item['quantity']}'),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${(item['price'] * item['quantity']).toStringAsFixed(2)} SEK',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(width: 8),
+                Transform.scale(
+                  scale: 1.2,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: item['picked'] ? Theme.of(context).primaryColor : Colors.transparent,
+                      border: Border.all(
+                        color: Theme.of(context).primaryColor,
+                        width: 2,
+                      ),
+                    ),
+                    child: InkWell(
+                      onTap: () async {
+                        await _firestoreService.updateCartItemPicked(
+                          _auth.currentUser!.uid,
+                          item['id'],
+                          !item['picked'],
+                        );
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(2),
+                        child: item['picked']
+                            ? const Icon(Icons.check, size: 16, color: Colors.white)
+                            : const SizedBox(width: 16, height: 16),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

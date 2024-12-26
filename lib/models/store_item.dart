@@ -10,6 +10,7 @@ class StoreItem {
   final String unit;
   final bool inStock;
   int quantity;
+  final String storeName;
 
   StoreItem({
     required this.id,
@@ -21,6 +22,7 @@ class StoreItem {
     required this.unit,
     this.inStock = true,
     this.quantity = 0,
+    required this.storeName,
   });
 
   factory StoreItem.fromFirestore(DocumentSnapshot doc) {
@@ -34,6 +36,7 @@ class StoreItem {
       imageUrl: data['imageUrl'] ?? '',
       unit: data['unit'] ?? '',
       inStock: data['inStock'] ?? true,
+      storeName: data['storeName'] ?? 'Unknown Store',
     );
   }
 
@@ -46,6 +49,7 @@ class StoreItem {
       'imageUrl': imageUrl,
       'unit': unit,
       'inStock': inStock,
+      'storeName': storeName,
     };
   }
 
@@ -60,6 +64,7 @@ class StoreItem {
       unit: map['unit'] ?? '',
       inStock: map['inStock'] ?? true,
       quantity: map['quantity'] ?? 0,
+      storeName: map['storeName'] ?? 'Unknown Store',
     );
   }
 } 

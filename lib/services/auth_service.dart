@@ -12,6 +12,9 @@ class AuthService {
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final FirestoreService _firestoreService = FirestoreService();
 
+  // Add stream to track auth state changes
+  Stream<User?> get authStateChanges => _auth.authStateChanges();
+
   // Email & Password Sign Up
   Future<UserCredential?> signUpWithEmail(
     String email,
@@ -148,8 +151,13 @@ class AuthService {
 
   // Sign Out
   Future<void> signOut() async {
-    await _auth.signOut();
-    await FacebookAuth.instance.logOut();
+    try {
+      await _auth.signOut();
+      print('Successfully signed out');
+    } catch (e) {
+      print('Sign out error: $e');
+      rethrow;
+    }
   }
 
   // Update User Profile
@@ -176,4 +184,7 @@ class AuthService {
       password: password,
     );
   }
+
+  // Get current user
+  User? get currentUser => _auth.currentUser;
 }

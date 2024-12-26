@@ -4,13 +4,19 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:recklamradar/models/deal.dart';
 import 'package:recklamradar/models/store.dart';
 import 'package:recklamradar/models/store_item.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import '../constants/user_fields.dart';
+import 'dart:convert';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
+
+  static const String _cartKey = 'cached_cart';
+  static const String _lastUpdateKey = 'cart_last_update';
+  static const Duration _cacheDuration = Duration(minutes: 15);
 
   // User Profile Methods
   Future<void> createUserProfile(String userId, Map<String, dynamic> data) async {
@@ -290,17 +296,56 @@ class FirestoreService {
     return doc.data()?['preferences'] ?? {};
   }
 
-  Future<void> addToCart(String userId, Deal deal) async {
-    await _firestore.collection('carts').add({
-      'userId': userId,
-      'dealId': deal.id,
-      'quantity': 1,
-      'addedAt': FieldValue.serverTimestamp(),
-    });
+  Future<void> addToCart(String userId, StoreItem item, String storeName) async {
+    try {
+      print('Adding to cart: ${item.name} for user: $userId in store: $storeName'); // Debug print
+      
+      // Check if item already exists in cart
+      final existingItems = await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('cart')
+          .where('name', isEqualTo: item.name)
+          .where('storeName', isEqualTo: storeName)
+          .get();
+
+      if (existingItems.docs.isNotEmpty) {
+        // Update quantity if item exists
+        final existingItem = existingItems.docs.first;
+        final currentQuantity = existingItem.data()['quantity'] ?? 0;
+        await existingItem.reference.update({
+          'quantity': currentQuantity + item.quantity,
+        });
+      } else {
+        // Add new item if it doesn't exist
+        await _firestore
+            .collection('users')
+            .doc(userId)
+            .collection('cart')
+            .add({
+          'name': item.name,
+          'price': item.price,
+          'quantity': item.quantity,
+          'storeName': storeName,
+          'imageUrl': item.imageUrl,
+          'picked': false,
+          'addedAt': FieldValue.serverTimestamp(),
+        });
+      }
+      print('Successfully added to cart'); // Debug print
+    } catch (e) {
+      print('Error adding to cart: $e'); // Debug print
+      throw e;
+    }
   }
 
-  Future<void> removeFromCart(String cartItemId) async {
-    await _firestore.collection('carts').doc(cartItemId).delete();
+  Future<void> removeFromCart(String userId, String itemId) {
+    return _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('cart')
+        .doc(itemId)
+        .delete();
   }
 
   Future<List<StoreItem>> getStoreItems(String storeId) async {
@@ -319,5 +364,79 @@ class FirestoreService {
       print('Error getting store items: $e');
       return [];
     }
+  }
+
+  // Get cart items stream
+  Stream<List<Map<String, dynamic>>> getCartItems(String userId) async* {
+    if (await isCacheValid()) {
+      yield await getCachedCartItems();
+    }
+
+    yield* _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('cart')
+        .orderBy('addedAt', descending: true)
+        .snapshots()
+        .map((snapshot) {
+      final items = snapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'id': doc.id,
+          'name': data['name'] ?? '',
+          'price': (data['price'] ?? 0.0).toDouble(),
+          'quantity': data['quantity'] ?? 1,
+          'storeName': data['storeName'] ?? 'Unknown Store',
+          'imageUrl': data['imageUrl'] ?? '',
+          'picked': data['picked'] ?? false,
+        };
+      }).toList();
+      
+      // Save items locally
+      saveCartItemsLocally(userId, items);
+      return items;
+    });
+  }
+
+  Future<void> updateCartItemPicked(String userId, String itemId, bool picked) {
+    return _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('cart')
+        .doc(itemId)
+        .update({'picked': picked});
+  }
+
+  Future<void> updateCartItemQuantity(String userId, String itemId, int quantity) {
+    return _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('cart')
+        .doc(itemId)
+        .update({'quantity': quantity});
+  }
+
+  // Add method to save cart items locally
+  Future<void> saveCartItemsLocally(String userId, List<Map<String, dynamic>> items) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_cartKey, jsonEncode(items));
+    await prefs.setInt(_lastUpdateKey, DateTime.now().millisecondsSinceEpoch);
+  }
+
+  Future<bool> isCacheValid() async {
+    final prefs = await SharedPreferences.getInstance();
+    final lastUpdate = prefs.getInt(_lastUpdateKey) ?? 0;
+    return DateTime.now().millisecondsSinceEpoch - lastUpdate < _cacheDuration.inMilliseconds;
+  }
+
+  Future<List<Map<String, dynamic>>> getCachedCartItems() async {
+    final prefs = await SharedPreferences.getInstance();
+    final cachedData = prefs.getString(_cartKey);
+    if (cachedData != null) {
+      return List<Map<String, dynamic>>.from(
+        jsonDecode(cachedData).map((x) => Map<String, dynamic>.from(x))
+      );
+    }
+    return [];
   }
 } 

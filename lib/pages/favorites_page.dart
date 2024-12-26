@@ -5,6 +5,8 @@ import '../utils/size_config.dart';
 import '../providers/theme_provider.dart';
 import '../services/cart_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../services/firestore_service.dart';
 
 class FavoritesPage extends StatefulWidget {
   @override
@@ -12,22 +14,16 @@ class FavoritesPage extends StatefulWidget {
 }
 
 class _FavoritesPageState extends State<FavoritesPage> {
+  final FirestoreService _firestoreService = FirestoreService();
   final _searchController = TextEditingController();
   List<StoreItem> allItems = [];
   List<StoreItem> filteredItems = [];
   bool isLoading = true;
-  late CartManager _cartManager;
 
   @override
   void initState() {
     super.initState();
-    _initCartManager();
     _loadAllItems();
-  }
-
-  Future<void> _initCartManager() async {
-    final prefs = await SharedPreferences.getInstance();
-    _cartManager = CartManager(prefs);
   }
 
   Future<void> _loadAllItems() async {
@@ -78,16 +74,37 @@ class _FavoritesPageState extends State<FavoritesPage> {
   }
 
   Future<void> _addToCart(StoreItem item, String storeId) async {
-    await _cartManager.addToCart(item, storeId);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${item.name} added to cart'),
-        action: SnackBarAction(
-          label: 'UNDO',
-          onPressed: () => _cartManager.removeFromCart(item.id, storeId),
-        ),
-      ),
-    );
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        // Get store name from Firestore
+        final storeDoc = await FirebaseFirestore.instance
+            .collection('stores')
+            .doc(storeId)
+            .get();
+        
+        String storeName = storeDoc.data()?['name'] ?? 'Unknown Store';
+        
+        await _firestoreService.addToCart(user.uid, item, storeName);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('${item.name} added to cart')),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please login to add items to cart')),
+        );
+      }
+    } catch (e) {
+      print('Error adding to cart: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to add item to cart')),
+        );
+      }
+    }
   }
 
   @override
