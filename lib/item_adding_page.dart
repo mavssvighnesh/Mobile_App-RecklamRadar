@@ -278,52 +278,168 @@ class _ItemAddingPageState extends State<ItemAddingPage> {
         ),
       ),
       body: Container(
+        height: MediaQuery.of(context).size.height,
         decoration: BoxDecoration(
           gradient: ThemeProvider.subtleGradient,
         ),
         child: Form(
           key: _formKey,
-          child: SingleChildScrollView(
+          child: ListView(
             padding: EdgeInsets.all(SizeConfig.blockSizeHorizontal * 4),
-            child: Column(
-              children: [
-                // Image Picker
-                GestureDetector(
-                  onTap: _pickImage,
-                  child: Container(
-                    height: SizeConfig.getProportionateScreenHeight(200),
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[200],
-                      borderRadius: BorderRadius.circular(SizeConfig.blockSizeHorizontal * 3),
-                      border: Border.all(color: Colors.grey[300]!),
-                    ),
-                    child: _imageFile != null
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(SizeConfig.blockSizeHorizontal * 3),
-                            child: Image.file(_imageFile!, fit: BoxFit.cover),
-                          )
-                        : Icon(
-                            Icons.add_photo_alternate,
-                            size: SizeConfig.blockSizeHorizontal * 12,
-                          ),
+            children: [
+              // Image Picker
+              GestureDetector(
+                onTap: _pickImage,
+                child: Container(
+                  height: SizeConfig.getProportionateScreenHeight(200),
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(SizeConfig.blockSizeHorizontal * 3),
+                    border: Border.all(color: Colors.grey[300]!),
                   ),
+                  child: _imageFile != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(SizeConfig.blockSizeHorizontal * 3),
+                          child: Image.file(_imageFile!, fit: BoxFit.cover),
+                        )
+                      : Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.add_photo_alternate,
+                              size: SizeConfig.blockSizeHorizontal * 12,
+                              color: Colors.grey[400],
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Add Item Image',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: SizeConfig.fontSize,
+                              ),
+                            ),
+                          ],
+                        ),
                 ),
-                SizedBox(height: SizeConfig.blockSizeVertical * 2),
+              ),
+              SizedBox(height: SizeConfig.blockSizeVertical * 2),
 
-                // Form fields with responsive sizing
-                _buildTextField(
-                  controller: _nameController,
-                  label: 'Item Name',
-                  validator: (value) {
-                    if (value?.isEmpty ?? true) return 'Please enter item name';
-                    return null;
-                  },
+              // Name Field
+              _buildTextField(
+                controller: _nameController,
+                label: 'Item Name',
+                validator: (value) => value?.isEmpty ?? true ? 'Please enter item name' : null,
+              ),
+
+              // Description Field
+              _buildTextField(
+                controller: _descriptionController,
+                label: 'Description',
+                maxLines: 3,
+                validator: (value) => value?.isEmpty ?? true ? 'Please enter description' : null,
+              ),
+
+              // Price Field
+              _buildTextField(
+                controller: _priceController,
+                label: 'Regular Price (SEK)',
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value?.isEmpty ?? true) return 'Please enter price';
+                  if (double.tryParse(value!) == null) return 'Please enter valid price';
+                  return null;
+                },
+              ),
+
+              // Member Price Field
+              _buildTextField(
+                controller: _memberPriceController,
+                label: 'Member Price (SEK) (Optional)',
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value?.isEmpty ?? true) return null;
+                  if (double.tryParse(value!) == null) return 'Please enter valid price';
+                  return null;
+                },
+              ),
+
+              // Category Dropdown
+              Container(
+                margin: EdgeInsets.only(bottom: SizeConfig.blockSizeVertical * 2),
+                padding: EdgeInsets.symmetric(horizontal: SizeConfig.blockSizeHorizontal * 4),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey[400]!),
+                  borderRadius: BorderRadius.circular(SizeConfig.blockSizeHorizontal * 3),
                 ),
-                
-                // ... other form fields with similar pattern
-              ],
-            ),
+                child: DropdownButtonFormField<String>(
+                  value: selectedCategory,
+                  hint: Text('Select Category'),
+                  isExpanded: true,
+                  items: categories.map((String category) {
+                    return DropdownMenuItem(
+                      value: category,
+                      child: Text(category),
+                    );
+                  }).toList(),
+                  onChanged: (value) => setState(() => selectedCategory = value),
+                  validator: (value) => value == null ? 'Please select a category' : null,
+                ),
+              ),
+
+              // Unit Dropdown
+              Container(
+                margin: EdgeInsets.only(bottom: SizeConfig.blockSizeVertical * 2),
+                padding: EdgeInsets.symmetric(horizontal: SizeConfig.blockSizeHorizontal * 4),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey[400]!),
+                  borderRadius: BorderRadius.circular(SizeConfig.blockSizeHorizontal * 3),
+                ),
+                child: DropdownButtonFormField<String>(
+                  value: selectedUnit,
+                  hint: Text('Select Unit'),
+                  isExpanded: true,
+                  items: units.map((String unit) {
+                    return DropdownMenuItem(
+                      value: unit,
+                      child: Text(unit),
+                    );
+                  }).toList(),
+                  onChanged: (value) => setState(() => selectedUnit = value),
+                  validator: (value) => value == null ? 'Please select a unit' : null,
+                ),
+              ),
+
+              // Submit Button
+              Container(
+                margin: EdgeInsets.symmetric(vertical: SizeConfig.blockSizeVertical * 2),
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: isLoading ? null : () async {
+                    if (_formKey.currentState!.validate()) {
+                      setState(() => isLoading = true);
+                      await _checkExistingItem();
+                      setState(() => isLoading = false);
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).primaryColor,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(SizeConfig.blockSizeHorizontal * 3),
+                    ),
+                  ),
+                  child: isLoading
+                      ? CircularProgressIndicator(color: Colors.white)
+                      : Text(
+                          'Add Item',
+                          style: TextStyle(
+                            fontSize: SizeConfig.fontSize,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -360,4 +476,3 @@ class _ItemAddingPageState extends State<ItemAddingPage> {
     );
   }
 }
-
