@@ -33,6 +33,7 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> {
   String? selectedCategory;
   String selectedSort = 'Name'; // Default sort
   bool showMemberPriceOnly = false;
+  bool isFilterActive = false;
 
   @override
   void initState() {
@@ -477,6 +478,17 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> {
                           const Spacer(),
                           IconButton(
                             icon: Icon(
+                              isFilterActive ? Icons.filter_list_off : Icons.filter_list,
+                              color: Colors.white,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                isFilterActive = !isFilterActive;
+                              });
+                            },
+                          ),
+                          IconButton(
+                            icon: Icon(
                               isSearchActive ? Icons.close : Icons.search,
                               color: Colors.white,
                             ),
@@ -493,7 +505,12 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> {
                         ],
                       ),
                       if (isSearchActive) _buildSearchBar(),
-                      _buildFilterSection(),
+                      if (isFilterActive) 
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                          child: _buildFilterSection(),
+                        ),
                     ],
                   ),
                 ),
