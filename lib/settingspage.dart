@@ -6,6 +6,7 @@ import 'package:recklamradar/login_screen.dart';
 import 'accountdetailspage.dart';
 import 'providers/theme_provider.dart';
 import 'package:recklamradar/utils/size_config.dart';
+import 'package:provider/provider.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -102,7 +103,7 @@ class _SettingsPageState extends State<SettingsPage> {
       extendBodyBehindAppBar: true,
       body: Container(
         decoration: BoxDecoration(
-          gradient: ThemeProvider.backgroundGradient,
+          gradient: Provider.of<ThemeProvider>(context).backgroundGradient,
         ),
         child: CustomScrollView(
           controller: _scrollController,
@@ -119,7 +120,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   opacity: _isScrolled ? 0.0 : 1.0,
                   child: Container(
                     decoration: BoxDecoration(
-                      gradient: ThemeProvider.cardGradient,
+                      gradient: Provider.of<ThemeProvider>(context).cardGradient,
                     ),
                   ),
                 ),
@@ -323,25 +324,36 @@ class _SettingsPageState extends State<SettingsPage> {
                             ),
                           ),
                         ),
-                        ListTile(
-                          leading: Icon(
-                            _isDarkMode ? Icons.dark_mode : Icons.light_mode,
-                          ),
-                          title: const Text('Dark Mode'),
-                          trailing: Switch(
-                            value: _isDarkMode,
-                            onChanged: (value) async {
-                              setState(() => _isDarkMode = value);
-                              final user = _auth.currentUser;
-                              if (user != null) {
-                                await _firestoreService.updateUserProfile(
-                                  user.uid,
-                                  {'darkMode': value},
-                                  user.email?.toLowerCase().endsWith('@rr.com') ?? false,
-                                );
-                              }
-                            },
-                          ),
+                        Consumer<ThemeProvider>(
+                          builder: (context, themeProvider, child) {
+                            return ListTile(
+                              leading: Icon(
+                                themeProvider.isDarkMode ? Icons.dark_mode : Icons.light_mode,
+                                color: Theme.of(context).iconTheme.color,
+                              ),
+                              title: Text(
+                                'Dark Mode',
+                                style: TextStyle(
+                                  color: themeProvider.isDarkMode ? Colors.white : Colors.black87,
+                                ),
+                              ),
+                              trailing: Switch(
+                                value: themeProvider.isDarkMode,
+                                onChanged: (value) async {
+                                  await themeProvider.toggleTheme();
+                                  // Update user preferences in Firestore if needed
+                                  final user = _auth.currentUser;
+                                  if (user != null) {
+                                    await _firestoreService.updateUserProfile(
+                                      user.uid,
+                                      {'darkMode': value},
+                                      user.email?.toLowerCase().endsWith('@rr.com') ?? false,
+                                    );
+                                  }
+                                },
+                              ),
+                            );
+                          },
                         ),
                       ],
                     ),

@@ -5,6 +5,7 @@ import 'item_adding_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:recklamradar/providers/theme_provider.dart';
 import 'package:recklamradar/utils/size_config.dart';
+import 'package:provider/provider.dart';
 
 class AdminStoreScreen extends StatelessWidget {
   final String storeId;
@@ -23,13 +24,13 @@ class AdminStoreScreen extends StatelessWidget {
         title: Text(storeName),
         flexibleSpace: Container(
           decoration: BoxDecoration(
-            gradient: ThemeProvider.cardGradient,
+            gradient: Provider.of<ThemeProvider>(context).cardGradient,
           ),
         ),
       ),
       body: Container(
         decoration: BoxDecoration(
-          gradient: ThemeProvider.subtleGradient,
+          gradient: Provider.of<ThemeProvider>(context).subtleGradient,
         ),
         child: StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance

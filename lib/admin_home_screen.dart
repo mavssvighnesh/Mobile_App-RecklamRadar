@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:recklamradar/providers/theme_provider.dart';
 
 import 'admin_store_screen.dart';
@@ -22,13 +23,13 @@ class AdminHomeScreen extends StatelessWidget {
         title: const Text('Stores Available'),
         flexibleSpace: Container(
           decoration: BoxDecoration(
-            gradient: ThemeProvider.cardGradient,
+            gradient: Provider.of<ThemeProvider>(context).cardGradient,
           ),
         ),
       ),
       body: Container(
         decoration: BoxDecoration(
-          gradient: ThemeProvider.subtleGradient,
+          gradient: Provider.of<ThemeProvider>(context).subtleGradient,
         ),
         child: ListView.builder(
           itemCount: stores.length,

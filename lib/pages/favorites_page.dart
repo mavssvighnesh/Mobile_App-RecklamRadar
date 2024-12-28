@@ -7,7 +7,7 @@ import '../services/cart_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/firestore_service.dart';
-
+import 'package:provider/provider.dart';
 class FavoritesPage extends StatefulWidget {
   @override
   _FavoritesPageState createState() => _FavoritesPageState();
@@ -122,7 +122,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
               title: Text('Discover Deals'),
               background: Container(
                 decoration: BoxDecoration(
-                  gradient: ThemeProvider.cardGradient,
+                  gradient: Provider.of<ThemeProvider>(context).cardGradient,
                 ),
               ),
             ),

@@ -15,7 +15,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:provider/provider.dart';
 class RegistrationPage extends StatefulWidget {
   const RegistrationPage({super.key});
 
@@ -287,7 +287,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
       ),
       body: Container(
         decoration: BoxDecoration(
-          gradient: ThemeProvider.backgroundGradient,
+          gradient: Provider.of<ThemeProvider>(context).backgroundGradient,
         ),
         child: SingleChildScrollView(
           child: Padding(

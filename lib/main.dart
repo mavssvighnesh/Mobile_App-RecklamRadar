@@ -9,6 +9,7 @@ import 'admin_home_screen.dart';
 import 'package:recklamradar/home_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:recklamradar/utils/size_config.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,10 +17,15 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   
+  final prefs = await SharedPreferences.getInstance();
+  final isDarkMode = prefs.getBool('is_dark_mode') ?? false;
+  
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(
+          create: (_) => ThemeProvider()..loadThemeFromPrefs(),
+        ),
       ],
       child: const MyApp(),
     ),

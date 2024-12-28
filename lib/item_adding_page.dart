@@ -273,7 +273,7 @@ class _ItemAddingPageState extends State<ItemAddingPage> {
         backgroundColor: Colors.transparent,
         flexibleSpace: Container(
           decoration: BoxDecoration(
-            gradient: ThemeProvider.cardGradient,
+            gradient: Provider.of<ThemeProvider>(context).cardGradient,
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.1),
@@ -299,7 +299,7 @@ class _ItemAddingPageState extends State<ItemAddingPage> {
       body: Container(
         height: MediaQuery.of(context).size.height,
         decoration: BoxDecoration(
-          gradient: ThemeProvider.subtleGradient,
+          gradient: Provider.of<ThemeProvider>(context).subtleGradient,
         ),
         child: Form(
           key: _formKey,
@@ -443,7 +443,7 @@ class _ItemAddingPageState extends State<ItemAddingPage> {
                 margin: EdgeInsets.symmetric(vertical: SizeConfig.blockSizeVertical * 3),
                 height: 55,
                 decoration: BoxDecoration(
-                  gradient: ThemeProvider.cardGradient,
+                  gradient: Provider.of<ThemeProvider>(context).cardGradient,
                   borderRadius: BorderRadius.circular(SizeConfig.blockSizeHorizontal * 3),
                   boxShadow: [
                     BoxShadow(

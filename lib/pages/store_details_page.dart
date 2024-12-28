@@ -7,7 +7,8 @@ import 'package:recklamradar/item_adding_page.dart';
 import 'package:recklamradar/models/store_item.dart';
 import 'package:recklamradar/utils/size_config.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
+import 'package:recklamradar/widgets/themed_scaffold.dart';
+import 'package:provider/provider.dart';
 class StoreDetailsPage extends StatefulWidget {
   final String storeId;
   final String storeName;
@@ -322,7 +323,7 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: ThemeProvider.cardGradient,
+        gradient: Provider.of<ThemeProvider>(context).cardGradient,
         borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(24),
           bottomRight: Radius.circular(24),
@@ -427,7 +428,38 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return ThemedScaffold(
+      appBar: AppBar(
+        title: Text(widget.storeName),
+        actions: [
+          IconButton(
+            icon: Icon(
+              isFilterActive ? Icons.filter_list_off : Icons.filter_list,
+              color: Colors.white,
+            ),
+            onPressed: () {
+              setState(() {
+                isFilterActive = !isFilterActive;
+              });
+            },
+          ),
+          IconButton(
+            icon: Icon(
+              isSearchActive ? Icons.close : Icons.search,
+              color: Colors.white,
+            ),
+            onPressed: () {
+              setState(() {
+                isSearchActive = !isSearchActive;
+                if (!isSearchActive) {
+                  searchController.clear();
+                  filteredItems = items;
+                }
+              });
+            },
+          ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: () async {
           await loadStoreItems();
@@ -437,86 +469,17 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> {
         },
         child: Container(
           decoration: BoxDecoration(
-            gradient: ThemeProvider.subtleGradient,
+            gradient: Provider.of<ThemeProvider>(context).subtleGradient,
           ),
           child: Column(
             children: [
-              // App Bar
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  gradient: ThemeProvider.cardGradient,
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(24),
-                    bottomRight: Radius.circular(24),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+              if (isSearchActive) _buildSearchBar(),
+              if (isFilterActive) 
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  child: _buildFilterSection(),
                 ),
-                child: SafeArea(
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.arrow_back, color: Colors.white),
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                          Text(
-                            widget.storeName,
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const Spacer(),
-                          IconButton(
-                            icon: Icon(
-                              isFilterActive ? Icons.filter_list_off : Icons.filter_list,
-                              color: Colors.white,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                isFilterActive = !isFilterActive;
-                              });
-                            },
-                          ),
-                          IconButton(
-                            icon: Icon(
-                              isSearchActive ? Icons.close : Icons.search,
-                              color: Colors.white,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                isSearchActive = !isSearchActive;
-                                if (!isSearchActive) {
-                                  searchController.clear();
-                                  filteredItems = items;
-                                }
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                      if (isSearchActive) _buildSearchBar(),
-                      if (isFilterActive) 
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOut,
-                          child: _buildFilterSection(),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Items List
               Expanded(
                 child: isLoading
                     ? const Center(child: CircularProgressIndicator())

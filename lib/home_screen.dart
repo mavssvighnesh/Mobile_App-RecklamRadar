@@ -9,7 +9,7 @@ import 'providers/theme_provider.dart';
 import 'storedealspage.dart';
 import 'favoritespage.dart';
 import 'settingspage.dart';
-
+import 'package:provider/provider.dart';
 
 import 'cartpage.dart';
 import 'services/firestore_service.dart';
@@ -47,7 +47,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
       body: SafeArea(
         child: Container(
           decoration: BoxDecoration(
-            gradient: ThemeProvider.subtleGradient,
+            gradient: Provider.of<ThemeProvider>(context).subtleGradient,
           ),
           child: PageView(
             controller: _pageController,
@@ -251,7 +251,7 @@ class _HomePageState extends State<HomePage> {
     return Material(
       child: Container(
         decoration: BoxDecoration(
-          gradient: ThemeProvider.subtleGradient,
+          gradient: Provider.of<ThemeProvider>(context).subtleGradient,
         ),
         child: Column(
           children: [
@@ -259,7 +259,7 @@ class _HomePageState extends State<HomePage> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               decoration: BoxDecoration(
-                gradient: ThemeProvider.cardGradient,
+                gradient: Provider.of<ThemeProvider>(context).cardGradient,
                 borderRadius: const BorderRadius.only(
                   bottomLeft: Radius.circular(24),
                   bottomRight: Radius.circular(24),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:recklamradar/providers/theme_provider.dart';
 import 'package:recklamradar/utils/message_utils.dart';
+import 'package:provider/provider.dart';
 // Full-Screen Photo Page
 class FullScreenPhotoPage extends StatelessWidget {
   final String imagePath;
@@ -80,7 +81,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       ),
       body: Container(
         decoration: BoxDecoration(
-          gradient: ThemeProvider.backgroundGradient,
+          gradient: Provider.of<ThemeProvider>(context).backgroundGradient,
         ),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -254,7 +255,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         width: double.infinity,
         height: double.infinity,
         decoration: BoxDecoration(
-          gradient: ThemeProvider.backgroundGradient,
+          gradient: Provider.of<ThemeProvider>(context).backgroundGradient,
         ),
         child: SafeArea(
           child: Center(

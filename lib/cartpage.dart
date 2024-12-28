@@ -7,7 +7,7 @@ import 'package:flutter/services.dart';
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:provider/provider.dart';
 class CartPage extends StatefulWidget {
   const CartPage({super.key});
 
@@ -190,7 +190,7 @@ class _CartPageState extends State<CartPage> {
           ),
           Container(
             decoration: BoxDecoration(
-              gradient: ThemeProvider.cardGradient,
+              gradient: Provider.of<ThemeProvider>(context).cardGradient,
               borderRadius: BorderRadius.circular(8),
             ),
             child: ElevatedButton(
@@ -340,7 +340,7 @@ class _CartPageState extends State<CartPage> {
         decoration: BoxDecoration(
           gradient: _isScrolled 
               ? null 
-              : ThemeProvider.cardGradient,
+              : Provider.of<ThemeProvider>(context).cardGradient,
         ),
         child: AppBar(
           backgroundColor: Colors.transparent,
@@ -402,7 +402,7 @@ class _CartPageState extends State<CartPage> {
       appBar: _buildAppBar(),
       body: Container(
         decoration: BoxDecoration(
-          gradient: ThemeProvider.subtleGradient,
+          gradient: Provider.of<ThemeProvider>(context).subtleGradient,
         ),
         child: StreamBuilder<Map<String, List<Map<String, dynamic>>>>(
           stream: _cartStream,

@@ -9,7 +9,7 @@ import 'package:recklamradar/providers/theme_provider.dart';
 import 'package:recklamradar/utils/message_utils.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:recklamradar/services/firestore_service.dart';
-
+import 'package:provider/provider.dart';
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -89,7 +89,7 @@ class _LoginScreenState extends State<LoginScreen> {
         width: double.infinity,
         height: double.infinity,
         decoration: BoxDecoration(
-          gradient: ThemeProvider.backgroundGradient,
+          gradient: Provider.of<ThemeProvider>(context).backgroundGradient,
         ),
         child: Center(
           child: SingleChildScrollView(

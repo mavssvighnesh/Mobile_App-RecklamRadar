@@ -10,6 +10,8 @@ import 'dart:io';
 import 'package:recklamradar/providers/theme_provider.dart';
 import 'package:recklamradar/utils/message_utils.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import 'package:recklamradar/providers/theme_provider.dart';
 
 class AccountDetailsPage extends StatefulWidget {
   const AccountDetailsPage({super.key});
@@ -347,7 +349,7 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
       extendBodyBehindAppBar: true,
       body: Container(
         decoration: BoxDecoration(
-          gradient: ThemeProvider.backgroundGradient,
+          gradient: Provider.of<ThemeProvider>(context).backgroundGradient,
         ),
         child: CustomScrollView(
           controller: _scrollController,
@@ -372,7 +374,7 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
                   opacity: _isScrolled ? 0.0 : 1.0,
                   child: Container(
                     decoration: BoxDecoration(
-                      gradient: ThemeProvider.cardGradient,
+                      gradient: Provider.of<ThemeProvider>(context).cardGradient,
                     ),
                   ),
                 ),
