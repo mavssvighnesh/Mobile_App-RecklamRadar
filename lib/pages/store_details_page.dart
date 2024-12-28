@@ -30,6 +30,9 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> {
   Map<String, List<StoreItem>> categorizedItems = {};
   bool isSearchActive = false;
   final TextEditingController searchController = TextEditingController();
+  String? selectedCategory;
+  String selectedSort = 'Name'; // Default sort
+  bool showMemberPriceOnly = false;
 
   @override
   void initState() {
@@ -93,6 +96,42 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> {
 
   void _removeFromCart(StoreItem item) {
     // Implementation of _removeFromCart
+  }
+
+  void _sortItems() {
+    setState(() {
+      switch (selectedSort) {
+        case 'Name':
+          filteredItems.sort((a, b) => a.name.compareTo(b.name));
+          break;
+        case 'Price (Low to High)':
+          filteredItems.sort((a, b) => a.price.compareTo(b.price));
+          break;
+        case 'Price (High to Low)':
+          filteredItems.sort((a, b) => b.price.compareTo(a.price));
+          break;
+      }
+    });
+  }
+
+  void _filterItems(String? query) {
+    setState(() {
+      filteredItems = items.where((item) {
+        bool matchesSearch = query == null || query.isEmpty ||
+            item.name.toLowerCase().contains(query.toLowerCase()) ||
+            item.category.toLowerCase().contains(query.toLowerCase());
+            
+        bool matchesCategory = selectedCategory == null || 
+            selectedCategory == 'All' ||
+            item.category == selectedCategory;
+            
+        bool matchesMemberPrice = !showMemberPriceOnly || item.salePrice != null;
+
+        return matchesSearch && matchesCategory && matchesMemberPrice;
+      }).toList();
+      
+      _sortItems();
+    });
   }
 
   Widget _buildItemCard(StoreItem item, int index) {
@@ -275,6 +314,116 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> {
     );
   }
 
+  Widget _buildFilterSection() {
+    final categories = ['All', ...items.map((item) => item.category).toSet().toList()];
+    final sortOptions = ['Name', 'Price (Low to High)', 'Price (High to Low)'];
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: ThemeProvider.cardGradient,
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(24),
+          bottomRight: Radius.circular(24),
+        ),
+      ),
+      child: Column(
+        children: [
+          // Category Dropdown
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: selectedCategory ?? 'All',
+                isExpanded: true,
+                dropdownColor: Theme.of(context).primaryColor,
+                style: const TextStyle(color: Colors.white),
+                hint: const Text('Select Category', style: TextStyle(color: Colors.white)),
+                icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+                items: categories.map((category) {
+                  return DropdownMenuItem(
+                    value: category,
+                    child: Text(category, style: const TextStyle(color: Colors.white)),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    selectedCategory = value == 'All' ? null : value;
+                    _filterItems(searchController.text);
+                  });
+                },
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Sort Dropdown
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: selectedSort,
+                isExpanded: true,
+                dropdownColor: Theme.of(context).primaryColor,
+                style: const TextStyle(color: Colors.white),
+                icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+                items: sortOptions.map((option) {
+                  return DropdownMenuItem(
+                    value: option,
+                    child: Text(option, style: const TextStyle(color: Colors.white)),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    selectedSort = value!;
+                    _sortItems();
+                  });
+                },
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Member Price Switch
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Member Price Only',
+                  style: TextStyle(color: Colors.white),
+                ),
+                Switch(
+                  value: showMemberPriceOnly,
+                  onChanged: (value) {
+                    setState(() {
+                      showMemberPriceOnly = value;
+                      _filterItems(searchController.text);
+                    });
+                  },
+                  activeColor: Colors.white,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -344,6 +493,7 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> {
                         ],
                       ),
                       if (isSearchActive) _buildSearchBar(),
+                      _buildFilterSection(),
                     ],
                   ),
                 ),
@@ -353,15 +503,19 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> {
               Expanded(
                 child: isLoading
                     ? const Center(child: CircularProgressIndicator())
-                    : ListView.builder(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.all(16),
-                        itemCount: filteredItems.length,
-                        itemBuilder: (context, index) {
-                          final item = filteredItems[index];
-                          return _buildItemCard(item, index);
-                        },
-                      ),
+                    : filteredItems.isEmpty
+                        ? const Center(
+                            child: Text('No items found'),
+                          )
+                        : ListView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.all(16),
+                            itemCount: filteredItems.length,
+                            itemBuilder: (context, index) {
+                              final item = filteredItems[index];
+                              return _buildItemCard(item, index);
+                            },
+                          ),
               ),
             ],
           ),
