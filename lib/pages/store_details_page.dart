@@ -9,6 +9,8 @@ import 'package:recklamradar/utils/size_config.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:recklamradar/widgets/themed_scaffold.dart';
 import 'package:provider/provider.dart';
+import 'package:recklamradar/styles/app_text_styles.dart';
+
 class StoreDetailsPage extends StatefulWidget {
   final String storeId;
   final String storeName;
@@ -227,42 +229,33 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> {
                   children: [
                     Text(
                       item.name,
-                      style: TextStyle(
-                        fontSize: SizeConfig.fontSize * 1.1,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: AppTextStyles.cardTitle(context),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
+                    SizedBox(height: 8),
                     Text(
                       item.category,
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 14,
-                      ),
+                      style: AppTextStyles.cardSubtitle(context),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: 8),
                     Row(
                       children: [
-                        Text(
-                          'SEK ${item.price}/${item.unit}',
-                          style: item.salePrice != null 
-                              ? const TextStyle(
-                                  decoration: TextDecoration.lineThrough,
-                                  color: Colors.grey,
-                                )
-                              : const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                        ),
                         if (item.salePrice != null) ...[
-                          const SizedBox(width: 8),
                           Text(
-                            'SEK ${item.salePrice}/${item.unit}',
-                            style: const TextStyle(
-                              color: Colors.green,
-                              fontWeight: FontWeight.bold,
-                            ),
+                            'SEK ${item.price}',
+                            style: AppTextStyles.price(context, isOnSale: true),
                           ),
-                        ],
+                          SizedBox(width: 8),
+                          Text(
+                            'SEK ${item.salePrice}',
+                            style: AppTextStyles.price(context),
+                          ),
+                        ] else
+                          Text(
+                            'SEK ${item.price}',
+                            style: AppTextStyles.price(context),
+                          ),
                       ],
                     ),
                   ],
@@ -306,6 +299,7 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> {
         onChanged: _searchItems,
         decoration: InputDecoration(
           hintText: 'Search items...',
+          hintStyle: AppTextStyles.bodyMedium(context),
           prefixIcon: const Icon(Icons.search),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
@@ -430,7 +424,10 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> {
   Widget build(BuildContext context) {
     return ThemedScaffold(
       appBar: AppBar(
-        title: Text(widget.storeName),
+        title: Text(
+          widget.storeName,
+          style: AppTextStyles.heading2(context),
+        ),
         actions: [
           IconButton(
             icon: Icon(

@@ -8,6 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/firestore_service.dart';
 import 'package:provider/provider.dart';
+import 'package:recklamradar/styles/app_text_styles.dart';
+
 class FavoritesPage extends StatefulWidget {
   @override
   _FavoritesPageState createState() => _FavoritesPageState();
@@ -119,7 +121,10 @@ class _FavoritesPageState extends State<FavoritesPage> {
             pinned: true,
             expandedHeight: SizeConfig.blockSizeVertical * 20,
             flexibleSpace: FlexibleSpaceBar(
-              title: Text('Discover Deals'),
+              title: Text(
+                'Discover Deals',
+                style: AppTextStyles.heading1(context),
+              ),
               background: Container(
                 decoration: BoxDecoration(
                   gradient: Provider.of<ThemeProvider>(context).cardGradient,
@@ -135,6 +140,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                   onChanged: _filterItems,
                   decoration: InputDecoration(
                     hintText: 'Search for deals...',
+                    hintStyle: AppTextStyles.bodyMedium(context),
                     filled: true,
                     fillColor: Colors.white,
                     border: OutlineInputBorder(
@@ -229,33 +235,21 @@ class _FavoritesPageState extends State<FavoritesPage> {
                 children: [
                   Text(
                     item.name,
-                    style: TextStyle(
-                      fontSize: SizeConfig.fontSize,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: AppTextStyles.cardTitle(context),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                   SizedBox(height: SizeConfig.blockSizeVertical),
                   Text(
                     item.category,
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: SizeConfig.fontSize * 0.8,
-                    ),
+                    style: AppTextStyles.cardSubtitle(context),
                   ),
                   SizedBox(height: SizeConfig.blockSizeVertical),
                   Row(
                     children: [
                       Text(
                         'SEK ${item.price}',
-                        style: TextStyle(
-                          decoration: item.salePrice != null
-                              ? TextDecoration.lineThrough
-                              : null,
-                          color: item.salePrice != null ? Colors.grey : Colors.black,
-                          fontSize: SizeConfig.fontSize * 0.9,
-                        ),
+                        style: AppTextStyles.price(context, isOnSale: item.salePrice != null),
                       ),
                       if (item.salePrice != null) ...[
                         SizedBox(width: SizeConfig.blockSizeHorizontal * 2),

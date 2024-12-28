@@ -7,6 +7,7 @@ import 'accountdetailspage.dart';
 import 'providers/theme_provider.dart';
 import 'package:recklamradar/utils/size_config.dart';
 import 'package:provider/provider.dart';
+import 'package:recklamradar/styles/app_text_styles.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -196,19 +197,13 @@ class _SettingsPageState extends State<SettingsPage> {
                           const SizedBox(height: 16),
                           Text(
                             _userName.isNotEmpty ? _userName : 'No Name',
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: AppTextStyles.heading2(context),
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 4),
                           Text(
                             _userEmail.isNotEmpty ? _userEmail : 'No Email',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey[700],
-                            ),
+                            style: AppTextStyles.bodyMedium(context),
                             textAlign: TextAlign.center,
                           ),
                         ],
@@ -333,9 +328,11 @@ class _SettingsPageState extends State<SettingsPage> {
                               ),
                               title: Text(
                                 'Dark Mode',
-                                style: TextStyle(
-                                  color: themeProvider.isDarkMode ? Colors.white : Colors.black87,
-                                ),
+                                style: AppTextStyles.bodyLarge(context),
+                              ),
+                              subtitle: Text(
+                                'Toggle app theme',
+                                style: AppTextStyles.bodySmall(context),
                               ),
                               trailing: Switch(
                                 value: themeProvider.isDarkMode,
@@ -435,10 +432,7 @@ class _SettingsPageState extends State<SettingsPage> {
         children: [
           Text(
             title,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            style: AppTextStyles.heading3(context),
           ),
           const SizedBox(height: 16),
           ...children,

@@ -18,20 +18,19 @@ class ThemedCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<ThemeProvider>(
       builder: (context, themeProvider, child) {
-        return Card(
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          color: themeProvider.isDarkMode
-              ? const Color(0xFF1F2937).withOpacity(0.9)
-              : Colors.white.withOpacity(0.9),
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: padding ?? const EdgeInsets.all(16),
-              child: this.child,
+        return Container(
+          decoration: themeProvider.isDarkMode
+              ? ThemeProvider.darkGlassEffect
+              : ThemeProvider.glassEffect,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(16),
+              child: Padding(
+                padding: padding ?? const EdgeInsets.all(16),
+                child: this.child,
+              ),
             ),
           ),
         );

@@ -10,6 +10,8 @@ import 'package:recklamradar/utils/message_utils.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:recklamradar/services/firestore_service.dart';
 import 'package:provider/provider.dart';
+import 'package:recklamradar/styles/app_text_styles.dart';
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -123,18 +125,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     children: [
                       Text(
                         'Welcome Back!',
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: theme.colorScheme.primary,
-                          shadows: [
-                            Shadow(
-                              color: theme.colorScheme.primary.withOpacity(0.3),
-                              offset: const Offset(0, 2),
-                              blurRadius: 4,
-                            ),
-                          ],
-                        ),
+                        style: AppTextStyles.heading1(context),
                       ),
                       const SizedBox(height: 32),
                       TextField(
@@ -142,6 +133,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         keyboardType: TextInputType.emailAddress,
                         decoration: InputDecoration(
                           labelText: 'Email',
+                          labelStyle: AppTextStyles.label(context),
                           prefixIcon: Icon(Icons.email_outlined, 
                             color: theme.colorScheme.primary),
                           border: OutlineInputBorder(
@@ -168,6 +160,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         obscureText: !_isPasswordVisible,
                         decoration: InputDecoration(
                           labelText: 'Password',
+                          labelStyle: AppTextStyles.label(context),
                           prefixIcon: Icon(Icons.lock_outline,
                             color: theme.colorScheme.primary),
                           suffixIcon: IconButton(
@@ -215,10 +208,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           },
                           child: Text(
                             "Forgot Password?",
-                            style: TextStyle(
-                              color: theme.colorScheme.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
+                            style: AppTextStyles.link(context),
                           ),
                         ),
                       ),
@@ -237,12 +227,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         child: _isLoading
                             ? const CircularProgressIndicator(color: Colors.white)
-                            : const Text(
+                            : Text(
                                 'Log In',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                                style: AppTextStyles.buttonLarge(context),
                               ),
                       ),
                       const SizedBox(height: 20),

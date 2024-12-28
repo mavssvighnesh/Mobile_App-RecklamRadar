@@ -51,20 +51,21 @@ class ThemeProvider with ChangeNotifier {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [
-      Color(0xFF1A1A2E),  // Deep blue-black
-      Color(0xFF16213E),  // Dark navy
-      Color(0xFF1B2430),  // Dark slate
-      Color(0xFF0F172A),  // Darkest blue
+      Color(0xFF2C3E50),  // Deep blue-gray
+      Color(0xFF3A506B),  // Steel blue
+      Color(0xFF5C6B7F),  // Slate gray
+      Color(0xFF8B4367),  // Dusty rose
+      Color(0xFFC34C74),  // Rose
     ],
-    stops: [0.0, 0.3, 0.6, 1.0],
+    stops: [0.0, 0.25, 0.5, 0.75, 1.0],
   );
 
   static LinearGradient get darkCardGradient => const LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [
-      Color(0xFF1F2937),  // Dark gray-blue
-      Color(0xFF1B2430),  // Dark slate
+      Color(0xFF3A506B),  // Steel blue
+      Color(0xFF2C3E50),  // Deep blue-gray
     ],
   );
 
@@ -95,6 +96,49 @@ class ThemeProvider with ChangeNotifier {
 
   ThemeData get theme => _isDarkMode ? _darkTheme : _lightTheme;
 
+  // Update both light and dark theme text themes
+  static final TextTheme _baseTextTheme = TextTheme(
+    headlineLarge: const TextStyle(
+      fontSize: 32,
+      fontWeight: FontWeight.bold,
+      letterSpacing: -0.5,
+    ),
+    headlineMedium: const TextStyle(
+      fontSize: 24,
+      fontWeight: FontWeight.bold,
+      letterSpacing: -0.3,
+    ),
+    titleLarge: const TextStyle(
+      fontSize: 20,
+      fontWeight: FontWeight.bold,
+    ),
+    bodyLarge: const TextStyle(
+      fontSize: 16,
+      height: 1.5,
+      fontWeight: FontWeight.w400,
+    ),
+    bodyMedium: const TextStyle(
+      fontSize: 14,
+      height: 1.4,
+      fontWeight: FontWeight.w400,
+    ),
+    labelLarge: const TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.w500,
+      letterSpacing: 0.2,
+    ),
+  );
+
+  static final TextTheme _lightTextTheme = _baseTextTheme.apply(
+    bodyColor: const Color(0xFF2D3748),
+    displayColor: const Color(0xFF2D3748),
+  );
+
+  static final TextTheme _darkTextTheme = _baseTextTheme.apply(
+    bodyColor: Colors.white,
+    displayColor: Colors.white,
+  );
+
   // Light Theme
   static final ThemeData _lightTheme = ThemeData(
     primaryColor: const Color(0xFF7B6FF0),
@@ -103,108 +147,203 @@ class ThemeProvider with ChangeNotifier {
     scaffoldBackgroundColor: Colors.transparent,
     
     colorScheme: const ColorScheme.light(
-      primary: Color(0xFF7B6FF0),
-      secondary: Color(0xFFFFB6C1),
-      surface: Color(0xFFFFFFFF),
-      background: Color(0xFFB5B8FF),
-      error: Color(0xFFFF8B94),
-      onPrimary: Color(0xFFFFFFFF),
-      onSecondary: Color(0xFF000000),
-      onSurface: Color(0xFF000000),
-      onBackground: Color(0xFF000000),
-      onError: Color(0xFFFFFFFF),
+      primary: Color(0xFF7B6FF0),      // Deep purple
+      secondary: Color(0xFFFFB6C1),    // Light pink
+      surface: Color(0xFFFFFFFF),      // White
+      background: Color(0xFFB5B8FF),   // Light purple-blue
+      error: Color(0xFFFF8B94),        // Light red
+      onPrimary: Color(0xFFFFFFFF),    // White
+      onSecondary: Color(0xFF000000),  // Black
+      onSurface: Color(0xFF000000),    // Black
+      onBackground: Color(0xFF000000),  // Black
+      onError: Color(0xFFFFFFFF),      // White
       brightness: Brightness.light,
     ),
+
+    // Enhanced AppBar theme for light mode
+    appBarTheme: AppBarTheme(
+      backgroundColor: const Color(0xFF7B6FF0).withOpacity(0.95),
+      elevation: 0,
+      iconTheme: const IconThemeData(
+        color: Colors.white,
+        size: 24,
+      ),
+      actionsIconTheme: const IconThemeData(
+        color: Colors.white,
+        size: 24,
+      ),
+      titleTextStyle: const TextStyle(
+        color: Colors.white,
+        fontSize: 20,
+        fontWeight: FontWeight.bold,
+        letterSpacing: 0.5,
+      ),
+      toolbarTextStyle: const TextStyle(
+        color: Colors.white,
+        fontSize: 16,
+        fontWeight: FontWeight.w500,
+      ),
+    ),
+
+    // Enhanced button styling for light mode
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF7B6FF0),
+        foregroundColor: Colors.white,
+        elevation: 4,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        textStyle: const TextStyle(
+          color: Colors.white,
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.5,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        shadowColor: const Color(0xFF7B6FF0).withOpacity(0.4),
+      ),
+    ),
+
+    // Text button theme for light mode
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        foregroundColor: const Color(0xFF7B6FF0),
+        textStyle: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.5,
+        ),
+      ),
+    ),
+
+    // Outlined button theme for light mode
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: const Color(0xFF7B6FF0),
+        side: const BorderSide(color: Color(0xFF7B6FF0), width: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        textStyle: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.5,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+      ),
+    ),
+
+    textTheme: _lightTextTheme,
     // ... rest of your light theme configuration
   );
 
   // Dark Theme
   static final ThemeData _darkTheme = ThemeData(
-    primaryColor: const Color(0xFF7B6FF0),
-    primaryColorLight: const Color(0xFF9198FF),
-    primaryColorDark: const Color(0xFF6357CC),
+    primaryColor: const Color(0xFFC34C74),      // Rose
+    primaryColorLight: const Color(0xFFE57498),  // Light rose
+    primaryColorDark: const Color(0xFF8B4367),   // Dark rose
     scaffoldBackgroundColor: Colors.transparent,
     
     colorScheme: const ColorScheme.dark(
-      primary: Color(0xFF7B6FF0),
-      secondary: Color(0xFFFFB6C1),
-      surface: Color(0xFF1F2937),
-      background: Color(0xFF0F172A),
-      error: Color(0xFFEF4444),
-      onPrimary: Color(0xFFFFFFFF),
-      onSecondary: Color(0xFF000000),
-      onSurface: Color(0xFFFFFFFF),
-      onBackground: Color(0xFFFFFFFF),
-      onError: Color(0xFFFFFFFF),
+      primary: Color(0xFFC34C74),     // Rose
+      secondary: Color(0xFF66A6FF),    // Sky blue
+      surface: Color(0xFF2C3E50),      // Deep blue-gray
+      background: Color(0xFF1A1F25),   // Darker blue-gray
+      error: Color(0xFFFF6B6B),        // Soft red
+      onPrimary: Color(0xFFFFFFFF),    // White
+      onSecondary: Color(0xFF1A1F25),  // Dark blue-gray
+      onSurface: Color(0xFFFFFFFF),    // White
+      onBackground: Color(0xFFFFFFFF),  // White
+      onError: Color(0xFFFFFFFF),      // White
       brightness: Brightness.dark,
     ),
 
     cardTheme: CardTheme(
-      color: const Color(0xFF1F2937).withOpacity(0.9),
-      elevation: 2,
+      color: const Color(0xFF2C3E50).withOpacity(0.7),
+      elevation: 8,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
       ),
+      shadowColor: const Color(0xFFC34C74).withOpacity(0.2),
     ),
 
-    appBarTheme: const AppBarTheme(
-      backgroundColor: Colors.transparent,
+    appBarTheme: AppBarTheme(
+      backgroundColor: const Color(0xFF2C3E50).withOpacity(0.7),
       elevation: 0,
-      iconTheme: IconThemeData(color: Colors.white),
-      titleTextStyle: TextStyle(
+      iconTheme: const IconThemeData(color: Colors.white),
+      titleTextStyle: const TextStyle(
         color: Colors.white,
         fontSize: 20,
         fontWeight: FontWeight.bold,
       ),
     ),
 
+    // Enhanced button styling
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF7B6FF0).withOpacity(0.9),
+        backgroundColor: const Color(0xFFC34C74).withOpacity(0.9),
         foregroundColor: Colors.white,
-        elevation: 2,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        elevation: 4,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
         ),
+        shadowColor: const Color(0xFFC34C74).withOpacity(0.5),
       ),
     ),
 
+    // Enhanced input styling
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: const Color(0xFF1F2937).withOpacity(0.9),
+      fillColor: const Color(0xFF2C3E50).withOpacity(0.7),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: const Color(0xFF7B6FF0).withOpacity(0.3)),
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(
+          color: const Color(0xFFC34C74).withOpacity(0.3),
+        ),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: const Color(0xFF7B6FF0).withOpacity(0.3)),
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(
+          color: const Color(0xFFC34C74).withOpacity(0.3),
+        ),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFF7B6FF0), width: 2),
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(
+          color: Color(0xFFC34C74),
+          width: 2,
+        ),
       ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      labelStyle: const TextStyle(color: Colors.white70),
-      hintStyle: const TextStyle(color: Colors.white60),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      labelStyle: TextStyle(
+        color: Colors.white.withOpacity(0.9),
+      ),
+      hintStyle: TextStyle(
+        color: Colors.white.withOpacity(0.6),
+      ),
     ),
 
-    textTheme: const TextTheme(
-      headlineLarge: TextStyle(
-        color: Colors.white,
-        fontWeight: FontWeight.bold,
+    textTheme: _darkTextTheme.copyWith(
+      bodyLarge: _darkTextTheme.bodyLarge?.copyWith(
+        color: Colors.white.withOpacity(0.9),
       ),
-      headlineMedium: TextStyle(
-        color: Colors.white,
-        fontWeight: FontWeight.bold,
+      bodyMedium: _darkTextTheme.bodyMedium?.copyWith(
+        color: Colors.white.withOpacity(0.7),
       ),
-      titleLarge: TextStyle(
-        color: Colors.white,
-        fontWeight: FontWeight.bold,
+      bodySmall: _darkTextTheme.bodySmall?.copyWith(
+        color: Colors.white.withOpacity(0.5),
       ),
-      bodyLarge: TextStyle(color: Colors.white70),
-      bodyMedium: TextStyle(color: Colors.white60),
+    ),
+
+    iconTheme: IconThemeData(
+      color: Colors.white.withOpacity(0.9),
+    ),
+
+    dividerTheme: DividerThemeData(
+      color: Colors.white.withOpacity(0.1),
+      thickness: 1,
     ),
   );
 
@@ -222,6 +361,30 @@ class ThemeProvider with ChangeNotifier {
         spreadRadius: 2,
       ),
     ],
+  );
+
+  static BoxDecoration get darkGlassEffect => BoxDecoration(
+    color: const Color(0xFF3A506B).withOpacity(0.15),
+    borderRadius: BorderRadius.circular(16),
+    border: Border.all(
+      color: Colors.white.withOpacity(0.1),
+      width: 1.5,
+    ),
+    boxShadow: [
+      BoxShadow(
+        color: const Color(0xFFC34C74).withOpacity(0.2),
+        blurRadius: 12,
+        spreadRadius: 2,
+      ),
+    ],
+    gradient: LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        Colors.white.withOpacity(0.1),
+        Colors.white.withOpacity(0.05),
+      ],
+    ),
   );
 
   Future<void> loadThemeFromPrefs() async {

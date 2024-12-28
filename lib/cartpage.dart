@@ -8,6 +8,8 @@ import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
+import 'package:recklamradar/styles/app_text_styles.dart';
+
 class CartPage extends StatefulWidget {
   const CartPage({super.key});
 
@@ -354,11 +356,7 @@ class _CartPageState extends State<CartPage> {
                 children: [
                   Text(
                     'Shopping Cart',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: _isScrolled ? Colors.black87 : Colors.white,
-                    ),
+                    style: AppTextStyles.heading1(context),
                   ),
                 ],
               ),
@@ -530,10 +528,7 @@ class _CartPageState extends State<CartPage> {
               const SizedBox(width: 12),
               Text(
                 store,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: AppTextStyles.heading3(context),
               ),
             ],
           ),
@@ -627,15 +622,18 @@ class _CartPageState extends State<CartPage> {
             ),
             title: Text(
               item['name'],
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: AppTextStyles.cardTitle(context),
             ),
-            subtitle: Text('${item['price']} SEK x ${item['quantity']}'),
+            subtitle: Text(
+              '${item['price']} SEK x ${item['quantity']}',
+              style: AppTextStyles.bodyMedium(context),
+            ),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   '${(item['price'] * item['quantity']).toStringAsFixed(2)} SEK',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  style: AppTextStyles.price(context),
                 ),
                 const SizedBox(width: 8),
                 Transform.scale(
