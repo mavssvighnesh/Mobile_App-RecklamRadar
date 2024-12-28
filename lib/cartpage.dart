@@ -335,35 +335,43 @@ class _CartPageState extends State<CartPage> {
 
   PreferredSize _buildAppBar() {
     return PreferredSize(
-      preferredSize: const Size.fromHeight(kToolbarHeight),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+      preferredSize: const Size.fromHeight(120),
+      child: Container(
         decoration: BoxDecoration(
-          color: _isScrolled 
-              ? Theme.of(context).primaryColor 
-              : Colors.transparent,
-          boxShadow: _isScrolled
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  )
-                ]
-              : [],
+          gradient: _isScrolled 
+              ? null 
+              : ThemeProvider.cardGradient,
         ),
         child: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          title: AnimatedOpacity(
+          flexibleSpace: AnimatedOpacity(
             duration: const Duration(milliseconds: 200),
-            opacity: _titleOpacity,
-            child: const Text('Shopping Cart'),
+            opacity: _isScrolled ? 0.0 : 1.0,
+            child: SafeArea(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Shopping Cart',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: _isScrolled ? Colors.black87 : Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
           actions: [
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: _initializeCartStream,
+            AnimatedOpacity(
+              duration: const Duration(milliseconds: 200),
+              opacity: _isScrolled ? 0.0 : 1.0,
+              child: IconButton(
+                icon: const Icon(Icons.refresh, color: Colors.white),
+                onPressed: _initializeCartStream,
+              ),
             ),
           ],
         ),
@@ -412,82 +420,56 @@ class _CartPageState extends State<CartPage> {
             final total = calculateTotal(cartItems);
             final balance = (maxBudget ?? 0) - total;
 
-            return Scaffold(
-              body: RefreshIndicator(
-                onRefresh: () async {
-                  _initializeCartStream();
-                  await Future.delayed(const Duration(milliseconds: 500));
-                },
-                child: CustomScrollView(
-                  physics: const BouncingScrollPhysics(
-                    parent: AlwaysScrollableScrollPhysics(),
-                  ),
-                  controller: _scrollController,
-                  slivers: [
-                    // Budget Section
-                    SliverToBoxAdapter(
-                      child: Container(
-                        padding: EdgeInsets.only(
-                          top: MediaQuery.of(context).padding.top + 80,
-                          left: 16,
-                          right: 16,
-                          bottom: 16,
-                        ),
-                        decoration: BoxDecoration(
-                          gradient: ThemeProvider.cardGradient,
-                          borderRadius: const BorderRadius.only(
-                            bottomLeft: Radius.circular(24),
-                            bottomRight: Radius.circular(24),
+            return Column(
+              children: [
+                Expanded(
+                  child: CustomScrollView(
+                    physics: const BouncingScrollPhysics(
+                      parent: AlwaysScrollableScrollPhysics(),
+                    ),
+                    controller: _scrollController,
+                    slivers: [
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.only(
+                            top: MediaQuery.of(context).padding.top + 20,
+                            left: 16,
+                            right: 16,
+                            bottom: 16,
                           ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          children: [
-                            const Text(
-                              'Shopping Cart',
-                              style: TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            _buildBudgetField(),
-                            if (maxBudget != null) ...[
-                              const SizedBox(height: 12),
-                              _buildBudgetInfo(balance),
+                          child: Column(
+                            children: [
+                              _buildBudgetField(),
+                              if (maxBudget != null) ...[
+                                const SizedBox(height: 12),
+                                _buildBudgetInfo(balance),
+                              ],
                             ],
-                          ],
+                          ),
                         ),
                       ),
-                    ),
 
-                    // Cart Items
-                    SliverPadding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      sliver: cartItems.isEmpty
-                          ? SliverFillRemaining(child: _buildEmptyCart())
-                          : SliverList(
-                              delegate: SliverChildBuilderDelegate(
-                                (context, index) {
-                                  final store = cartItems.keys.elementAt(index);
-                                  final storeItems = cartItems[store]!;
-                                  return _buildStoreSection(store, storeItems);
-                                },
-                                childCount: cartItems.length,
+                      // Cart Items
+                      SliverPadding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        sliver: cartItems.isEmpty
+                            ? SliverFillRemaining(child: _buildEmptyCart())
+                            : SliverList(
+                                delegate: SliverChildBuilderDelegate(
+                                  (context, index) {
+                                    final store = cartItems.keys.elementAt(index);
+                                    final storeItems = cartItems[store]!;
+                                    return _buildStoreSection(store, storeItems);
+                                  },
+                                  childCount: cartItems.length,
+                                ),
                               ),
-                            ),
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              bottomNavigationBar: _buildTotalSection(total),
+                _buildTotalSection(total),
+              ],
             );
           },
         ),
@@ -565,25 +547,6 @@ class _CartPageState extends State<CartPage> {
     return Dismissible(
       key: Key('${store}-${item['name']}'),
       background: Container(
-        color: Colors.red,
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            Text(
-              'Delete',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(width: 8),
-            Icon(Icons.delete, color: Colors.white),
-          ],
-        ),
-      ),
-      secondaryBackground: Container(
         color: Colors.blue,
         alignment: Alignment.centerLeft,
         padding: const EdgeInsets.only(left: 20),
@@ -599,6 +562,25 @@ class _CartPageState extends State<CartPage> {
                 fontWeight: FontWeight.bold,
               ),
             ),
+          ],
+        ),
+      ),
+      secondaryBackground: Container(
+        color: Colors.red,
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Text(
+              'Delete',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(width: 8),
+            Icon(Icons.delete, color: Colors.white),
           ],
         ),
       ),
