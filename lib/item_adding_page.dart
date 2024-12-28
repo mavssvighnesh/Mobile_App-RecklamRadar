@@ -388,8 +388,11 @@ class _ItemAddingPageState extends State<ItemAddingPage> {
                 controller: _descriptionController,
                 label: 'Description',
                 icon: Icons.description_outlined,
-                maxLines: 3,
-                validator: (value) => value?.isEmpty ?? true ? 'Please enter description' : null,
+                maxLines: 5,
+                validator: (value) {
+                  if (value?.isEmpty ?? true) return null;
+                  return null;
+                },
               ),
 
               _buildTextField(
