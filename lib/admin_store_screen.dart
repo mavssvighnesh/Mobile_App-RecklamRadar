@@ -3,7 +3,6 @@ import 'package:flutter/widgets.dart';
 import 'package:recklamradar/providers/theme_provider.dart';
 import 'item_adding_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:recklamradar/providers/theme_provider.dart';
 import 'package:recklamradar/utils/size_config.dart';
 import 'package:provider/provider.dart';
 

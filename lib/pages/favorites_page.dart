@@ -3,14 +3,16 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/store_item.dart';
 import '../utils/size_config.dart';
 import '../providers/theme_provider.dart';
-import '../services/cart_manager.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../services/firestore_service.dart';
+import '../utils/message_utils.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:recklamradar/styles/app_text_styles.dart';
+import 'package:recklamradar/widgets/themed_card.dart';
 
 class FavoritesPage extends StatefulWidget {
+  const FavoritesPage({super.key});
+
   @override
   _FavoritesPageState createState() => _FavoritesPageState();
 }
@@ -21,6 +23,9 @@ class _FavoritesPageState extends State<FavoritesPage> {
   List<StoreItem> allItems = [];
   List<StoreItem> filteredItems = [];
   bool isLoading = true;
+  String? selectedFilter;
+  Set<String> categories = {};
+  Set<String> stores = {};
 
   @override
   void initState() {
@@ -30,24 +35,33 @@ class _FavoritesPageState extends State<FavoritesPage> {
 
   Future<void> _loadAllItems() async {
     setState(() => isLoading = true);
-    
     try {
+      // Get all stores
       final storesSnapshot = await FirebaseFirestore.instance
           .collection('stores')
           .get();
-          
+      
       final items = <StoreItem>[];
       
+      // For each store, get their items
       for (var store in storesSnapshot.docs) {
         final itemsSnapshot = await store.reference
             .collection('items')
             .get();
             
         items.addAll(
-          itemsSnapshot.docs.map((doc) => StoreItem.fromFirestore(doc)),
+          itemsSnapshot.docs.map((doc) {
+            final item = StoreItem.fromFirestore(doc);
+            // Add store name to item
+            return item.copyWith(storeName: store.id);
+          }),
         );
       }
-      
+
+      // Get unique categories and stores
+      categories = items.map((item) => item.category).toSet();
+      stores = items.map((item) => item.storeName).toSet();
+
       if (mounted) {
         setState(() {
           allItems = items;
@@ -57,62 +71,71 @@ class _FavoritesPageState extends State<FavoritesPage> {
       }
     } catch (e) {
       print('Error loading items: $e');
-      setState(() => isLoading = false);
+      if (mounted) {
+        showMessage(context, 'Error loading items', false);
+        setState(() => isLoading = false);
+      }
     }
   }
 
   void _filterItems(String query) {
     setState(() {
-      if (query.isEmpty) {
-        filteredItems = allItems;
-      } else {
-        filteredItems = allItems
-            .where((item) =>
-                item.name.toLowerCase().contains(query.toLowerCase()) ||
-                item.category.toLowerCase().contains(query.toLowerCase()))
-            .toList();
-      }
+      filteredItems = allItems.where((item) {
+        bool matchesSearch = query.isEmpty ||
+            item.name.toLowerCase().contains(query.toLowerCase()) ||
+            item.category.toLowerCase().contains(query.toLowerCase()) ||
+            item.storeName.toLowerCase().contains(query.toLowerCase());
+        
+        bool matchesFilter = selectedFilter == null ||
+            item.category == selectedFilter ||
+            item.storeName == selectedFilter;
+            
+        return matchesSearch && matchesFilter;
+      }).toList();
     });
   }
 
-  Future<void> _addToCart(StoreItem item, String storeId) async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        // Get store name from Firestore
-        final storeDoc = await FirebaseFirestore.instance
-            .collection('stores')
-            .doc(storeId)
-            .get();
-        
-        String storeName = storeDoc.data()?['name'] ?? 'Unknown Store';
-        
-        await _firestoreService.addToCart(user.uid, item, storeName);
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${item.name} added to cart')),
-          );
-        }
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please login to add items to cart')),
+  void _showFilterDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(
+            "Filter Items",
+            style: AppTextStyles.heading3(context),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButton<String>(
+                isExpanded: true,
+                value: selectedFilter,
+                items: [
+                  const DropdownMenuItem(value: null, child: Text("All")),
+                  ...stores.map((store) => DropdownMenuItem(
+                        value: store,
+                        child: Text("Store: $store"),
+                      )),
+                  ...categories.map((category) => DropdownMenuItem(
+                        value: category,
+                        child: Text("Category: $category"),
+                      )),
+                ],
+                onChanged: (filter) {
+                  setState(() => selectedFilter = filter);
+                  _filterItems(_searchController.text);
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
         );
-      }
-    } catch (e) {
-      print('Error adding to cart: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to add item to cart')),
-        );
-      }
-    }
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    SizeConfig().init(context);
-    
     return Scaffold(
       body: CustomScrollView(
         slivers: [
@@ -131,6 +154,12 @@ class _FavoritesPageState extends State<FavoritesPage> {
                 ),
               ),
             ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.filter_list),
+                onPressed: _showFilterDialog,
+              ),
+            ],
             bottom: PreferredSize(
               preferredSize: Size.fromHeight(SizeConfig.blockSizeVertical * 8),
               child: Padding(
@@ -139,7 +168,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                   controller: _searchController,
                   onChanged: _filterItems,
                   decoration: InputDecoration(
-                    hintText: 'Search for deals...',
+                    hintText: 'Search items...',
                     hintStyle: AppTextStyles.bodyMedium(context),
                     filled: true,
                     fillColor: Colors.white,
@@ -148,7 +177,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                         SizeConfig.blockSizeHorizontal * 3,
                       ),
                     ),
-                    prefixIcon: Icon(Icons.search),
+                    prefixIcon: const Icon(Icons.search),
                   ),
                 ),
               ),
@@ -158,21 +187,27 @@ class _FavoritesPageState extends State<FavoritesPage> {
             const SliverFillRemaining(
               child: Center(child: CircularProgressIndicator()),
             )
+          else if (filteredItems.isEmpty)
+            SliverFillRemaining(
+              child: Center(
+                child: Text(
+                  'No items found',
+                  style: AppTextStyles.bodyLarge(context),
+                ),
+              ),
+            )
           else
             SliverPadding(
               padding: EdgeInsets.all(SizeConfig.blockSizeHorizontal * 4),
               sliver: SliverGrid(
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
+                  crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
                   childAspectRatio: 0.75,
                   mainAxisSpacing: SizeConfig.blockSizeVertical * 2,
                   crossAxisSpacing: SizeConfig.blockSizeHorizontal * 4,
                 ),
                 delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final item = filteredItems[index];
-                    return _buildItemCard(item);
-                  },
+                  (context, index) => _buildItemCard(filteredItems[index]),
                   childCount: filteredItems.length,
                 ),
               ),
@@ -183,92 +218,106 @@ class _FavoritesPageState extends State<FavoritesPage> {
   }
 
   Widget _buildItemCard(StoreItem item) {
-    return GestureDetector(
-      onTap: () => _addToCart(item, item.id.split('/')[0]), // Assuming storeId is first part of item.id
-      child: Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(SizeConfig.blockSizeHorizontal * 4),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.vertical(
-                    top: Radius.circular(SizeConfig.blockSizeHorizontal * 4),
-                  ),
-                  child: Image.network(
-                    item.imageUrl,
-                    height: SizeConfig.blockSizeVertical * 15,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-                if (item.salePrice != null)
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '${(((item.price - (item.salePrice ?? 0)) / item.price) * 100).round()}% OFF',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: SizeConfig.fontSize * 0.8,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            Padding(
-              padding: EdgeInsets.all(SizeConfig.blockSizeHorizontal * 3),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.name,
-                    style: AppTextStyles.cardTitle(context),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  SizedBox(height: SizeConfig.blockSizeVertical),
-                  Text(
-                    item.category,
-                    style: AppTextStyles.cardSubtitle(context),
-                  ),
-                  SizedBox(height: SizeConfig.blockSizeVertical),
-                  Row(
-                    children: [
-                      Text(
-                        'SEK ${item.price}',
-                        style: AppTextStyles.price(context, isOnSale: item.salePrice != null),
-                      ),
-                      if (item.salePrice != null) ...[
-                        SizedBox(width: SizeConfig.blockSizeHorizontal * 2),
-                        Text(
-                          'SEK ${item.salePrice}',
-                          style: TextStyle(
-                            color: Colors.green,
-                            fontWeight: FontWeight.bold,
-                            fontSize: SizeConfig.fontSize * 0.9,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ],
+    return ThemedCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (item.salePrice != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.red,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                '${(((item.price - item.salePrice!) / item.price) * 100).round()}% OFF',
+                style: const TextStyle(color: Colors.white),
               ),
             ),
-          ],
-        ),
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+            child: Image.network(
+              item.imageUrl,
+              height: 120,
+              width: double.infinity,
+              fit: BoxFit.cover,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.name,
+                  style: AppTextStyles.cardTitle(context),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  item.storeName,
+                  style: AppTextStyles.cardSubtitle(context),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (item.salePrice != null) ...[
+                          Text(
+                            'SEK ${item.price}',
+                            style: AppTextStyles.price(context, isOnSale: true),
+                          ),
+                          Text(
+                            'SEK ${item.salePrice}',
+                            style: AppTextStyles.price(context),
+                          ),
+                        ] else
+                          Text(
+                            'SEK ${item.price}',
+                            style: AppTextStyles.price(context),
+                          ),
+                      ],
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.add_shopping_cart),
+                      onPressed: () async {
+                        try {
+                          final user = FirebaseAuth.instance.currentUser;
+                          if (user != null) {
+                            await _firestoreService.addToCart(
+                              user.uid,
+                              item,
+                              item.storeName,
+                            );
+                            if (mounted) {
+                              showMessage(
+                                context,
+                                '${item.name} added to cart',
+                                true,
+                              );
+                            }
+                          }
+                        } catch (e) {
+                          print('Error adding to cart: $e');
+                          if (mounted) {
+                            showMessage(
+                              context,
+                              'Failed to add item to cart',
+                              false,
+                            );
+                          }
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

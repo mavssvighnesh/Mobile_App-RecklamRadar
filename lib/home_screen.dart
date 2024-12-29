@@ -1,22 +1,14 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import 'package:http/http.dart' as http;
 import 'package:recklamradar/pages/store_details_page.dart';
-import 'dart:convert';
-import 'storedealspage.dart';
 import 'providers/theme_provider.dart';
-import 'storedealspage.dart';
-import 'favoritespage.dart';
+import 'pages/favorites_page.dart';
 import 'settingspage.dart';
 import 'package:provider/provider.dart';
 
 import 'cartpage.dart';
 import 'services/firestore_service.dart';
-import 'models/store.dart';
-import 'models/deal.dart';
 import 'utils/size_config.dart';
-import 'widgets/store_card.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class UserHomeScreen extends StatefulWidget {
@@ -41,6 +33,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // ignore: unused_local_variable
     final size = MediaQuery.of(context).size;
     
     return Scaffold(
@@ -412,6 +405,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildStoreCard(Map<String, dynamic> store) {
     return _StoreCard(store: store);
   }

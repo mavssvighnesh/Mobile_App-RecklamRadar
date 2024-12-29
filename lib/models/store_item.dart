@@ -67,4 +67,26 @@ class StoreItem {
       storeName: map['storeName'] ?? 'Unknown Store',
     );
   }
+
+  StoreItem copyWith({
+    String? id,
+    String? name,
+    String? category,
+    String? imageUrl,
+    double? price,
+    double? salePrice,
+    String? unit,
+    String? storeName,
+  }) {
+    return StoreItem(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      category: category ?? this.category,
+      imageUrl: imageUrl ?? this.imageUrl,
+      price: price ?? this.price,
+      unit: unit ?? this.unit,
+      salePrice: salePrice ?? this.salePrice,
+      storeName: storeName ?? this.storeName,
+    );
+  }
 } 

@@ -5,10 +5,8 @@ import 'constants/user_fields.dart';
 import 'package:recklamradar/login_screen.dart';
 import 'accountdetailspage.dart';
 import 'providers/theme_provider.dart';
-import 'package:recklamradar/utils/size_config.dart';
-import 'package:provider/provider.dart';
 import 'package:recklamradar/styles/app_text_styles.dart';
-
+import 'package:provider/provider.dart';
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
@@ -19,15 +17,18 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirestoreService _firestoreService = FirestoreService();
+  // ignore: unused_field
   bool _isLoading = true;
   String _userName = '';
   String _userEmail = '';
   String? _profileImage;
   String _selectedLanguage = 'English';
   String _selectedCurrency = 'SEK';
+  // ignore: unused_field
   bool _isDarkMode = false;
   final ScrollController _scrollController = ScrollController();
   bool _isScrolled = false;
+  // ignore: unused_field
   double _opacity = 0.0;
 
   @override

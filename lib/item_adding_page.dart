@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
-import 'package:recklamradar/services/firestore_service.dart';
 import 'package:recklamradar/utils/message_utils.dart';
 import 'package:recklamradar/providers/theme_provider.dart';
 import 'package:image_picker/image_picker.dart';

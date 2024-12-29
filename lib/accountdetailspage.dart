@@ -12,7 +12,6 @@ import 'package:recklamradar/providers/theme_provider.dart';
 import 'package:recklamradar/utils/message_utils.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
-import 'package:recklamradar/providers/theme_provider.dart';
 
 class AccountDetailsPage extends StatefulWidget {
   const AccountDetailsPage({super.key});
@@ -25,7 +24,9 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirestoreService _firestoreService = FirestoreService();
   final ImagePicker _picker = ImagePicker();
+  // ignore: unused_field
   final _formKey = GlobalKey<FormState>();
+  // ignore: unused_field
   bool _isLoading = true;
   String? _currentProfileImage;
 
@@ -40,6 +41,7 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
   // Add scroll controller
   final ScrollController _scrollController = ScrollController();
   bool _isScrolled = false;
+  // ignore: unused_field
   double _opacity = 0.0;
 
   final List<String> _genderOptions = ['Male', 'Female', 'Other'];
@@ -134,6 +136,7 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
     }
   }
 
+  // ignore: unused_element
   Future<void> _pickImage() async {
     showModalBottomSheet(
       context: context,
@@ -583,6 +586,7 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildTextField(
     String label,
     TextEditingController controller,
@@ -627,6 +631,7 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildDropdownField(String label, String? value, {required String? Function(dynamic value) validator}) {
     return DropdownButtonFormField<String>(
       value: value,
@@ -719,6 +724,7 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildProfileField(BuildContext context, String label, String value) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),

@@ -4,7 +4,6 @@ import 'package:recklamradar/services/firestore_service.dart';
 import 'package:recklamradar/utils/message_utils.dart';
 import 'package:recklamradar/models/store_item.dart';
 import 'package:recklamradar/item_adding_page.dart';
-import 'package:recklamradar/models/store_item.dart';
 import 'package:recklamradar/utils/size_config.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:recklamradar/widgets/themed_scaffold.dart';
@@ -94,10 +93,12 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> {
     });
   }
 
+  // ignore: unused_element
   void _addToCart(StoreItem item) {
     // Implementation of _addToCart
   }
 
+  // ignore: unused_element
   void _removeFromCart(StoreItem item) {
     // Implementation of _removeFromCart
   }

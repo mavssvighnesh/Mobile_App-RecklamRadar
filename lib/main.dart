@@ -6,7 +6,6 @@ import 'firebase_options.dart';
 import 'providers/theme_provider.dart';
 import 'login_screen.dart';
 import 'admin_home_screen.dart';
-import 'package:recklamradar/home_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:recklamradar/utils/size_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,6 +17,7 @@ void main() async {
   );
   
   final prefs = await SharedPreferences.getInstance();
+  // ignore: unused_local_variable
   final isDarkMode = prefs.getBool('is_dark_mode') ?? false;
   
   runApp(

@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:recklamradar/constants/user_fields.dart';
 import 'package:recklamradar/services/firestore_service.dart';
 import 'package:recklamradar/utils/message_utils.dart';
 import 'services/auth_service.dart';
@@ -11,10 +9,6 @@ import 'dart:io';
 import 'package:recklamradar/admin_home_screen.dart';
 import 'providers/theme_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:image_picker/image_picker.dart';
-import 'dart:io';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 class RegistrationPage extends StatefulWidget {
   const RegistrationPage({super.key});
@@ -24,6 +18,7 @@ class RegistrationPage extends StatefulWidget {
 }
 
 class _RegistrationPageState extends State<RegistrationPage> {
+  // ignore: unused_field
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirestoreService _firestoreService = FirestoreService();
   final FirebaseStorage _storage = FirebaseStorage.instance;
@@ -42,6 +37,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
   File? _imageFile;
   final ImagePicker _picker = ImagePicker();
 
+  // ignore: unused_element
   Future<void> _uploadProfileImage(String userId) async {
     if (_profileImage == null) return;
 
