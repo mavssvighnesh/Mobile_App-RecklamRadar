@@ -36,27 +36,28 @@ class CurrencyService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final lastFetchDate = prefs.getString(_lastFetchDateKey);
-      final today = DateTime.now().toIso8601String().split('T')[0]; // Get current date only
+      final today = DateTime.now().toIso8601String().split('T')[0];
 
-      // Check if we need to update rates (if date has changed)
-      if (lastFetchDate != today) {
-        print('Fetching new rates for $today');
+      // Load cached rates first
+      final cachedRates = prefs.getString(_prefsKey);
+      if (cachedRates != null) {
+        _exchangeRates = Map<String, double>.from(
+          json.decode(cachedRates).map((key, value) => 
+            MapEntry(key, double.parse(value.toString()))));
+      }
+
+      // Only fetch new rates if:
+      // 1. No cached rates exist, or
+      // 2. Last fetch was not today
+      if (cachedRates == null || lastFetchDate != today) {
+        print('Fetching new rates for $today (last fetch: $lastFetchDate)');
         await _fetchLatestRates();
       } else {
-        // Load cached rates
-        final cachedRates = prefs.getString(_prefsKey);
-        if (cachedRates != null) {
-          _exchangeRates = Map<String, double>.from(
-            json.decode(cachedRates).map((key, value) => 
-              MapEntry(key, double.parse(value.toString()))));
-          print('Using cached rates from $lastFetchDate');
-        } else {
-          print('No cached rates found, fetching new rates');
-          await _fetchLatestRates();
-        }
+        print('Using cached rates from $lastFetchDate');
       }
     } catch (e) {
       print('Error loading exchange rates: $e');
+      _useBackupRates();
     }
   }
 
@@ -70,7 +71,7 @@ class CurrencyService {
 
   Future<void> _fetchLatestRates() async {
     try {
-      print('Fetching latest rates from API...');
+      print('Making API call to fetch latest rates...');
       final response = await http.get(Uri.parse(
         '$_baseUrl?access_key=$_apiKey&currencies=EUR,USD,INR&source=SEK&format=1'
       ));
@@ -80,7 +81,7 @@ class CurrencyService {
         if (data['success'] == true) {
           final quotes = data['quotes'] as Map<String, dynamic>;
           
-          // Extract and store the conversion rates
+          // Calculate and store the conversion rates
           _exchangeRates = {
             'SEK': 1.0,
             'USD': 1.0 / (quotes['USDSEK']?.toDouble() ?? 10.5),
@@ -88,12 +89,13 @@ class CurrencyService {
             'INR': (quotes['USDINR']?.toDouble() ?? 83.0) / (quotes['USDSEK']?.toDouble() ?? 10.5),
           };
           
-          print('New exchange rates fetched: $_exchangeRates');
+          print('New rates fetched and cached: $_exchangeRates');
           
-          // Cache the new rates
+          // Cache the rates with today's date
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString(_prefsKey, json.encode(_exchangeRates));
-          await prefs.setString(_lastFetchDateKey, DateTime.now().toIso8601String().split('T')[0]);
+          await prefs.setString(_lastFetchDateKey, 
+            DateTime.now().toIso8601String().split('T')[0]);
         } else {
           print('API Error: ${data['error']?['info']}');
           _useBackupRates();
@@ -125,8 +127,7 @@ class CurrencyService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('selected_currency', currency);
       
-      // Force refresh rates when currency changes
-      await _fetchLatestRates();
+      // Don't fetch rates here, just notify of change
       notifyPriceChange();
     }
   }
@@ -166,9 +167,9 @@ class CurrencyService {
     return '${formatPrice(price)} (${_selectedCurrency})';
   }
 
-  // Add method to force refresh rates
+  // Only use this for manual refresh if needed
   Future<void> forceRefreshRates() async {
-    print('Forcing refresh of exchange rates');
+    print('Force refreshing rates (use sparingly)');
     await _fetchLatestRates();
   }
 
