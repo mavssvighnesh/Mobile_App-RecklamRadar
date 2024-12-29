@@ -8,11 +8,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import '../constants/user_fields.dart';
 import 'dart:convert';
+import 'package:recklamradar/services/cache_service.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
+  final CacheService _cacheService = CacheService();
 
   static const String _cartKey = 'cached_cart';
   static const String _lastUpdateKey = 'cart_last_update';
@@ -350,6 +352,16 @@ class FirestoreService {
 
   Future<List<StoreItem>> getStoreItems(String storeId) async {
     try {
+      final cachedItems = await _cacheService.getCachedStoreItems(storeId);
+      if (cachedItems != null) {
+        return cachedItems.map((item) {
+          final mapItem = item as Map<String, dynamic>;
+          mapItem['id'] = mapItem['id'] ?? '';
+          return StoreItem.fromMap(mapItem);
+        }).toList();
+      }
+
+      // If no cache, fetch from Firestore
       final snapshot = await _firestore
           .collection('stores')
           .doc(storeId)
@@ -357,9 +369,17 @@ class FirestoreService {
           .orderBy('category')
           .get();
 
-      return snapshot.docs
+      final items = snapshot.docs
           .map((doc) => StoreItem.fromFirestore(doc))
           .toList();
+
+      // Cache the fetched data
+      await _cacheService.cacheStoreItems(
+        storeId,
+        items.map((item) => item.toMap()).toList(),
+      );
+
+      return items;
     } catch (e) {
       print('Error getting store items: $e');
       return [];
@@ -438,5 +458,56 @@ class FirestoreService {
       );
     }
     return [];
+  }
+
+  Stream<Map<String, dynamic>> getCartItemStream(String userId) {
+    return _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('cart')
+        .snapshots()
+        .map((snapshot) {
+      Map<String, dynamic> cartItems = {};
+      for (var doc in snapshot.docs) {
+        cartItems[doc.id] = {
+          ...doc.data(),
+          'id': doc.id,
+        };
+      }
+      return cartItems;
+    });
+  }
+
+  Future<List<StoreItem>> getMoreStoreItems(String storeId, int startAfter) async {
+    try {
+      final snapshot = await _firestore
+          .collection('stores')
+          .doc(storeId)
+          .collection('items')
+          .orderBy('name')
+          .limit(20)
+          .startAfter([
+            // Get the last document's name as the starting point
+            (await _firestore
+                .collection('stores')
+                .doc(storeId)
+                .collection('items')
+                .orderBy('name')
+                .limit(1)
+                .startAfter([startAfter - 1])
+                .get())
+                .docs
+                .first
+                .get('name')
+          ])
+          .get();
+
+      return snapshot.docs
+          .map((doc) => StoreItem.fromFirestore(doc))  // Using fromFirestore instead of fromMap
+          .toList();
+    } catch (e) {
+      print('Error getting more store items: $e');
+      return [];
+    }
   }
 } 

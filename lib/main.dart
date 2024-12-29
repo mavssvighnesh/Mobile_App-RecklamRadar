@@ -9,9 +9,16 @@ import 'admin_home_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:recklamradar/utils/size_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:recklamradar/utils/smooth_scroll_behavior.dart';
+import 'package:recklamradar/utils/custom_scroll_physics.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Add image cache optimization
+  PaintingBinding.instance.imageCache.maximumSize = 100;
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 50 << 20; // 50 MB
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -43,16 +50,20 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'ReklamRadar',
       theme: themeProvider.theme,
+      scrollBehavior: CustomScrollPhysics(),
       builder: (context, child) {
         SizeConfig().init(context);
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(textScaleFactor: 1.0),
           child: Container(
             constraints: const BoxConstraints(
-              minWidth: 320, // Minimum supported width
-              minHeight: 480, // Minimum supported height
+              minWidth: 320,
+              minHeight: 480,
             ),
-            child: child!,
+            child: ScrollConfiguration(
+              behavior: CustomScrollPhysics(),
+              child: child!,
+            ),
           ),
         );
       },

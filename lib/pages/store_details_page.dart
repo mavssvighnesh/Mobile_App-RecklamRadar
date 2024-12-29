@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:recklamradar/providers/theme_provider.dart';
 import 'package:recklamradar/services/firestore_service.dart';
 import 'package:recklamradar/utils/message_utils.dart';
@@ -9,6 +10,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:recklamradar/widgets/themed_scaffold.dart';
 import 'package:provider/provider.dart';
 import 'package:recklamradar/styles/app_text_styles.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:recklamradar/utils/debouncer.dart';
+import 'package:recklamradar/utils/image_cache_manager.dart';
+import 'package:recklamradar/widgets/lazy_list.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:recklamradar/utils/animation_config.dart';
 
 class StoreDetailsPage extends StatefulWidget {
   final String storeId;
@@ -24,7 +31,7 @@ class StoreDetailsPage extends StatefulWidget {
   State<StoreDetailsPage> createState() => _StoreDetailsPageState();
 }
 
-class _StoreDetailsPageState extends State<StoreDetailsPage> {
+class _StoreDetailsPageState extends State<StoreDetailsPage> with AutomaticKeepAliveClientMixin {
   final FirestoreService _firestoreService = FirestoreService();
   bool isLoading = true;
   List<StoreItem> items = [];
@@ -36,11 +43,49 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> {
   String selectedSort = 'Name'; // Default sort
   bool showMemberPriceOnly = false;
   bool isFilterActive = false;
+  Map<String, dynamic> _cartData = {};
+  final _debouncer = Debouncer();
+  final _scrollController = ScrollController();
+  bool _isLoadingMore = false;
+  final _cacheManager = CustomCacheManager.instance;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     loadStoreItems();
+    _initCartStream();
+  }
+
+  @override
+  void dispose() {
+    _debouncer.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent * 0.8 &&
+        !_isLoadingMore) {
+      // Load more items when reaching 80% of scroll
+      _loadMoreItems();
+    }
+  }
+
+  void _initCartStream() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      _firestoreService.getCartItemStream(user.uid).listen((cartData) {
+        if (mounted) {
+          setState(() {
+            _cartData = cartData;
+          });
+        }
+      });
+    }
   }
 
   Future<void> loadStoreItems() async {
@@ -80,16 +125,10 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> {
   }
 
   void _searchItems(String query) {
-    setState(() {
-      if (query.isEmpty) {
-        filteredItems = items;
-      } else {
-        filteredItems = items
-            .where((item) =>
-                item.name.toLowerCase().contains(query.toLowerCase()) ||
-                item.category.toLowerCase().contains(query.toLowerCase()))
-            .toList();
-      }
+    _debouncer.run(() {
+      setState(() {
+        _filterItems(query);
+      });
     });
   }
 
@@ -139,151 +178,240 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> {
     });
   }
 
+  Widget _buildCartIndicator(StoreItem item) {
+    final isInCart = _cartData.containsKey(item.id);
+    final quantity = isInCart ? _cartData[item.id]['quantity'] ?? 0 : 0;
+    
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 4,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.shopping_cart,
+            size: 16,
+            color: isInCart ? Colors.green : Colors.black54,
+          ),
+          if (isInCart && quantity > 0)
+            Container(
+              margin: const EdgeInsets.only(left: 4),
+              padding: const EdgeInsets.all(4),
+              decoration: const BoxDecoration(
+                color: Colors.green,
+                shape: BoxShape.circle,
+              ),
+              child: Text(
+                quantity.toString(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildItemCard(StoreItem item, int index) {
     return Dismissible(
       key: Key(item.id),
-      direction: DismissDirection.startToEnd,
-      background: Container(
-        color: Colors.green,
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.only(left: 20),
-        child: const Row(
-          children: [
-            Icon(Icons.shopping_cart_checkout, color: Colors.white),
-            SizedBox(width: 8),
-            Text(
-              'Add to Cart',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      ),
+      direction: DismissDirection.horizontal,
       confirmDismiss: (direction) async {
-        if (direction == DismissDirection.startToEnd) {
-          try {
-            final user = FirebaseAuth.instance.currentUser;
-            if (user != null) {
-              if (item.quantity <= 0) {
-                showMessage(context, "Please select quantity first", false);
-                return false;
-              }
-              
-              await _firestoreService.addToCart(
-                user.uid,
-                item,
-                widget.storeName,
-              );
-              
-              if (mounted) {
-                showMessage(
-                  context, 
-                  "${item.quantity}x ${item.name} added to cart", 
-                  true
-                );
-                // Reset quantity after adding to cart
-                setState(() {
-                  item.quantity = 0;
-                });
-              }
-            } else {
-              if (mounted) {
-                showMessage(context, "Please login to add items to cart", false);
-              }
-            }
-          } catch (e) {
-            print('Error adding to cart: $e');
-            if (mounted) {
-              showMessage(context, "Failed to add item to cart", false);
-            }
-          }
+        final isRight = direction == DismissDirection.endToStart;
+        
+        // Add haptic feedback
+        HapticFeedback.mediumImpact();
+        
+        // Animate the card
+        await Future.delayed(const Duration(milliseconds: 200));
+        
+        if (isRight) {
+          return _handleRemoveFromCart(item);
+        } else {
+          return _handleAddToCart(item);
         }
-        return false;
       },
-      child: Card(
-        margin: EdgeInsets.only(bottom: SizeConfig.blockSizeVertical * 1.5),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(SizeConfig.blockSizeHorizontal * 4),
-        ),
-        elevation: 2,
-        child: Padding(
-          padding: EdgeInsets.all(SizeConfig.blockSizeHorizontal * 3),
-          child: Row(
-            children: [
-              Container(
-                width: SizeConfig.getProportionateScreenWidth(80),
-                height: SizeConfig.getProportionateScreenWidth(80),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(SizeConfig.blockSizeHorizontal * 3),
-                  image: DecorationImage(
-                    image: NetworkImage(item.imageUrl),
-                    fit: BoxFit.cover,
+      dismissThresholds: const {
+        DismissDirection.startToEnd: AnimationConfig.swipeThreshold,
+        DismissDirection.endToStart: AnimationConfig.swipeThreshold,
+      },
+      movementDuration: AnimationConfig.defaultDuration,
+      background: AnimatedContainer(
+        duration: AnimationConfig.defaultDuration,
+        decoration: AnimationConfig.dismissibleBackground,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Padding(
+            padding: const EdgeInsets.only(left: 20),
+            child: Row(
+              children: [
+                Icon(Icons.add_shopping_cart, color: Colors.white.withOpacity(0.9)),
+                const SizedBox(width: 8),
+                Text(
+                  'Add to Cart',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ),
-              SizedBox(width: SizeConfig.blockSizeHorizontal * 4),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              ],
+            ),
+          ),
+        ),
+      ),
+      secondaryBackground: AnimatedContainer(
+        duration: AnimationConfig.defaultDuration,
+        decoration: AnimationConfig.dismissibleBackground,
+        child: Align(
+          alignment: Alignment.centerRight,
+          child: Padding(
+            padding: const EdgeInsets.only(right: 20),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Text(
+                  'Remove',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(Icons.delete, color: Colors.white.withOpacity(0.9)),
+              ],
+            ),
+          ),
+        ),
+      ),
+      child: TweenAnimationBuilder<double>(
+        duration: AnimationConfig.defaultDuration,
+        tween: Tween(begin: 0.0, end: 1.0),
+        curve: AnimationConfig.defaultCurve,
+        builder: (context, value, child) {
+          return Transform.scale(
+            scale: 0.95 + (0.05 * value),
+            child: Opacity(
+              opacity: value,
+              child: child,
+            ),
+          );
+        },
+        child: Card(
+          margin: EdgeInsets.only(bottom: SizeConfig.blockSizeVertical * 1.5),
+          child: Stack(
+            children: [
+              Padding(
+                padding: EdgeInsets.all(SizeConfig.blockSizeHorizontal * 3),
+                child: Row(
                   children: [
-                    Text(
-                      item.name,
-                      style: AppTextStyles.cardTitle(context),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                    // Image section
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: SizedBox(
+                        width: SizeConfig.blockSizeHorizontal * 20,
+                        height: SizeConfig.blockSizeHorizontal * 20,
+                        child: CachedNetworkImage(
+                          imageUrl: item.imageUrl,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => Container(
+                            color: Colors.grey[200],
+                            child: const Center(
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.grey),
+                              ),
+                            ),
+                          ),
+                          errorWidget: (context, url, error) => Container(
+                            color: Colors.grey[200],
+                            child: const Icon(Icons.image_not_supported, color: Colors.grey),
+                          ),
+                        ),
+                      ),
                     ),
-                    SizedBox(height: 8),
-                    Text(
-                      item.category,
-                      style: AppTextStyles.cardSubtitle(context),
+                    const SizedBox(width: 12),
+                    // Item details section
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.name,
+                            style: AppTextStyles.cardTitle(context),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            item.category,
+                            style: AppTextStyles.cardSubtitle(context),
+                          ),
+                          if (item.salePrice != null) ...[
+                            Text(
+                              'SEK ${item.price}',
+                              style: AppTextStyles.price(context, isOnSale: true),
+                            ),
+                            Text(
+                              'SEK ${item.salePrice}',
+                              style: AppTextStyles.price(context),
+                            ),
+                          ] else
+                            Text(
+                              'SEK ${item.price}',
+                              style: AppTextStyles.price(context),
+                            ),
+                        ],
+                      ),
                     ),
-                    SizedBox(height: 8),
+                    // Quantity controls
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        if (item.salePrice != null) ...[
-                          Text(
-                            'SEK ${item.price}',
-                            style: AppTextStyles.price(context, isOnSale: true),
+                        IconButton(
+                          icon: const Icon(Icons.remove_circle_outline),
+                          onPressed: () => _updateQuantity(index, false),
+                          constraints: const BoxConstraints(minWidth: 40),
+                          padding: EdgeInsets.zero,
+                        ),
+                        SizedBox(
+                          width: 32,
+                          child: Text(
+                            '${item.quantity}',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                          SizedBox(width: 8),
-                          Text(
-                            'SEK ${item.salePrice}',
-                            style: AppTextStyles.price(context),
-                          ),
-                        ] else
-                          Text(
-                            'SEK ${item.price}',
-                            style: AppTextStyles.price(context),
-                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.add_circle_outline),
+                          onPressed: () => _updateQuantity(index, true),
+                          constraints: const BoxConstraints(minWidth: 40),
+                          padding: EdgeInsets.zero,
+                        ),
                       ],
                     ),
                   ],
                 ),
               ),
-              
-              // Quantity Controls
-              Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.remove_circle_outline),
-                    onPressed: () => _updateQuantity(index, false),
-                    color: Theme.of(context).primaryColor,
-                  ),
-                  Text(
-                    '${item.quantity}',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.add_circle_outline),
-                    onPressed: () => _updateQuantity(index, true),
-                    color: Theme.of(context).primaryColor,
-                  ),
-                ],
+              // Cart indicator
+              Positioned(
+                top: 8,
+                right: 8,
+                child: _buildCartIndicator(item),
               ),
             ],
           ),
@@ -315,110 +443,205 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> {
     final categories = ['All', ...items.map((item) => item.category).toSet().toList()];
     final sortOptions = ['Name', 'Price (Low to High)', 'Price (High to Low)'];
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: Provider.of<ThemeProvider>(context).cardGradient,
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(24),
-          bottomRight: Radius.circular(24),
-        ),
-      ),
-      child: Column(
-        children: [
-          // Category Dropdown
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+    return AnimatedContainer(
+      duration: AnimationConfig.defaultDuration,
+      curve: AnimationConfig.defaultCurve,
+      height: isFilterActive ? null : 0,
+      child: ClipRRect(
+        child: AnimatedOpacity(
+          duration: AnimationConfig.defaultDuration,
+          opacity: isFilterActive ? 1.0 : 0.0,
+          child: Container(
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: selectedCategory ?? 'All',
-                isExpanded: true,
-                dropdownColor: Theme.of(context).primaryColor,
-                style: const TextStyle(color: Colors.white),
-                hint: const Text('Select Category', style: TextStyle(color: Colors.white)),
-                icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
-                items: categories.map((category) {
-                  return DropdownMenuItem(
-                    value: category,
-                    child: Text(category, style: const TextStyle(color: Colors.white)),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedCategory = value == 'All' ? null : value;
-                    _filterItems(searchController.text);
-                  });
-                },
+              gradient: Provider.of<ThemeProvider>(context).cardGradient,
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(24),
+                bottomRight: Radius.circular(24),
               ),
             ),
-          ),
-          const SizedBox(height: 12),
-
-          // Sort Dropdown
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: selectedSort,
-                isExpanded: true,
-                dropdownColor: Theme.of(context).primaryColor,
-                style: const TextStyle(color: Colors.white),
-                icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
-                items: sortOptions.map((option) {
-                  return DropdownMenuItem(
-                    value: option,
-                    child: Text(option, style: const TextStyle(color: Colors.white)),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedSort = value!;
-                    _sortItems();
-                  });
-                },
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Member Price Switch
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
               children: [
-                const Text(
-                  'Member Price Only',
-                  style: TextStyle(color: Colors.white),
+                // Category Dropdown
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: selectedCategory ?? 'All',
+                      isExpanded: true,
+                      dropdownColor: Theme.of(context).primaryColor,
+                      style: const TextStyle(color: Colors.white),
+                      hint: const Text('Select Category', style: TextStyle(color: Colors.white)),
+                      icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+                      items: categories.map((category) {
+                        return DropdownMenuItem(
+                          value: category,
+                          child: Text(category, style: const TextStyle(color: Colors.white)),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          selectedCategory = value == 'All' ? null : value;
+                          _filterItems(searchController.text);
+                        });
+                      },
+                    ),
+                  ),
                 ),
-                Switch(
-                  value: showMemberPriceOnly,
-                  onChanged: (value) {
-                    setState(() {
-                      showMemberPriceOnly = value;
-                      _filterItems(searchController.text);
-                    });
-                  },
-                  activeColor: Colors.white,
+                const SizedBox(height: 12),
+
+                // Sort Dropdown
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: selectedSort,
+                      isExpanded: true,
+                      dropdownColor: Theme.of(context).primaryColor,
+                      style: const TextStyle(color: Colors.white),
+                      icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+                      items: sortOptions.map((option) {
+                        return DropdownMenuItem(
+                          value: option,
+                          child: Text(option, style: const TextStyle(color: Colors.white)),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          selectedSort = value!;
+                          _sortItems();
+                        });
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Member Price Switch
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Member Price Only',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                      Switch(
+                        value: showMemberPriceOnly,
+                        onChanged: (value) {
+                          setState(() {
+                            showMemberPriceOnly = value;
+                            _filterItems(searchController.text);
+                          });
+                        },
+                        activeColor: Colors.white,
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-        ],
+        ),
       ),
     );
+  }
+
+  // Update the ListView.builder with better performance
+  Widget _buildItemList() {
+    return LazyList<StoreItem>(
+      items: filteredItems,
+      controller: _scrollController,
+      initialCount: 15,
+      loadMoreCount: 10,
+      itemBuilder: (context, item) => _buildItemCard(item, filteredItems.indexOf(item)),
+    );
+  }
+
+  // Optimize image loading in item cards
+  Widget _buildItemImage(String imageUrl) {
+    return Hero(
+      tag: imageUrl,
+      child: CachedNetworkImage(
+        imageUrl: imageUrl,
+        cacheManager: _cacheManager,
+        memCacheWidth: 300,
+        maxWidthDiskCache: 600,
+        fadeInDuration: const Duration(milliseconds: 200),
+        placeholder: (context, url) => Container(
+          color: Colors.grey[200],
+          child: const Center(child: CircularProgressIndicator()),
+        ),
+        errorWidget: (context, url, error) => const Icon(Icons.error),
+      ),
+    );
+  }
+
+  Future<void> _loadMoreItems() async {
+    if (_isLoadingMore) return;
+    
+    setState(() {
+      _isLoadingMore = true;
+    });
+
+    try {
+      final moreItems = await _firestoreService.getMoreStoreItems(widget.storeId, items.length);
+      setState(() {
+        items.addAll(moreItems);
+        filteredItems = items;
+        _isLoadingMore = false;
+      });
+    } catch (e) {
+      print('Error loading more items: $e');
+      setState(() => _isLoadingMore = false);
+    }
+  }
+
+  Future<bool> _handleAddToCart(StoreItem item) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        if (item.quantity <= 0) {
+          showMessage(context, "Please select quantity first", false);
+          return false;
+        }
+        
+        await _firestoreService.addToCart(user.uid, item, widget.storeName);
+        if (mounted) {
+          showMessage(context, "${item.quantity}x ${item.name} added to cart", true);
+          setState(() => item.quantity = 0);
+        }
+      }
+    } catch (e) {
+      if (mounted) showMessage(context, "Failed to add to cart", false);
+    }
+    return false;
+  }
+
+  Future<bool> _handleRemoveFromCart(StoreItem item) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await _firestoreService.removeFromCart(user.uid, item.id);
+        if (mounted) showMessage(context, "${item.name} removed from cart", true);
+      }
+    } catch (e) {
+      if (mounted) showMessage(context, "Failed to remove from cart", false);
+    }
+    return false;
   }
 
   @override
@@ -473,11 +696,7 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> {
             children: [
               if (isSearchActive) _buildSearchBar(),
               if (isFilterActive) 
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                  child: _buildFilterSection(),
-                ),
+                _buildFilterSection(),
               Expanded(
                 child: isLoading
                     ? const Center(child: CircularProgressIndicator())
@@ -485,15 +704,7 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> {
                         ? const Center(
                             child: Text('No items found'),
                           )
-                        : ListView.builder(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            padding: const EdgeInsets.all(16),
-                            itemCount: filteredItems.length,
-                            itemBuilder: (context, index) {
-                              final item = filteredItems[index];
-                              return _buildItemCard(item, index);
-                            },
-                          ),
+                        : _buildItemList(),
               ),
             ],
           ),
