@@ -46,7 +46,6 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> with AutomaticKeepA
   Map<String, dynamic> _cartData = {};
   final _debouncer = Debouncer();
   final _scrollController = ScrollController();
-  bool _isLoadingMore = false;
   final _cacheManager = CustomCacheManager.instance;
 
   @override
@@ -55,7 +54,6 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> with AutomaticKeepA
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(_onScroll);
     loadStoreItems();
     _initCartStream();
   }
@@ -65,14 +63,6 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> with AutomaticKeepA
     _debouncer.dispose();
     _scrollController.dispose();
     super.dispose();
-  }
-
-  void _onScroll() {
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent * 0.8 &&
-        !_isLoadingMore) {
-      // Load more items when reaching 80% of scroll
-      _loadMoreItems();
-    }
   }
 
   void _initCartStream() {
@@ -562,12 +552,11 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> with AutomaticKeepA
 
   // Update the ListView.builder with better performance
   Widget _buildItemList() {
-    return LazyList<StoreItem>(
-      items: filteredItems,
+    return ListView.builder(
       controller: _scrollController,
-      initialCount: 15,
-      loadMoreCount: 10,
-      itemBuilder: (context, item) => _buildItemCard(item, filteredItems.indexOf(item)),
+      padding: const EdgeInsets.all(16),
+      itemCount: filteredItems.length,
+      itemBuilder: (context, index) => _buildItemCard(filteredItems[index], index),
     );
   }
 
@@ -590,27 +579,7 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> with AutomaticKeepA
     );
   }
 
-  Future<void> _loadMoreItems() async {
-    if (_isLoadingMore) return;
-    
-    setState(() {
-      _isLoadingMore = true;
-    });
-
-    try {
-      final moreItems = await _firestoreService.getMoreStoreItems(widget.storeId, items.length);
-      setState(() {
-        items.addAll(moreItems);
-        filteredItems = items;
-        _isLoadingMore = false;
-      });
-    } catch (e) {
-      print('Error loading more items: $e');
-      setState(() => _isLoadingMore = false);
-    }
-  }
-
-  Future<bool> _handleAddToCart(StoreItem item) async {
+  Future<void> _handleAddToCart(StoreItem item) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {

@@ -477,37 +477,4 @@ class FirestoreService {
       return cartItems;
     });
   }
-
-  Future<List<StoreItem>> getMoreStoreItems(String storeId, int startAfter) async {
-    try {
-      final snapshot = await _firestore
-          .collection('stores')
-          .doc(storeId)
-          .collection('items')
-          .orderBy('name')
-          .limit(20)
-          .startAfter([
-            // Get the last document's name as the starting point
-            (await _firestore
-                .collection('stores')
-                .doc(storeId)
-                .collection('items')
-                .orderBy('name')
-                .limit(1)
-                .startAfter([startAfter - 1])
-                .get())
-                .docs
-                .first
-                .get('name')
-          ])
-          .get();
-
-      return snapshot.docs
-          .map((doc) => StoreItem.fromFirestore(doc))  // Using fromFirestore instead of fromMap
-          .toList();
-    } catch (e) {
-      print('Error getting more store items: $e');
-      return [];
-    }
-  }
 } 
