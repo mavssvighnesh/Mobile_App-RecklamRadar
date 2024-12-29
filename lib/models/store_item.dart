@@ -1,29 +1,51 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:recklamradar/services/currency_service.dart';
 
 class StoreItem {
   final String id;
   final String name;
   final String category;
-  final double price;
-  final double? salePrice;
+  final double _basePriceSEK;  // Original price in SEK
+  final double? _baseSalePriceSEK;  // Original sale price in SEK
   final String imageUrl;
   final String unit;
   final bool inStock;
   int quantity;
   final String storeName;
 
+  // Dynamic getters that convert SEK to current currency
+  double get price {
+    final currencyService = CurrencyService();
+    final convertedPrice = currencyService.convertPrice(_basePriceSEK);
+    print('Converting price from $_basePriceSEK SEK to ${currencyService.selectedCurrency}: $convertedPrice');
+    return convertedPrice;
+  }
+
+  double? get salePrice {
+    if (_baseSalePriceSEK == null) return null;
+    final currencyService = CurrencyService();
+    final convertedPrice = currencyService.convertPrice(_baseSalePriceSEK!);
+    print('Converting sale price from $_baseSalePriceSEK SEK to ${currencyService.selectedCurrency}: $convertedPrice');
+    return convertedPrice;
+  }
+
+  // Original SEK prices for reference
+  double get originalPriceSEK => _basePriceSEK;
+  double? get originalSalePriceSEK => _baseSalePriceSEK;
+
   StoreItem({
     required this.id,
     required this.name,
     required this.category,
-    required this.price,
-    this.salePrice,
+    required double price,
+    double? salePrice,
     required this.imageUrl,
     required this.unit,
     this.inStock = true,
     this.quantity = 0,
     required this.storeName,
-  });
+  }) : _basePriceSEK = price,
+       _baseSalePriceSEK = salePrice;
 
   factory StoreItem.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
@@ -40,19 +62,6 @@ class StoreItem {
     );
   }
 
-  Map<String, dynamic> toMap() {
-    return {
-      'name': name,
-      'category': category,
-      'price': price,
-      'salePrice': salePrice,
-      'imageUrl': imageUrl,
-      'unit': unit,
-      'inStock': inStock,
-      'storeName': storeName,
-    };
-  }
-
   factory StoreItem.fromMap(Map<String, dynamic> map) {
     return StoreItem(
       id: map['id'] ?? '',
@@ -66,6 +75,19 @@ class StoreItem {
       quantity: map['quantity'] ?? 0,
       storeName: map['storeName'] ?? 'Unknown Store',
     );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'name': name,
+      'category': category,
+      'price': _basePriceSEK,  // Store original SEK price
+      'salePrice': _baseSalePriceSEK,  // Store original SEK sale price
+      'imageUrl': imageUrl,
+      'unit': unit,
+      'inStock': inStock,
+      'storeName': storeName,
+    };
   }
 
   StoreItem copyWith({

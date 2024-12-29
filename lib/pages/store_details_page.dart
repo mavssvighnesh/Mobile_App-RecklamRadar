@@ -16,6 +16,9 @@ import 'package:recklamradar/utils/image_cache_manager.dart';
 import 'package:recklamradar/widgets/lazy_list.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:recklamradar/utils/animation_config.dart';
+import 'package:recklamradar/utils/performance_config.dart';
+import 'package:recklamradar/services/network_service.dart';
+import 'package:recklamradar/services/currency_service.dart';
 
 class StoreDetailsPage extends StatefulWidget {
   final String storeId;
@@ -31,7 +34,8 @@ class StoreDetailsPage extends StatefulWidget {
   State<StoreDetailsPage> createState() => _StoreDetailsPageState();
 }
 
-class _StoreDetailsPageState extends State<StoreDetailsPage> with AutomaticKeepAliveClientMixin {
+class _StoreDetailsPageState extends State<StoreDetailsPage> 
+    with AutomaticKeepAliveClientMixin, TickerProviderStateMixin {
   final FirestoreService _firestoreService = FirestoreService();
   bool isLoading = true;
   List<StoreItem> items = [];
@@ -45,8 +49,11 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> with AutomaticKeepA
   bool isFilterActive = false;
   Map<String, dynamic> _cartData = {};
   final _debouncer = Debouncer();
-  final _scrollController = ScrollController();
+  late final ScrollController _scrollController;
   final _cacheManager = CustomCacheManager.instance;
+  final _networkService = NetworkService();
+  bool _isLowPerformanceMode = false;
+  final CurrencyService _currencyService = CurrencyService();
 
   @override
   bool get wantKeepAlive => true;
@@ -54,14 +61,37 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> with AutomaticKeepA
   @override
   void initState() {
     super.initState();
+    _initializePerformance();
+    _scrollController = ScrollController()..addListener(_onScroll);
     loadStoreItems();
     _initCartStream();
+  }
+
+  Future<void> _initializePerformance() async {
+    final isLowBandwidth = !await _networkService.hasHighBandwidth();
+    if (mounted) {
+      setState(() {
+        _isLowPerformanceMode = isLowBandwidth;
+      });
+    }
+  }
+
+  void _onScroll() {
+    // Implement efficient scroll handling
+    if (!_scrollController.hasClients) return;
+    
+    // Use frame callback for smooth scrolling
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // Your scroll logic here
+    });
   }
 
   @override
   void dispose() {
     _debouncer.dispose();
     _scrollController.dispose();
+    PerformanceConfig.releaseMemory();
     super.dispose();
   }
 
@@ -307,7 +337,6 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> with AutomaticKeepA
                 padding: EdgeInsets.all(SizeConfig.blockSizeHorizontal * 3),
                 child: Row(
                   children: [
-                    // Image section
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: SizedBox(
@@ -327,7 +356,10 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> with AutomaticKeepA
                           ),
                           errorWidget: (context, url, error) => Container(
                             color: Colors.grey[200],
-                            child: const Icon(Icons.image_not_supported, color: Colors.grey),
+                            child: const Icon(
+                              Icons.image_not_supported,
+                              color: Colors.grey,
+                            ),
                           ),
                         ),
                       ),
@@ -350,16 +382,16 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> with AutomaticKeepA
                           ),
                           if (item.salePrice != null) ...[
                             Text(
-                              'SEK ${item.price}',
+                              CurrencyService().formatPrice(item.price),
                               style: AppTextStyles.price(context, isOnSale: true),
                             ),
                             Text(
-                              'SEK ${item.salePrice}',
+                              CurrencyService().formatPrice(item.salePrice!),
                               style: AppTextStyles.price(context),
                             ),
                           ] else
                             Text(
-                              'SEK ${item.price}',
+                              CurrencyService().formatPrice(item.price),
                               style: AppTextStyles.price(context),
                             ),
                         ],
@@ -567,14 +599,29 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> with AutomaticKeepA
       child: CachedNetworkImage(
         imageUrl: imageUrl,
         cacheManager: _cacheManager,
-        memCacheWidth: 300,
-        maxWidthDiskCache: 600,
-        fadeInDuration: const Duration(milliseconds: 200),
+        memCacheWidth: _isLowPerformanceMode ? 150 : 300,
+        maxWidthDiskCache: _isLowPerformanceMode ? 300 : 600,
+        fadeInDuration: _isLowPerformanceMode ? 
+            const Duration(milliseconds: 100) : 
+            const Duration(milliseconds: 200),
+        imageBuilder: (context, imageProvider) => Container(
+          decoration: BoxDecoration(
+            image: DecorationImage(
+              image: imageProvider,
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
         placeholder: (context, url) => Container(
           color: Colors.grey[200],
-          child: const Center(child: CircularProgressIndicator()),
+          child: const Center(
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
         ),
-        errorWidget: (context, url, error) => const Icon(Icons.error),
+        errorWidget: (context, url, error) => Container(
+          color: Colors.grey[200],
+          child: const Icon(Icons.error_outline),
+        ),
       ),
     );
   }

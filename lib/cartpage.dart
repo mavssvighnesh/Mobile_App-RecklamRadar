@@ -27,6 +27,7 @@ class _CartPageState extends State<CartPage> {
   late Stream<Map<String, List<Map<String, dynamic>>>> _cartStream;
   final ScrollController _scrollController = ScrollController();
   bool _isScrolled = false;
+  // ignore: unused_field
   double _titleOpacity = 0.0;
   static const String _budgetKey = 'cart_max_budget';
   bool _isLoading = false;
@@ -41,6 +42,7 @@ class _CartPageState extends State<CartPage> {
 
   void _onScroll() {
     final scrollOffset = _scrollController.offset;
+    // ignore: unused_local_variable
     final maxScroll = _scrollController.position.maxScrollExtent;
     
     setState(() {
@@ -377,6 +379,7 @@ class _CartPageState extends State<CartPage> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildLoadingOverlay() {
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 200),

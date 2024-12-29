@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:recklamradar/utils/message_utils.dart';
 import 'services/firestore_service.dart';
 import 'constants/user_fields.dart';
 import 'package:recklamradar/login_screen.dart';
@@ -7,6 +8,8 @@ import 'accountdetailspage.dart';
 import 'providers/theme_provider.dart';
 import 'package:recklamradar/styles/app_text_styles.dart';
 import 'package:provider/provider.dart';
+import 'services/currency_service.dart';
+
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
@@ -17,6 +20,7 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirestoreService _firestoreService = FirestoreService();
+  final CurrencyService _currencyService = CurrencyService();
   // ignore: unused_field
   bool _isLoading = true;
   String _userName = '';
@@ -285,56 +289,10 @@ class _SettingsPageState extends State<SettingsPage> {
                           ),
                         ),
                         ListTile(
-                          leading: const Icon(Icons.attach_money),
+                          leading: const Icon(Icons.currency_exchange),
                           title: const Text('Currency'),
-                          trailing: Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                                  Theme.of(context).colorScheme.primary.withOpacity(0.05),
-                                ],
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                                  blurRadius: 4,
-                                  spreadRadius: 0,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                            child: DropdownButton<String>(
-                              value: _selectedCurrency,
-                              underline: const SizedBox(),
-                              icon: Icon(
-                                Icons.arrow_drop_down,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.primary,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              dropdownColor: Colors.white,
-                              items: ['SEK', 'USD', 'EUR']
-                                  .map((currency) => DropdownMenuItem(
-                                        value: currency,
-                                        child: Text(currency),
-                                      ))
-                                  .toList(),
-                              onChanged: (value) {
-                                setState(() => _selectedCurrency = value!);
-                              },
-                            ),
-                          ),
+                          subtitle: Text('Selected: ${_currencyService.selectedCurrency}'),
+                          onTap: () => _showCurrencyPicker(context),
                         ),
                         Consumer<ThemeProvider>(
                           builder: (context, themeProvider, child) {
@@ -503,5 +461,61 @@ class _SettingsPageState extends State<SettingsPage> {
         ],
       ),
     );
+  }
+
+  void _showCurrencyPicker(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Select Currency'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: const Text('Swedish Krona (SEK)'),
+              onTap: () => _updateCurrency('SEK'),
+            ),
+            ListTile(
+              title: const Text('US Dollar (USD)'),
+              onTap: () => _updateCurrency('USD'),
+            ),
+            ListTile(
+              title: const Text('Euro (EUR)'),
+              onTap: () => _updateCurrency('EUR'),
+            ),
+            ListTile(
+              title: const Text('Indian Rupee (INR)'),
+              onTap: () => _updateCurrency('INR'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _updateCurrency(String currency) async {
+    try {
+      setState(() => _isLoading = true);
+      
+      // Update currency and fetch new rates
+      await CurrencyService().setSelectedCurrency(currency);
+      
+      // Close the dialog
+      Navigator.pop(context);
+      
+      // Show success message
+      if (mounted) {
+        showMessage(context, 'Currency updated to $currency', true);
+      }
+    } catch (e) {
+      print('Error updating currency: $e');
+      if (mounted) {
+        showMessage(context, 'Failed to update currency', false);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 }
