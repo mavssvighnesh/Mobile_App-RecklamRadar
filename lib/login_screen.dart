@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'services/auth_service.dart';
 import 'home_screen.dart';
 import 'registration_page.dart';
 import 'passwordpage.dart';
 import 'admin_home_screen.dart';
 import 'package:recklamradar/providers/theme_provider.dart';
 import 'package:recklamradar/utils/message_utils.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:recklamradar/services/firestore_service.dart';
 import 'package:provider/provider.dart';
 import 'package:recklamradar/styles/app_text_styles.dart';
@@ -125,7 +123,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     children: [
                       Text(
                         'Welcome Back!',
-                        style: AppTextStyles.heading1(context),
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: Provider.of<ThemeProvider>(context).isDarkMode 
+                            ? Colors.white 
+                            : theme.colorScheme.primary,
+                        ), 
                       ),
                       const SizedBox(height: 32),
                       TextField(

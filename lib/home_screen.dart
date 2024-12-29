@@ -279,7 +279,7 @@ class _HomePageState extends State<HomePage> {
                               'Welcome Back!',
                               style: TextStyle(
                                 fontSize: 16,
-                                color: Colors.white70,
+                                color: Colors.white,
                                 letterSpacing: 0.5,
                               ),
                             ),
