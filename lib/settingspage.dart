@@ -102,7 +102,9 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
-      body: Container(
+      body: AnimatedContainer(
+        duration: ThemeProvider.themeDuration,
+        curve: ThemeProvider.themeCurve,
         decoration: BoxDecoration(
           gradient: Provider.of<ThemeProvider>(context).backgroundGradient,
         ),
@@ -146,18 +148,33 @@ class _SettingsPageState extends State<SettingsPage> {
                   children: [
                     // Profile Section
                     Container(
-                      padding: const EdgeInsets.all(16),
                       width: double.infinity,
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            Colors.white.withOpacity(0.95),
-                            Colors.white.withOpacity(0.85),
-                          ],
-                        ),
+                        gradient: Provider.of<ThemeProvider>(context).isDarkMode
+                            ? LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  const Color(0xFF2C3E50).withOpacity(0.8),
+                                  const Color(0xFF3A506B).withOpacity(0.8),
+                                ],
+                              )
+                            : LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  Colors.white.withOpacity(0.95),
+                                  Colors.white.withOpacity(0.85),
+                                ],
+                              ),
                         borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Provider.of<ThemeProvider>(context).isDarkMode
+                              ? Colors.white.withOpacity(0.1)
+                              : Colors.black.withOpacity(0.05),
+                        ),
                         boxShadow: [
                           BoxShadow(
                             color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
@@ -168,7 +185,6 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           GestureDetector(
                             onTap: () {
@@ -180,27 +196,27 @@ class _SettingsPageState extends State<SettingsPage> {
                               );
                             },
                             child: CircleAvatar(
-                              radius: SizeConfig.blockSizeVertical * 8,
-                              backgroundColor: Colors.grey[200],
-                              backgroundImage: _profileImage != null 
-                                ? NetworkImage(_profileImage!)
-                                : null,
+                              radius: 60,
+                              backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                              backgroundImage: _profileImage != null
+                                  ? NetworkImage(_profileImage!)
+                                  : null,
                               child: _profileImage == null
-                                ? Icon(
-                                    Icons.person,
-                                    size: SizeConfig.blockSizeVertical * 8,
-                                    color: Colors.grey[400],
-                                  )
-                                : null,
+                                  ? Icon(
+                                      Icons.person,
+                                      size: 60,
+                                      color: Theme.of(context).colorScheme.primary,
+                                    )
+                                  : null,
                             ),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 24),
                           Text(
                             _userName.isNotEmpty ? _userName : 'No Name',
                             style: AppTextStyles.heading2(context),
                             textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 8),
                           Text(
                             _userEmail.isNotEmpty ? _userEmail : 'No Email',
                             style: AppTextStyles.bodyMedium(context),
@@ -321,33 +337,66 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                         Consumer<ThemeProvider>(
                           builder: (context, themeProvider, child) {
-                            return ListTile(
-                              leading: Icon(
-                                themeProvider.isDarkMode ? Icons.dark_mode : Icons.light_mode,
-                                color: Theme.of(context).iconTheme.color,
+                            return AnimatedContainer(
+                              duration: ThemeProvider.themeDuration,
+                              curve: ThemeProvider.themeCurve,
+                              decoration: BoxDecoration(
+                                gradient: themeProvider.isDarkMode
+                                    ? LinearGradient(
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                        colors: [
+                                          const Color(0xFF2C3E50).withOpacity(0.8),
+                                          const Color(0xFF3A506B).withOpacity(0.8),
+                                        ],
+                                      )
+                                    : LinearGradient(
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                        colors: [
+                                          Colors.white.withOpacity(0.95),
+                                          Colors.white.withOpacity(0.85),
+                                        ],
+                                      ),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: themeProvider.isDarkMode
+                                      ? Colors.white.withOpacity(0.1)
+                                      : Colors.black.withOpacity(0.05),
+                                ),
                               ),
-                              title: Text(
-                                'Dark Mode',
-                                style: AppTextStyles.bodyLarge(context),
-                              ),
-                              subtitle: Text(
-                                'Toggle app theme',
-                                style: AppTextStyles.bodySmall(context),
-                              ),
-                              trailing: Switch(
-                                value: themeProvider.isDarkMode,
-                                onChanged: (value) async {
-                                  await themeProvider.toggleTheme();
-                                  // Update user preferences in Firestore if needed
-                                  final user = _auth.currentUser;
-                                  if (user != null) {
-                                    await _firestoreService.updateUserProfile(
-                                      user.uid,
-                                      {'darkMode': value},
-                                      user.email?.toLowerCase().endsWith('@rr.com') ?? false,
-                                    );
-                                  }
-                                },
+                              child: ListTile(
+                                leading: AnimatedSwitcher(
+                                  duration: ThemeProvider.themeDuration,
+                                  child: Icon(
+                                    themeProvider.isDarkMode ? Icons.dark_mode : Icons.light_mode,
+                                    key: ValueKey(themeProvider.isDarkMode),
+                                    color: Theme.of(context).iconTheme.color,
+                                  ),
+                                ),
+                                title: Text(
+                                  'Dark Mode',
+                                  style: AppTextStyles.bodyLarge(context),
+                                ),
+                                subtitle: Text(
+                                  'Toggle app theme',
+                                  style: AppTextStyles.bodySmall(context),
+                                ),
+                                trailing: Switch(
+                                  value: themeProvider.isDarkMode,
+                                  onChanged: (value) async {
+                                    await themeProvider.toggleTheme();
+                                    // Update user preferences in Firestore if needed
+                                    final user = _auth.currentUser;
+                                    if (user != null) {
+                                      await _firestoreService.updateUserProfile(
+                                        user.uid,
+                                        {'darkMode': value},
+                                        user.email?.toLowerCase().endsWith('@rr.com') ?? false,
+                                      );
+                                    }
+                                  },
+                                ),
                               ),
                             );
                           },
@@ -410,15 +459,29 @@ class _SettingsPageState extends State<SettingsPage> {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.white.withOpacity(0.9),
-            Colors.white.withOpacity(0.7),
-          ],
-        ),
+        gradient: Provider.of<ThemeProvider>(context).isDarkMode
+            ? LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFF2C3E50).withOpacity(0.8),
+                  const Color(0xFF3A506B).withOpacity(0.8),
+                ],
+              )
+            : LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withOpacity(0.9),
+                  Colors.white.withOpacity(0.7),
+                ],
+              ),
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Provider.of<ThemeProvider>(context).isDarkMode
+              ? Colors.white.withOpacity(0.1)
+              : Colors.black.withOpacity(0.05),
+        ),
         boxShadow: [
           BoxShadow(
             color: Theme.of(context).colorScheme.primary.withOpacity(0.1),

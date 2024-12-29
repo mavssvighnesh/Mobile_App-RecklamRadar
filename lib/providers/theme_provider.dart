@@ -298,30 +298,29 @@ class ThemeProvider with ChangeNotifier {
       filled: true,
       fillColor: const Color(0xFF2C3E50).withOpacity(0.7),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide(
-          color: const Color(0xFFC34C74).withOpacity(0.3),
+          color: Colors.white.withOpacity(0.1),
         ),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide(
-          color: const Color(0xFFC34C74).withOpacity(0.3),
+          color: Colors.white.withOpacity(0.1),
         ),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(
-          color: Color(0xFFC34C74),
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(
+          color: Colors.white.withOpacity(0.3),
           width: 2,
         ),
       ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       labelStyle: TextStyle(
         color: Colors.white.withOpacity(0.9),
       ),
       hintStyle: TextStyle(
-        color: Colors.white.withOpacity(0.6),
+        color: Colors.white.withOpacity(0.5),
       ),
     ),
 
@@ -344,6 +343,21 @@ class ThemeProvider with ChangeNotifier {
     dividerTheme: DividerThemeData(
       color: Colors.white.withOpacity(0.1),
       thickness: 1,
+    ),
+
+    listTileTheme: ListTileThemeData(
+      titleTextStyle: TextStyle(
+        color: Colors.white.withOpacity(0.9),
+        fontSize: 16,
+        fontWeight: FontWeight.w500,
+      ),
+      subtitleTextStyle: TextStyle(
+        color: Colors.white.withOpacity(0.7),
+        fontSize: 14,
+      ),
+      iconColor: Colors.white.withOpacity(0.9),
+      textColor: Colors.white.withOpacity(0.9),
+      tileColor: Colors.transparent,
     ),
   );
 
@@ -392,4 +406,8 @@ class ThemeProvider with ChangeNotifier {
     _isDarkMode = prefs.getBool(_themeKey) ?? false;
     notifyListeners();
   }
+
+  // Add duration for animations
+  static const Duration themeDuration = Duration(milliseconds: 300);
+  static const Curve themeCurve = Curves.easeInOut;
 }

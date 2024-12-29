@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:recklamradar/providers/theme_provider.dart';
 import 'package:recklamradar/utils/message_utils.dart';
 import 'package:provider/provider.dart';
+import 'package:recklamradar/styles/app_text_styles.dart';
 // Full-Screen Photo Page
 class FullScreenPhotoPage extends StatelessWidget {
   final String imagePath;
@@ -171,7 +172,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
               ElevatedButton(
                 onPressed: _isLoading ? null : _changePassword,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.colorScheme.secondary,
+                  backgroundColor: theme.colorScheme.primary,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -201,7 +202,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                 child: Text(
                   "Forgot Password?",
                   style: TextStyle(
-                    color: Colors.black,
+                    color: Colors.white,
                     fontSize: 16,
                   ),
                 ),
@@ -320,7 +321,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                           "Enter your email to receive a password reset link",
                           style: TextStyle(
                             fontSize: 16,
-                            color: Colors.grey[600],
+                            color: Colors.black45,
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -330,10 +331,11 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                           keyboardType: TextInputType.emailAddress,
                           decoration: InputDecoration(
                             labelText: "Email",
+                            labelStyle: AppTextStyles.label(context),
                             prefixIcon: Icon(Icons.email_outlined,
                               color: theme.colorScheme.primary),
                             filled: true,
-                            fillColor: Colors.white,
+                            fillColor: const Color.fromARGB(255, 248, 246, 248),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),

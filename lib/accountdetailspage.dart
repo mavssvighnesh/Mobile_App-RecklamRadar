@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'services/firestore_service.dart';
 import 'login_screen.dart';
 import 'passwordpage.dart';
+import 'package:recklamradar/styles/app_text_styles.dart';
 import 'constants/user_fields.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -40,6 +41,8 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
   final ScrollController _scrollController = ScrollController();
   bool _isScrolled = false;
   double _opacity = 0.0;
+
+  final List<String> _genderOptions = ['Male', 'Female', 'Other'];
 
   @override
   void initState() {
@@ -396,101 +399,86 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
-                    Center(
-                      child: GestureDetector(
-                        onTap: _pickImage,
-                        child: Stack(
-                          alignment: Alignment.bottomRight,
-                          children: [
-                            CircleAvatar(
-                              radius: 60,
-                              backgroundImage: _currentProfileImage != null
-                                  ? NetworkImage(_currentProfileImage!)
-                                  : null,
-                              child: _currentProfileImage == null
-                                  ? const Icon(Icons.person, size: 60)
-                                  : null,
-                            ),
-                            CircleAvatar(
-                              radius: 18,
-                              backgroundColor: Theme.of(context).colorScheme.primary,
-                              child: const Icon(
-                                Icons.camera_alt,
-                                size: 18,
-                                color: Colors.white,
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        gradient: Provider.of<ThemeProvider>(context).isDarkMode
+                            ? LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  const Color(0xFF2C3E50).withOpacity(0.8),
+                                  const Color(0xFF3A506B).withOpacity(0.8),
+                                ],
+                              )
+                            : LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  Colors.white.withOpacity(0.95),
+                                  Colors.white.withOpacity(0.85),
+                                ],
                               ),
-                            ),
-                          ],
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Provider.of<ThemeProvider>(context).isDarkMode
+                              ? Colors.white.withOpacity(0.1)
+                              : Colors.black.withOpacity(0.05),
                         ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                            blurRadius: 8,
+                            spreadRadius: 2,
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 24),
-                    _buildProfileSection(
-                      context,
-                      'Personal Information',
-                      [
-                        _buildTextField(
-                          'Full Name',
-                          _nameController,
-                          Icons.person_outline,
-                        ),
-                        const SizedBox(height: 16),
-                        _buildTextField(
-                          'Email',
-                          _emailController,
-                          Icons.email_outlined,
-                          enabled: false,
-                        ),
-                        const SizedBox(height: 16),
-                        _buildTextField(
-                          'Phone',
-                          _phoneController,
-                          Icons.phone_outlined,
-                        ),
-                        const SizedBox(height: 16),
-                        _buildTextField(
-                          'Age',
-                          _ageController,
-                          Icons.calendar_today_outlined,
-                          keyboardType: TextInputType.number,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter your age';
-                            }
-
-                            // Check if it's a valid number
-                            final age = int.tryParse(value);
-                            if (age == null) {
-                              return 'Please enter a valid number';
-                            }
-
-                            // Check age range
-                            if (age < 14) {
-                              return 'You must be at least 14 years old';
-                            }
-                            if (age > 100) {
-                              return 'Age cannot be more than 100';
-                            }
-
-                            return null;
-                          },
-                          onChanged: (value) {
-                            // Remove non-numeric characters
-                            final newValue = value.replaceAll(RegExp(r'[^0-9]'), '');
-                            if (newValue != value) {
-                              _ageController.text = newValue;
-                              _ageController.selection = TextSelection.fromPosition(
-                                TextPosition(offset: newValue.length),
-                              );
-                            }
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        _buildDropdownField('Gender', _gender, validator: (value) {
-                          if (value?.isEmpty ?? true) return 'Please select a gender';
-                          return null;
-                        }),
-                      ],
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Center(
+                            child: Column(
+                              children: [
+                                CircleAvatar(
+                                  radius: 50,
+                                  backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                                  backgroundImage: _currentProfileImage != null
+                                      ? NetworkImage(_currentProfileImage!)
+                                      : null,
+                                  child: _currentProfileImage == null
+                                      ? Icon(
+                                          Icons.person,
+                                          size: 50,
+                                          color: Theme.of(context).colorScheme.primary,
+                                        )
+                                      : null,
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  _nameController.text.isNotEmpty ? _nameController.text : 'No Name',
+                                  style: AppTextStyles.heading2(context),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  _emailController.text.isNotEmpty ? _emailController.text : 'No Email',
+                                  style: AppTextStyles.bodyMedium(context),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 32),
+                          Consumer<ThemeProvider>(
+                            builder: (context, themeProvider, child) {
+                              return themeProvider.isDarkMode
+                                  ? _buildDarkModeFields()
+                                  : _buildLightModeFields();
+                            },
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 24),
                     Row(
@@ -556,7 +544,7 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
     );
   }
 
-  Widget _buildProfileSection(BuildContext context, String title, List<Widget> children) {
+  Widget _buildProfileSection(BuildContext context, String label, List<Widget> children) {
     return Container(
       margin: const EdgeInsets.only(bottom: 24),
       padding: const EdgeInsets.all(20),
@@ -582,7 +570,7 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            title,
+            label,
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -728,6 +716,225 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildProfileField(BuildContext context, String label, String value) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: Provider.of<ThemeProvider>(context).isDarkMode
+            ? LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFF2C3E50).withOpacity(0.8),
+                  const Color(0xFF3A506B).withOpacity(0.8),
+                ],
+              )
+            : LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withOpacity(0.9),
+                  Colors.white.withOpacity(0.7),
+                ],
+              ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Provider.of<ThemeProvider>(context).isDarkMode
+              ? Colors.white.withOpacity(0.1)
+              : Colors.black.withOpacity(0.05),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: AppTextStyles.label(context),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: AppTextStyles.bodyLarge(context),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDarkModeFields() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextFormField(
+          controller: _nameController,
+          decoration: InputDecoration(
+            labelText: 'Name',
+            labelStyle: AppTextStyles.label(context),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            filled: true,
+            fillColor: Theme.of(context).cardColor.withOpacity(0.1),
+          ),
+          style: AppTextStyles.bodyLarge(context),
+          validator: (value) {
+            if (value?.isEmpty ?? true) return 'Please enter your name';
+            return null;
+          },
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: _emailController,
+          decoration: InputDecoration(
+            labelText: 'Email',
+            labelStyle: AppTextStyles.label(context),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            filled: true,
+            fillColor: Theme.of(context).cardColor.withOpacity(0.1),
+          ),
+          style: AppTextStyles.bodyLarge(context),
+          enabled: false,
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: _phoneController,
+          decoration: InputDecoration(
+            labelText: 'Phone',
+            labelStyle: AppTextStyles.label(context),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            filled: true,
+            fillColor: Theme.of(context).cardColor.withOpacity(0.1),
+          ),
+          style: AppTextStyles.bodyLarge(context),
+          keyboardType: TextInputType.phone,
+          validator: (value) {
+            if (value?.isEmpty ?? true) return 'Please enter your phone number';
+            return null;
+          },
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: _ageController,
+          decoration: InputDecoration(
+            labelText: 'Age',
+            labelStyle: AppTextStyles.label(context),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            filled: true,
+            fillColor: Theme.of(context).cardColor.withOpacity(0.1),
+          ),
+          style: AppTextStyles.bodyLarge(context),
+          keyboardType: TextInputType.number,
+          validator: (value) {
+            if (value?.isEmpty ?? true) return 'Please enter your age';
+            return null;
+          },
+        ),
+        const SizedBox(height: 16),
+        DropdownButtonFormField<String>(
+          value: _gender,
+          decoration: InputDecoration(
+            labelText: 'Gender',
+            labelStyle: AppTextStyles.label(context),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            filled: true,
+            fillColor: Theme.of(context).cardColor.withOpacity(0.1),
+          ),
+          style: AppTextStyles.bodyLarge(context),
+          dropdownColor: Theme.of(context).cardColor,
+          items: _genderOptions.map((String gender) {
+            return DropdownMenuItem(
+              value: gender,
+              child: Text(gender),
+            );
+          }).toList(),
+          onChanged: (String? newValue) {
+            setState(() {
+              _gender = newValue;
+            });
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLightModeFields() {
+    return _buildProfileSection(
+      context,
+      'Personal Information',
+      [
+        TextFormField(
+          controller: _nameController,
+          decoration: InputDecoration(
+            labelText: 'Name',
+            labelStyle: AppTextStyles.label(context),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          style: AppTextStyles.bodyLarge(context),
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: _emailController,
+          decoration: const InputDecoration(labelText: 'Email'),
+          enabled: false,
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: _phoneController,
+          decoration: const InputDecoration(labelText: 'Phone'),
+          keyboardType: TextInputType.phone,
+          validator: (value) {
+            if (value?.isEmpty ?? true) return 'Please enter your phone number';
+            return null;
+          },
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: _ageController,
+          decoration: const InputDecoration(labelText: 'Age'),
+          keyboardType: TextInputType.number,
+          validator: (value) {
+            if (value?.isEmpty ?? true) return 'Please enter your age';
+            return null;
+          },
+        ),
+        const SizedBox(height: 16),
+        DropdownButtonFormField<String>(
+          value: _gender,
+          decoration: InputDecoration(
+            labelText: 'Gender',
+            labelStyle: AppTextStyles.label(context),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          style: AppTextStyles.bodyLarge(context),
+          items: _genderOptions.map((String gender) {
+            return DropdownMenuItem(
+              value: gender,
+              child: Text(gender),
+            );
+          }).toList(),
+          onChanged: (String? newValue) {
+            setState(() {
+              _gender = newValue;
+            });
+          },
+        ),
+      ],
     );
   }
 }
