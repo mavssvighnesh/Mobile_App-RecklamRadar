@@ -579,7 +579,7 @@ class _StoreDetailsPageState extends State<StoreDetailsPage> with AutomaticKeepA
     );
   }
 
-  Future<void> _handleAddToCart(StoreItem item) async {
+  Future<bool> _handleAddToCart(StoreItem item) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
