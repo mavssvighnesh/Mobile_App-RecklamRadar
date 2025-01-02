@@ -132,19 +132,10 @@ class CurrencyService {
     }
   }
 
-  double convertPrice(double priceInSEK) {
-    if (_selectedCurrency == _baseCurrency) {
-      return priceInSEK;
-    }
-    
+  // Update the convertPrice method
+  double convertPrice(double sekPrice) {
     final rate = _exchangeRates?[_selectedCurrency] ?? 1.0;
-    final convertedPrice = priceInSEK * rate;
-    
-    print('Converting $priceInSEK SEK to $_selectedCurrency');
-    print('Using rate: $rate');
-    print('Result: $convertedPrice ${_currencySymbols[_selectedCurrency]}');
-    
-    return convertedPrice;
+    return roundToTwoDecimals(sekPrice * rate);
   }
 
   String formatPrice(double price) {
@@ -184,4 +175,9 @@ class CurrencyService {
     print('Manually refreshing rates...');
     await _fetchLatestRates();
   }
-} 
+
+  // Add this method to round converted prices
+  double roundToTwoDecimals(double value) {
+    return double.parse(value.toStringAsFixed(2));
+  }
+}

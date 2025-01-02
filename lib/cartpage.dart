@@ -327,7 +327,7 @@ class _CartPageState extends State<CartPage> {
             ),
           ),
           Text(
-            '${total.toStringAsFixed(2)} ${_currencyService.selectedCurrency}',
+            '${_currencyService.formatPrice(total)} ${_currencyService.selectedCurrency}',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -500,7 +500,7 @@ class _CartPageState extends State<CartPage> {
           ),
           const SizedBox(width: 8),
           Text(
-            'Remaining: ${balance.toStringAsFixed(2)} ${_currencyService.selectedCurrency}',
+            'Remaining: ${_currencyService.formatPrice(balance)} ${_currencyService.selectedCurrency}',
             style: TextStyle(
               color: balance >= 0 ? Colors.green : Colors.red,
               fontWeight: FontWeight.bold,
@@ -630,14 +630,14 @@ class _CartPageState extends State<CartPage> {
               style: AppTextStyles.cardTitle(context),
             ),
             subtitle: Text(
-              '${item['price'].toStringAsFixed(2)} ${_currencyService.selectedCurrency} x ${item['quantity']}',
+              '${_currencyService.formatPrice(item['price'])} ${_currencyService.selectedCurrency} x ${item['quantity']}',
               style: AppTextStyles.bodyMedium(context),
             ),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '${(item['price'] * item['quantity']).toStringAsFixed(2)} ${_currencyService.selectedCurrency}',
+                  '${_currencyService.formatPrice(item['price'] * item['quantity'])} ${_currencyService.selectedCurrency}',
                   style: AppTextStyles.price(context),
                 ),
                 const SizedBox(width: 8),
