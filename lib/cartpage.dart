@@ -9,6 +9,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'package:recklamradar/styles/app_text_styles.dart';
+import 'package:recklamradar/services/currency_service.dart';
 
 class CartPage extends StatefulWidget {
   const CartPage({super.key});
@@ -19,6 +20,7 @@ class CartPage extends StatefulWidget {
 
 class _CartPageState extends State<CartPage> {
   final FirestoreService _firestoreService = FirestoreService();
+  final CurrencyService _currencyService = CurrencyService();
   final TextEditingController _budgetController = TextEditingController();
   double? maxBudget;
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -257,7 +259,7 @@ class _CartPageState extends State<CartPage> {
           _updateBudget();
         },
         decoration: InputDecoration(
-          labelText: 'Set Maximum Budget (SEK)',
+          labelText: 'Set Maximum Budget (${_currencyService.selectedCurrency})',
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -325,7 +327,7 @@ class _CartPageState extends State<CartPage> {
             ),
           ),
           Text(
-            '${total.toStringAsFixed(2)} SEK',
+            '${total.toStringAsFixed(2)} ${_currencyService.selectedCurrency}',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -498,7 +500,7 @@ class _CartPageState extends State<CartPage> {
           ),
           const SizedBox(width: 8),
           Text(
-            'Remaining: ${balance.toStringAsFixed(2)} SEK',
+            'Remaining: ${balance.toStringAsFixed(2)} ${_currencyService.selectedCurrency}',
             style: TextStyle(
               color: balance >= 0 ? Colors.green : Colors.red,
               fontWeight: FontWeight.bold,
@@ -628,14 +630,14 @@ class _CartPageState extends State<CartPage> {
               style: AppTextStyles.cardTitle(context),
             ),
             subtitle: Text(
-              '${item['price']} SEK x ${item['quantity']}',
+              '${item['price'].toStringAsFixed(2)} ${_currencyService.selectedCurrency} x ${item['quantity']}',
               style: AppTextStyles.bodyMedium(context),
             ),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '${(item['price'] * item['quantity']).toStringAsFixed(2)} SEK',
+                  '${(item['price'] * item['quantity']).toStringAsFixed(2)} ${_currencyService.selectedCurrency}',
                   style: AppTextStyles.price(context),
                 ),
                 const SizedBox(width: 8),
