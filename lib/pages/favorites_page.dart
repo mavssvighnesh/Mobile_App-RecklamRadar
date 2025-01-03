@@ -190,18 +190,21 @@ class _FavoritesPageState extends State<FavoritesPage> {
       List<StoreItem> deals = [];
       final storeNumbers = ['1', '2', '3', '4', '5', '6', '7', '8'];
       
+      // Shuffle store numbers to randomize store order
+      storeNumbers.shuffle();
+      
       for (String storeNumber in storeNumbers) {
         try {
           final itemsSnapshot = await FirebaseFirestore.instance
               .collection('stores')
               .doc(storeNumber)
               .collection('items')
-              .limit(4) // Get 4 random items from each store
               .get();
 
-          for (var doc in itemsSnapshot.docs) {
+          // Convert all items to list and shuffle them
+          final items = itemsSnapshot.docs.map((doc) {
             final data = doc.data();
-            deals.add(StoreItem(
+            return StoreItem(
               id: doc.id,
               name: data['name'] ?? '',
               category: data['category'] ?? '',
@@ -213,12 +216,20 @@ class _FavoritesPageState extends State<FavoritesPage> {
               inStock: data['inStock'] ?? true,
               quantity: 0,
               storeName: _getStoreName(storeNumber),
-            ));
-          }
+            );
+          }).toList();
+
+          // Shuffle items and take random number between 2 and 6
+          items.shuffle();
+          final randomCount = 2 + (DateTime.now().millisecondsSinceEpoch % 4);
+          deals.addAll(items.take(randomCount));
         } catch (e) {
           print('Error loading deals from store $storeNumber: $e');
         }
       }
+
+      // Final shuffle of all deals
+      deals.shuffle();
 
       if (mounted) {
         setState(() {
@@ -373,52 +384,84 @@ class _FavoritesPageState extends State<FavoritesPage> {
             floating: true,
             pinned: true,
             expandedHeight: SizeConfig.blockSizeVertical * 20,
+            backgroundColor: Theme.of(context).primaryColor,
+            elevation: 0,
             flexibleSpace: FlexibleSpaceBar(
+              centerTitle: true,
+              titlePadding: EdgeInsets.only(bottom: 16),
               title: Text(
-                'Search Deals',
-                style: AppTextStyles.heading1(context),
+                'Daily Deals',
+                style: AppTextStyles.heading2(context).copyWith(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
               ),
               background: Container(
                 decoration: BoxDecoration(
-                  gradient: Provider.of<ThemeProvider>(context).cardGradient,
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Theme.of(context).primaryColor,
+                      Theme.of(context).primaryColor.withOpacity(0.8),
+                    ],
+                  ),
+                ),
+                child: Stack(
+                  children: [
+                    Positioned(
+                      right: -30,
+                      top: -10,
+                      child: Icon(
+                        Icons.local_offer,
+                        size: 150,
+                        color: Colors.white.withOpacity(0.1),
+                      ),
+                    ),
+                    Positioned(
+                      left: -20,
+                      bottom: 20,
+                      child: Icon(
+                        Icons.shopping_cart,
+                        size: 100,
+                        color: Colors.white.withOpacity(0.1),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
             actions: [
               IconButton(
-                icon: Icon(
-                  isFilterActive ? Icons.filter_list_off : Icons.filter_list,
+                icon: const Icon(
+                  Icons.search,
+                  size: 32,
+                  color: Colors.white,
+                ),
+                onPressed: () {
+                  showSearch(
+                    context: context,
+                    delegate: StoreSearchDelegate(
+                      searchFunction: _searchItems,
+                      onItemSelected: (item) {
+                        // Handle item selection
+                      },
+                    ),
+                  );
+                },
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.filter_list,
+                  size: 32,
                   color: Colors.white,
                 ),
                 onPressed: _showFilterDialog,
               ),
+              const SizedBox(width: 12),
             ],
-            bottom: PreferredSize(
-              preferredSize: Size.fromHeight(SizeConfig.blockSizeVertical * 8),
-              child: Padding(
-                padding: EdgeInsets.all(SizeConfig.blockSizeHorizontal * 4),
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: (query) {
-                    _debouncer.run(() {
-                      _searchItems(query);
-                    });
-                  },
-                  decoration: InputDecoration(
-                    hintText: 'Search for items across all stores...',
-                    hintStyle: AppTextStyles.bodyMedium(context),
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(
-                        SizeConfig.blockSizeHorizontal * 3,
-                      ),
-                    ),
-                    prefixIcon: const Icon(Icons.search),
-                  ),
-                ),
-              ),
-            ),
           ),
           if (isLoading)
             const SliverFillRemaining(
@@ -430,9 +473,9 @@ class _FavoritesPageState extends State<FavoritesPage> {
               sliver: SliverGrid(
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
-                  childAspectRatio: 0.6,
-                  mainAxisSpacing: 8,
-                  crossAxisSpacing: 8,
+                  childAspectRatio: 0.65, // Slightly taller cards
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
                 ),
                 delegate: SliverChildBuilderDelegate(
                   (context, index) => _buildItemCard(filteredItems[index]),
@@ -466,9 +509,9 @@ class _FavoritesPageState extends State<FavoritesPage> {
               sliver: SliverGrid(
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
-                  childAspectRatio: 0.6,
-                  mainAxisSpacing: 8,
-                  crossAxisSpacing: 8,
+                  childAspectRatio: 0.65, // Slightly taller cards
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
                 ),
                 delegate: SliverChildBuilderDelegate(
                   (context, index) => _buildItemCard(filteredItems[index]),
@@ -491,41 +534,38 @@ class _FavoritesPageState extends State<FavoritesPage> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Image Section
+              // Image Section with fixed height
               SizedBox(
-                height: maxHeight * 0.55,
+                height: maxHeight * 0.5,
                 child: Stack(
+                  fit: StackFit.expand,
                   children: [
                     ClipRRect(
                       borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                      child: SizedBox.expand(
-                        child: Image.network(
-                          item.imageUrl,
-                          fit: BoxFit.cover,
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return Center(
-                              child: CircularProgressIndicator(
-                                value: loadingProgress.expectedTotalBytes != null
-                                    ? loadingProgress.cumulativeBytesLoaded /
-                                        loadingProgress.expectedTotalBytes!
-                                    : null,
-                              ),
-                            );
-                          },
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              color: Colors.grey[200],
-                              child: Center(
-                                child: Icon(
-                                  Icons.image_not_supported,
-                                  size: maxWidth * 0.2,
-                                  color: Colors.grey[400],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
+                      child: Image.network(
+                        item.imageUrl,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Center(
+                            child: CircularProgressIndicator(
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded /
+                                      loadingProgress.expectedTotalBytes!
+                                  : null,
+                            ),
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: Colors.grey[200],
+                            child: Icon(
+                              Icons.image_not_supported,
+                              size: maxWidth * 0.25,
+                              color: Colors.grey[400],
+                            ),
+                          );
+                        },
                       ),
                     ),
                     if (item.salePrice != null)
@@ -534,8 +574,8 @@ class _FavoritesPageState extends State<FavoritesPage> {
                         left: 8,
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 3,
+                            horizontal: 8,
+                            vertical: 4,
                           ),
                           decoration: BoxDecoration(
                             color: Colors.red,
@@ -546,7 +586,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                             style: TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
-                              fontSize: maxWidth * 0.05,
+                              fontSize: maxWidth * 0.06,
                             ),
                           ),
                         ),
@@ -557,194 +597,168 @@ class _FavoritesPageState extends State<FavoritesPage> {
               // Content Section
               Expanded(
                 child: Padding(
-                  padding: EdgeInsets.all(maxWidth * 0.03),
+                  padding: EdgeInsets.all(12),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Title and Store
-                      Expanded(
-                        flex: 2,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item.name,
-                              style: AppTextStyles.cardTitle(context).copyWith(
-                                fontSize: maxWidth * 0.08,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            SizedBox(height: maxHeight * 0.01),
-                            Text(
-                              item.storeName,
-                              style: AppTextStyles.cardSubtitle(context).copyWith(
-                                fontSize: maxWidth * 0.06,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
+                      Text(
+                        item.name,
+                        style: AppTextStyles.cardTitle(context).copyWith(
+                          fontSize: maxWidth * 0.1,
+                          fontWeight: FontWeight.bold,
                         ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      // Price and Cart Button
-                      Expanded(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  if (item.salePrice != null) ...[
-                                    Text(
-                                      'SEK ${item.price}',
-                                      style: AppTextStyles.price(context, isOnSale: true).copyWith(
-                                        fontSize: maxWidth * 0.06,
-                                        decoration: TextDecoration.lineThrough,
-                                      ),
-                                    ),
-                                    Text(
-                                      'SEK ${item.salePrice}',
-                                      style: AppTextStyles.price(context).copyWith(
-                                        fontSize: maxWidth * 0.07,
-                                        color: Colors.red,
-                                      ),
-                                    ),
-                                  ] else
-                                    Text(
-                                      'SEK ${item.price}',
-                                      style: AppTextStyles.price(context).copyWith(
-                                        fontSize: maxWidth * 0.07,
-                                      ),
-                                    ),
-                                ],
+                      const SizedBox(height: 4),
+                      Text(
+                        item.storeName,
+                        style: AppTextStyles.cardSubtitle(context).copyWith(
+                          fontSize: maxWidth * 0.08,
+                          color: Colors.grey[600],
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const Spacer(),
+                      // Price Section
+                      if (item.salePrice != null) ...[
+                        Text(
+                          'SEK ${item.price}',
+                          style: AppTextStyles.price(context, isOnSale: true).copyWith(
+                            fontSize: maxWidth * 0.08,
+                            decoration: TextDecoration.lineThrough,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        Text(
+                          'SEK ${item.salePrice}',
+                          style: AppTextStyles.price(context).copyWith(
+                            fontSize: maxWidth * 0.09,
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ] else
+                        Text(
+                          'SEK ${item.price}',
+                          style: AppTextStyles.price(context).copyWith(
+                            fontSize: maxWidth * 0.09,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      const SizedBox(height: 8),
+                      // Quantity and Cart Section
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // Quantity Selector
+                          Container(
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: Theme.of(context).primaryColor.withOpacity(0.3),
+                                width: 2,
                               ),
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                            Column(
-                              mainAxisAlignment: MainAxisAlignment.end,
+                            child: Row(
                               children: [
-                                // Quantity selector
+                                _buildQuantityButton(
+                                  icon: Icons.remove,
+                                  onTap: () {
+                                    if (item.quantity > 0) {
+                                      setState(() => item.quantity--);
+                                    }
+                                  },
+                                  enabled: item.quantity > 0,
+                                  size: maxWidth * 0.08,
+                                ),
                                 Container(
-                                  decoration: BoxDecoration(
-                                    border: Border.all(
-                                      color: Colors.grey[300]!,
-                                      width: 1,
+                                  width: maxWidth * 0.15,
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    '${item.quantity}',
+                                    style: TextStyle(
+                                      fontSize: maxWidth * 0.08,
+                                      fontWeight: FontWeight.bold,
                                     ),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      InkWell(
-                                        onTap: () {
-                                          if (item.quantity > 0) {
-                                            setState(() {
-                                              item.quantity--;
-                                            });
-                                          }
-                                        },
-                                        child: Container(
-                                          padding: EdgeInsets.all(maxWidth * 0.02),
-                                          child: Icon(
-                                            Icons.remove,
-                                            size: maxWidth * 0.06,
-                                            color: item.quantity > 0 
-                                                ? Theme.of(context).primaryColor 
-                                                : Colors.grey,
-                                          ),
-                                        ),
-                                      ),
-                                      Container(
-                                        width: maxWidth * 0.1,
-                                        alignment: Alignment.center,
-                                        child: Text(
-                                          '${item.quantity}',
-                                          style: TextStyle(
-                                            fontSize: maxWidth * 0.06,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                      InkWell(
-                                        onTap: () {
-                                          if (item.quantity < 99) {
-                                            setState(() {
-                                              item.quantity++;
-                                            });
-                                          }
-                                        },
-                                        child: Container(
-                                          padding: EdgeInsets.all(maxWidth * 0.02),
-                                          child: Icon(
-                                            Icons.add,
-                                            size: maxWidth * 0.06,
-                                            color: item.quantity < 99 
-                                                ? Theme.of(context).primaryColor 
-                                                : Colors.grey,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
                                   ),
                                 ),
-                                SizedBox(height: maxWidth * 0.02),
-                                // Add to cart button
-                                SizedBox(
-                                  width: maxWidth * 0.2,
-                                  height: maxWidth * 0.1,
-                                  child: IconButton(
-                                    icon: Icon(
-                                      Icons.add_shopping_cart,
-                                      size: maxWidth * 0.08,
-                                    ),
-                                    onPressed: () async {
-                                      if (item.quantity == 0) {
-                                        showMessage(
-                                          context, 
-                                          'Please select quantity', 
-                                          false,
-                                        );
-                                        return;
-                                      }
-                                      try {
-                                        final user = FirebaseAuth.instance.currentUser;
-                                        if (user != null) {
-                                          await _firestoreService.addToCart(
-                                            user.uid,
-                                            item,
-                                            item.storeName,
-                                          );
-                                          if (mounted) {
-                                            showMessage(
-                                              context, 
-                                              '${item.quantity}x ${item.name} added to cart', 
-                                              true,
-                                            );
-                                            setState(() {
-                                              item.quantity = 0; // Reset quantity after adding to cart
-                                            });
-                                          }
-                                        }
-                                      } catch (e) {
-                                        print('Error adding to cart: $e');
-                                        if (mounted) {
-                                          showMessage(
-                                            context, 
-                                            'Failed to add item to cart', 
-                                            false,
-                                          );
-                                        }
-                                      }
-                                    },
-                                  ),
+                                _buildQuantityButton(
+                                  icon: Icons.add,
+                                  onTap: () {
+                                    if (item.quantity < 99) {
+                                      setState(() => item.quantity++);
+                                    }
+                                  },
+                                  enabled: item.quantity < 99,
+                                  size: maxWidth * 0.08,
                                 ),
                               ],
                             ),
-                          ],
-                        ),
+                          ),
+                          // Cart Button
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).primaryColor,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(12),
+                                onTap: () async {
+                                  if (item.quantity == 0) {
+                                    showMessage(
+                                      context, 
+                                      'Please select quantity', 
+                                      false,
+                                    );
+                                    return;
+                                  }
+                                  try {
+                                    final user = FirebaseAuth.instance.currentUser;
+                                    if (user != null) {
+                                      await _firestoreService.addToCart(
+                                        user.uid,
+                                        item,
+                                        item.storeName,
+                                      );
+                                      if (mounted) {
+                                        showMessage(
+                                          context, 
+                                          '${item.quantity}x ${item.name} added to cart', 
+                                          true,
+                                        );
+                                        setState(() {
+                                          item.quantity = 0; // Reset quantity after adding to cart
+                                        });
+                                      }
+                                    }
+                                  } catch (e) {
+                                    print('Error adding to cart: $e');
+                                    if (mounted) {
+                                      showMessage(
+                                        context, 
+                                        'Failed to add item to cart', 
+                                        false,
+                                      );
+                                    }
+                                  }
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: Icon(
+                                    Icons.add_shopping_cart,
+                                    size: maxWidth * 0.1,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -755,5 +769,97 @@ class _FavoritesPageState extends State<FavoritesPage> {
         },
       ),
     );
+  }
+
+  Widget _buildQuantityButton({
+    required IconData icon,
+    required VoidCallback onTap,
+    required bool enabled,
+    required double size,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: enabled ? onTap : null,
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Icon(
+            icon,
+            size: size,
+            color: enabled 
+                ? Theme.of(context).primaryColor 
+                : Colors.grey[400],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class StoreSearchDelegate extends SearchDelegate<StoreItem> {
+  final Future<void> Function(String) searchFunction;
+  final Function(StoreItem) onItemSelected;
+
+  StoreSearchDelegate({
+    required this.searchFunction,
+    required this.onItemSelected,
+  });
+
+  @override
+  ThemeData appBarTheme(BuildContext context) {
+    final theme = Theme.of(context);
+    return theme.copyWith(
+      appBarTheme: AppBarTheme(
+        backgroundColor: theme.primaryColor,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        hintStyle: TextStyle(color: Colors.white.withOpacity(0.8)),
+      ),
+    );
+  }
+
+  @override
+  List<Widget> buildActions(BuildContext context) {
+    return [
+      IconButton(
+        icon: const Icon(Icons.clear),
+        onPressed: () {
+          query = '';
+          showSuggestions(context);
+        },
+      ),
+    ];
+  }
+
+  @override
+  Widget buildLeading(BuildContext context) {
+    return IconButton(
+      icon: const Icon(Icons.arrow_back),
+      onPressed: () {
+        close(context, StoreItem(
+          id: '',
+          name: '',
+          category: '',
+          price: 0,
+          imageUrl: '',
+          storeName: '',
+          quantity: 0, 
+          unit: '',
+        ));
+      },
+    );
+  }
+
+  @override
+  Widget buildResults(BuildContext context) {
+    searchFunction(query);
+    return Container(); // Results will be shown in the main page
+  }
+
+  @override
+  Widget buildSuggestions(BuildContext context) {
+    return Container(); // You can add search suggestions here
   }
 } 
