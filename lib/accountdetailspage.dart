@@ -34,7 +34,7 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
   late TextEditingController _ageController;
   String? _gender;
 
-  final ScrollController _scrollController = ScrollController();
+  ScrollController _scrollController = ScrollController();
   bool _isScrolled = false;
   final List<String> _genderOptions = ['Male', 'Female', 'Other'];
   double _opacity = 0.0;
@@ -42,7 +42,13 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(_onScroll);
+    _scrollController = ScrollController();
+    _scrollController.addListener(() {
+      setState(() {
+        _isScrolled = _scrollController.offset > 0;
+        _opacity = (_scrollController.offset / 180).clamp(0.0, 1.0);
+      });
+    });
     _nameController = TextEditingController();
     _emailController = TextEditingController();
     _phoneController = TextEditingController();
@@ -709,19 +715,27 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
             slivers: [
               SliverAppBar(
                 expandedHeight: 120,
-                floating: false,
-                pinned: true,
-                stretch: true,
+                floating: true,
+                pinned: false,
                 backgroundColor: Colors.transparent,
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  color: Colors.white,
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
                 flexibleSpace: FlexibleSpaceBar(
-                  background: Container(
-                    decoration: BoxDecoration(
-                      gradient: themeProvider.cardGradient,
+                  background: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 200),
+                    opacity: _isScrolled ? 0.0 : 1.0,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: themeProvider.cardGradient,
+                      ),
                     ),
                   ),
                   title: AnimatedOpacity(
                     duration: const Duration(milliseconds: 200),
-                    opacity: _isScrolled ? 1.0 : 1.0,
+                    opacity: _isScrolled ? 0.0 : 1.0,
                     child: Text(
                       'Account Details',
                       style: AppTextStyles.heading2(context).copyWith(
@@ -794,6 +808,13 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
                         ],
                       ),
                     ),
+                  ]),
+                ),
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
                     const SizedBox(height: 24),
                     // Action Buttons
                     ElevatedButton(
@@ -1106,8 +1127,15 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
       ),
       child: DropdownButtonFormField<String>(
         value: _gender,
+        hint: Text(
+          'Select Gender',
+          style: AppTextStyles.bodyMedium(context).copyWith(
+            color: themeProvider.isDarkMode ? Colors.white70 : Colors.black54,
+          ),
+        ),
         decoration: InputDecoration(
           labelText: 'Gender',
+          floatingLabelBehavior: FloatingLabelBehavior.always,
           labelStyle: AppTextStyles.label(context).copyWith(
             color: themeProvider.isDarkMode 
                 ? const Color.fromARGB(255, 255, 255, 255) 
@@ -1134,41 +1162,44 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
               ? Colors.transparent 
               : Colors.white,
         ),
-        style: AppTextStyles.bodyLarge(context).copyWith(
-          color: themeProvider.isDarkMode ? Colors.white : Colors.black87,
-        ),
-        dropdownColor: themeProvider.isDarkMode 
-            ? const Color(0xFF2C3E50)
-            : Colors.white,
-        icon: Icon(
-          Icons.arrow_drop_down_circle,
-          color: themeProvider.isDarkMode ? const Color.fromARGB(255, 255, 255, 255) : Theme.of(context).primaryColor,
-        ),
+        selectedItemBuilder: (BuildContext context) {
+          return _genderOptions.map<Widget>((String item) {
+            return Container(
+              alignment: Alignment.centerLeft,
+              constraints: const BoxConstraints(minWidth: 100),
+              child: Text(
+                item,
+                style: AppTextStyles.bodyLarge(context).copyWith(
+                  color: themeProvider.isDarkMode ? Colors.white : Colors.black87,
+                ),
+              ),
+            );
+          }).toList();
+        },
         items: _genderOptions.map((String gender) {
           return DropdownMenuItem(
             value: gender,
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Row(
-                children: [
-                  Icon(
-                    gender == 'Male' 
-                        ? Icons.male 
-                        : gender == 'Female' 
-                            ? Icons.female 
-                            : Icons.person_outline,
-                    color: themeProvider.isDarkMode ? const Color.fromARGB(255, 255, 254, 254) : Theme.of(context).primaryColor,
-                    size: 20,
+            child: Row(
+              children: [
+                Icon(
+                  gender == 'Male' 
+                      ? Icons.male 
+                      : gender == 'Female' 
+                          ? Icons.female 
+                          : Icons.person_outline,
+                  color: themeProvider.isDarkMode 
+                      ? Colors.white 
+                      : Theme.of(context).primaryColor,
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  gender,
+                  style: AppTextStyles.bodyMedium(context).copyWith(
+                    color: themeProvider.isDarkMode ? Colors.white : Colors.black87,
                   ),
-                  const SizedBox(width: 12),
-                  Text(
-                    gender,
-                    style: AppTextStyles.bodyMedium(context).copyWith(
-                      color: themeProvider.isDarkMode ? Colors.white : Colors.black87,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           );
         }).toList(),
