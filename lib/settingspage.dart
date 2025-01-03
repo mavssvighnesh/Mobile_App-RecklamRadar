@@ -236,58 +236,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     _buildSettingsSection(
                       'App Settings',
                       [
-                        ListTile(
-                          leading: const Icon(Icons.language),
-                          title: const Text('Language'),
-                          trailing: Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                                  Theme.of(context).colorScheme.primary.withOpacity(0.05),
-                                ],
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                                  blurRadius: 4,
-                                  spreadRadius: 0,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                            child: DropdownButton<String>(
-                              value: _selectedLanguage,
-                              underline: const SizedBox(),
-                              icon: Icon(
-                                Icons.arrow_drop_down,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.primary,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              dropdownColor: Colors.white,
-                              items: ['English', 'Swedish']
-                                  .map((lang) => DropdownMenuItem(
-                                        value: lang,
-                                        child: Text(lang),
-                                      ))
-                                  .toList(),
-                              onChanged: (value) {
-                                setState(() => _selectedLanguage = value!);
-                              },
-                            ),
-                          ),
-                        ),
+
                         ListTile(
                           leading: const Icon(Icons.currency_exchange),
                           title: const Text('Currency'),
