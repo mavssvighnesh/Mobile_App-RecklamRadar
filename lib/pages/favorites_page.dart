@@ -707,247 +707,88 @@ class _FavoritesPageState extends State<FavoritesPage> {
 
   Widget _buildItemCard(StoreItem item) {
     return ThemedCard(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final maxWidth = constraints.maxWidth;
-          final maxHeight = constraints.maxHeight;
-          
-          return Column(
+      child: Stack(
+        children: [
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Image Section with fixed height
-              SizedBox(
-                height: maxHeight * 0.5,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    ClipRRect(
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                      child: Image.network(
-                        item.imageUrl,
-                        fit: BoxFit.cover,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Center(
-                            child: CircularProgressIndicator(
-                              value: loadingProgress.expectedTotalBytes != null
-                                  ? loadingProgress.cumulativeBytesLoaded /
-                                      loadingProgress.expectedTotalBytes!
-                                  : null,
-                            ),
-                          );
-                        },
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            color: Colors.grey[200],
-                            child: Icon(
-                              Icons.image_not_supported,
-                              size: maxWidth * 0.25,
-                              color: Colors.grey[400],
-                            ),
-                          );
-                        },
-                      ),
+              // Image container
+              AspectRatio(
+                aspectRatio: 1,
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(12),
                     ),
-                    if (item.salePrice != null)
-                      Positioned(
-                        top: 8,
-                        left: 8,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            '${(((item.price - item.salePrice!) / item.price) * 100).round()}% OFF',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: maxWidth * 0.06,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              // Content Section
-              Expanded(
-                child: Padding(
-                  padding: EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Title and Store
-                      Text(
-                        item.name,
-                        style: AppTextStyles.cardTitle(context).copyWith(
-                          fontSize: maxWidth * 0.1,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        item.storeName,
-                        style: AppTextStyles.cardSubtitle(context).copyWith(
-                          fontSize: maxWidth * 0.08,
-                          color: Colors.grey[600],
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const Spacer(),
-                      // Price Section
-                      if (item.salePrice != null) ...[
-                        Text(
-                          'SEK ${item.price}',
-                          style: AppTextStyles.price(context, isOnSale: true).copyWith(
-                            fontSize: maxWidth * 0.08,
-                            decoration: TextDecoration.lineThrough,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                        Text(
-                          'SEK ${item.salePrice}',
-                          style: AppTextStyles.price(context).copyWith(
-                            fontSize: maxWidth * 0.09,
-                            color: Colors.red,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ] else
-                        Text(
-                          'SEK ${item.price}',
-                          style: AppTextStyles.price(context).copyWith(
-                            fontSize: maxWidth * 0.09,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      const SizedBox(height: 8),
-                      // Quantity and Cart Section
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          // Quantity Selector
-                          Container(
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: Theme.of(context).primaryColor.withOpacity(0.3),
-                                width: 2,
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              children: [
-                                _buildQuantityButton(
-                                  icon: Icons.remove,
-                                  onTap: () {
-                                    if (item.quantity > 0) {
-                                      setState(() => item.quantity--);
-                                    }
-                                  },
-                                  enabled: item.quantity > 0,
-                                  size: maxWidth * 0.08,
-                                ),
-                                Container(
-                                  width: maxWidth * 0.15,
-                                  alignment: Alignment.center,
-                                  child: Text(
-                                    '${item.quantity}',
-                                    style: TextStyle(
-                                      fontSize: maxWidth * 0.08,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                                _buildQuantityButton(
-                                  icon: Icons.add,
-                                  onTap: () {
-                                    if (item.quantity < 99) {
-                                      setState(() => item.quantity++);
-                                    }
-                                  },
-                                  enabled: item.quantity < 99,
-                                  size: maxWidth * 0.08,
-                                ),
-                              ],
-                            ),
-                          ),
-                          // Cart Button
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).primaryColor,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(12),
-                                onTap: () async {
-                                  if (item.quantity == 0) {
-                                    showMessage(
-                                      context, 
-                                      'Please select quantity', 
-                                      false,
-                                    );
-                                    return;
-                                  }
-                                  try {
-                                    final user = FirebaseAuth.instance.currentUser;
-                                    if (user != null) {
-                                      await _firestoreService.addToCart(
-                                        user.uid,
-                                        item,
-                                        item.storeName,
-                                      );
-                                      if (mounted) {
-                                        showMessage(
-                                          context, 
-                                          '${item.quantity}x ${item.name} added to cart', 
-                                          true,
-                                        );
-                                        setState(() {
-                                          item.quantity = 0; // Reset quantity after adding to cart
-                                        });
-                                      }
-                                    }
-                                  } catch (e) {
-                                    print('Error adding to cart: $e');
-                                    if (mounted) {
-                                      showMessage(
-                                        context, 
-                                        'Failed to add item to cart', 
-                                        false,
-                                      );
-                                    }
-                                  }
-                                },
-                                child: Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: Icon(
-                                    Icons.add_shopping_cart,
-                                    size: maxWidth * 0.1,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                    image: DecorationImage(
+                      image: NetworkImage(item.imageUrl),
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
               ),
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Store name
+                    Text(
+                      item.storeName,
+                      style: AppTextStyles.bodySmall(context).copyWith(
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    // Item name
+                    Text(
+                      item.name,
+                      style: AppTextStyles.bodyMedium(context).copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    // Price with unit
+                    Text(
+                      item.formattedPrice,
+                      style: TextStyle(
+                        color: item.salePrice != null ? Colors.green : Colors.black87,
+                        fontWeight: FontWeight.bold,
+                        fontSize: item.salePrice != null ? 16 : 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
-          );
-        },
+          ),
+          // Member price badge if applicable
+          if (item.salePrice != null)
+            Positioned(
+              top: 8,
+              left: 8,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.green,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'MEMBER PRICE',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

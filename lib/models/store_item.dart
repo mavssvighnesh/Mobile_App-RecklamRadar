@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:recklamradar/services/currency_service.dart';
+import '../utils/price_formatter.dart';
 
 class StoreItem {
   final String id;
@@ -111,4 +112,12 @@ class StoreItem {
       storeName: storeName ?? this.storeName,
     );
   }
+
+  String get formattedPrice => PriceFormatter.formatPriceWithUnit(
+    price, 
+    unit,
+    salePrice: salePrice,
+  );
+
+  String get formattedUnitPrice => '${price.toStringAsFixed(2)} SEK/${PriceFormatter.formatUnit(unit)}';
 } 
