@@ -32,7 +32,7 @@ class _CartPageState extends State<CartPage> {
   // ignore: unused_field
   double _titleOpacity = 0.0;
   static const String _budgetKey = 'cart_max_budget';
-  bool _isLoading = false;
+  final bool _isLoading = false;
 
   @override
   void initState() {
@@ -252,7 +252,7 @@ class _CartPageState extends State<CartPage> {
       key: _formKey,
       child: TextField(
         controller: _budgetController,
-        keyboardType: TextInputType.numberWithOptions(decimal: true),
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
         textInputAction: TextInputAction.done,
         onSubmitted: (_) {
           FocusScope.of(context).unfocus();
@@ -538,14 +538,14 @@ class _CartPageState extends State<CartPage> {
             ],
           ),
         ),
-        ...items.map((item) => _buildCartItem(store, item)).toList(),
+        ...items.map((item) => _buildCartItem(store, item)),
       ],
     );
   }
 
   Widget _buildCartItem(String store, Map<String, dynamic> item) {
     return Dismissible(
-      key: Key('${store}-${item['name']}'),
+      key: Key('$store-${item['name']}'),
       background: Container(
         color: Colors.blue,
         alignment: Alignment.centerLeft,

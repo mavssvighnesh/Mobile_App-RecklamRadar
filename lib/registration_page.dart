@@ -1,5 +1,7 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:recklamradar/constants/user_fields.dart';
 import 'package:recklamradar/services/firestore_service.dart';
 import 'package:recklamradar/utils/message_utils.dart';
 import 'services/auth_service.dart';
@@ -10,6 +12,8 @@ import 'package:recklamradar/admin_home_screen.dart';
 import 'providers/theme_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
+import 'package:path/path.dart' as path;
+
 class RegistrationPage extends StatefulWidget {
   const RegistrationPage({super.key});
 
@@ -32,7 +36,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
   String? _gender;
   bool _isPasswordVisible = false;
   bool _isLoading = false;
-  bool _isBusiness = false;
+  final bool _isBusiness = false;
   File? _profileImage;
   File? _imageFile;
   final ImagePicker _picker = ImagePicker();
@@ -68,20 +72,38 @@ class _RegistrationPageState extends State<RegistrationPage> {
       setState(() => _isLoading = true);
       try {
         String? imageUrl;
+        
+        // Upload profile image if selected
         if (_imageFile != null) {
-          // Upload image first
-          imageUrl = await _authService.uploadProfileImage(
-            DateTime.now().millisecondsSinceEpoch.toString(),
-            _imageFile!,
-          );
+          final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+          final ref = _storage.ref().child('profile_images').child('$timestamp.jpg');
+          
+          // Upload the file
+          final uploadTask = await ref.putFile(_imageFile!);
+          
+          if (uploadTask.state == TaskState.success) {
+            // Get the download URL after successful upload
+            imageUrl = await ref.getDownloadURL();
+            print('Profile image uploaded successfully: $imageUrl'); // Debug print
+          } else {
+            print('Failed to upload profile image: ${uploadTask.state}');
+          }
         }
 
+        // Create user with email and password
         final userCredential = await _authService.signUpWithEmail(
           _emailController.text.trim(),
           _passwordController.text,
           _nameController.text.trim(),
           _isBusiness,
-          imageUrl,
+          imageUrl, // Pass the image URL to the auth service
+          {
+            UserFields.phone: _phoneController.text.trim(),
+            UserFields.age: int.parse(_ageController.text.trim()),
+            UserFields.gender: _gender,
+            UserFields.createdAt: FieldValue.serverTimestamp(),
+            UserFields.updatedAt: FieldValue.serverTimestamp(),
+          },
         );
 
         if (userCredential != null && mounted) {
@@ -96,6 +118,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
           );
         }
       } catch (e) {
+        print('Registration error: $e'); // Debug print
         showMessage(context, "Registration failed: $e", false);
       } finally {
         if (mounted) setState(() => _isLoading = false);
@@ -104,110 +127,43 @@ class _RegistrationPageState extends State<RegistrationPage> {
   }
 
   Future<void> _pickImage(ImageSource source) async {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (BuildContext context) {
-        return Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Colors.white.withOpacity(0.95),
-                Colors.white.withOpacity(0.90),
-              ],
-            ),
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(20),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Theme.of(context).primaryColor.withOpacity(0.1),
-                blurRadius: 10,
-                spreadRadius: 2,
-              ),
-            ],
-          ),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    height: 4,
-                    width: 40,
-                    margin: const EdgeInsets.only(bottom: 20),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  ListTile(
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(
-                        Icons.photo_camera,
-                        color: Theme.of(context).primaryColor,
-                      ),
-                    ),
-                    title: const Text(
-                      'Take a Photo',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    onTap: () async {
-                      Navigator.pop(context);
-                      final XFile? image = await _picker.pickImage(source: ImageSource.camera);
-                      if (image != null) {
-                        setState(() => _imageFile = File(image.path));
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  ListTile(
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(
-                        Icons.photo_library,
-                        color: Theme.of(context).primaryColor,
-                      ),
-                    ),
-                    title: const Text(
-                      'Choose from Gallery',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    onTap: () async {
-                      Navigator.pop(context);
-                      final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-                      if (image != null) {
-                        setState(() => _imageFile = File(image.path));
-                      }
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: source,
+        maxWidth: 1024, // Limit image size
+        maxHeight: 1024,
+        imageQuality: 85, // Compress image
+      );
+
+      if (pickedFile != null) {
+        if (mounted) {
+          setState(() {
+            _imageFile = File(pickedFile.path);
+            print('Image selected: ${pickedFile.path}'); // Debug print
+          });
+        }
+      }
+    } catch (e) {
+      print('Error picking image: $e'); // Debug print
+      if (mounted) {
+        showMessage(context, "Failed to pick image: $e", false);
+      }
+    }
+  }
+
+  Future<bool> _validateImage(File image) async {
+    try {
+      final fileSize = await image.length();
+      // Limit file size to 5MB
+      if (fileSize > 5 * 1024 * 1024) {
+        showMessage(context, "Image size should be less than 5MB", false);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      print('Error validating image: $e');
+      return false;
+    }
   }
 
   Widget _buildImagePicker() {
@@ -215,27 +171,98 @@ class _RegistrationPageState extends State<RegistrationPage> {
       onTap: () {
         showModalBottomSheet(
           context: context,
+          backgroundColor: Colors.transparent,
+          isScrollControlled: true,
           builder: (BuildContext context) {
-            return SafeArea(
-              child: Wrap(
-                children: <Widget>[
-                  ListTile(
-                    leading: const Icon(Icons.photo_camera),
-                    title: const Text('Take a photo'),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _pickImage(ImageSource.camera);
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.photo_library),
-                    title: const Text('Choose from gallery'),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _pickImage(ImageSource.gallery);
-                    },
+            return Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.white.withOpacity(0.95),
+                    Colors.white.withOpacity(0.90),
+                  ],
+                ),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(20),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Theme.of(context).primaryColor.withOpacity(0.1),
+                    blurRadius: 10,
+                    spreadRadius: 2,
                   ),
                 ],
+              ),
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        height: 4,
+                        width: 40,
+                        margin: const EdgeInsets.only(bottom: 20),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).primaryColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.photo_camera,
+                            color: Theme.of(context).primaryColor,
+                          ),
+                        ),
+                        title: const Text(
+                          'Take a Photo',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        onTap: () {
+                          Navigator.pop(context);
+                          _pickImage(ImageSource.camera);
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).primaryColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.photo_library,
+                            color: Theme.of(context).primaryColor,
+                          ),
+                        ),
+                        title: const Text(
+                          'Choose from Gallery',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        onTap: () {
+                          Navigator.pop(context);
+                          _pickImage(ImageSource.gallery);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
               ),
             );
           },

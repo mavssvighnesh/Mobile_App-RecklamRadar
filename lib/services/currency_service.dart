@@ -155,7 +155,7 @@ class CurrencyService {
   }
 
   String formatPriceWithCurrency(double price) {
-    return '${formatPrice(price)} (${_selectedCurrency})';
+    return '${formatPrice(price)} ($_selectedCurrency)';
   }
 
   // Only use this for manual refresh if needed

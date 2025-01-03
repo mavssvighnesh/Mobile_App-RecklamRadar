@@ -27,9 +27,9 @@ class _SettingsPageState extends State<SettingsPage> {
   String _userEmail = '';
   String? _profileImage;
   String _selectedLanguage = 'English';
-  String _selectedCurrency = 'SEK';
+  final String _selectedCurrency = 'SEK';
   // ignore: unused_field
-  bool _isDarkMode = false;
+  final bool _isDarkMode = false;
   final ScrollController _scrollController = ScrollController();
   bool _isScrolled = false;
   // ignore: unused_field

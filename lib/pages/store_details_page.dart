@@ -462,7 +462,7 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
   }
 
   Widget _buildFilterSection() {
-    final categories = ['All', ...items.map((item) => item.category).toSet().toList()];
+    final categories = ['All', ...items.map((item) => item.category).toSet()];
     final sortOptions = ['Name', 'Price (Low to High)', 'Price (High to Low)'];
 
     return AnimatedContainer(

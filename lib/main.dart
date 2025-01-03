@@ -74,7 +74,7 @@ class MyApp extends StatelessWidget {
       builder: (context, child) {
         SizeConfig().init(context);
         return MediaQuery(
-          data: MediaQuery.of(context).copyWith(textScaleFactor: 1.0),
+          data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(1.0)),
           child: Container(
             constraints: const BoxConstraints(
               minWidth: 320,
