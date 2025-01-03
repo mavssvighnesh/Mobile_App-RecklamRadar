@@ -28,11 +28,15 @@ class _FavoritesPageState extends State<FavoritesPage> {
   Set<String> categories = {};
   Set<String> stores = {};
   final _debouncer = Debouncer(milliseconds: 500);
+  String selectedSort = 'Name'; // Default sort
+  bool showMemberPriceOnly = false;
+  bool isFilterActive = false;
 
   @override
   void initState() {
     super.initState();
     _loadInitialData();
+    _loadRandomDeals(); // Load random deals on start
   }
 
   Future<void> _loadInitialData() async {
@@ -180,40 +184,174 @@ class _FavoritesPageState extends State<FavoritesPage> {
     });
   }
 
+  Future<void> _loadRandomDeals() async {
+    setState(() => isLoading = true);
+    try {
+      List<StoreItem> deals = [];
+      final storeNumbers = ['1', '2', '3', '4', '5', '6', '7', '8'];
+      
+      for (String storeNumber in storeNumbers) {
+        try {
+          final itemsSnapshot = await FirebaseFirestore.instance
+              .collection('stores')
+              .doc(storeNumber)
+              .collection('items')
+              .limit(4) // Get 4 random items from each store
+              .get();
+
+          for (var doc in itemsSnapshot.docs) {
+            final data = doc.data();
+            deals.add(StoreItem(
+              id: doc.id,
+              name: data['name'] ?? '',
+              category: data['category'] ?? '',
+              price: (data['price'] as num).toDouble(),
+              salePrice: data['memberPrice'] != null ? 
+                  (data['memberPrice'] as num).toDouble() : null,
+              imageUrl: data['imageUrl'] ?? '',
+              unit: data['unit'] ?? '',
+              inStock: data['inStock'] ?? true,
+              quantity: 0,
+              storeName: _getStoreName(storeNumber),
+            ));
+          }
+        } catch (e) {
+          print('Error loading deals from store $storeNumber: $e');
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          filteredItems = deals;
+          allItems = deals;
+          categories = deals.map((item) => item.category).toSet();
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading random deals: $e');
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
+    }
+  }
+
+  void _sortItems() {
+    setState(() {
+      switch (selectedSort) {
+        case 'Name':
+          filteredItems.sort((a, b) => a.name.compareTo(b.name));
+          break;
+        case 'Price (Low to High)':
+          filteredItems.sort((a, b) => a.price.compareTo(b.price));
+          break;
+        case 'Price (High to Low)':
+          filteredItems.sort((a, b) => b.price.compareTo(a.price));
+          break;
+      }
+    });
+  }
+
+  void _filterItems() {
+    setState(() {
+      filteredItems = allItems.where((item) {
+        bool matchesCategory = selectedFilter == null || 
+            item.category == selectedFilter;
+            
+        bool matchesMemberPrice = !showMemberPriceOnly || 
+            item.salePrice != null;
+
+        return matchesCategory && matchesMemberPrice;
+      }).toList();
+      
+      _sortItems();
+    });
+  }
+
   void _showFilterDialog() {
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: Text(
-            "Filter Items",
-            style: AppTextStyles.heading3(context),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButton<String>(
-                isExpanded: true,
-                value: selectedFilter,
-                items: [
-                  const DropdownMenuItem(value: null, child: Text("All")),
-                  ...stores.map((store) => DropdownMenuItem(
-                        value: store,
-                        child: Text("Store: $store"),
-                      )),
-                  ...categories.map((category) => DropdownMenuItem(
-                        value: category,
-                        child: Text("Category: $category"),
-                      )),
-                ],
-                onChanged: (filter) {
-                  setState(() => selectedFilter = filter);
-                  _applyFilter(filter);
-                  Navigator.pop(context);
-                },
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text(
+                "Filter & Sort",
+                style: AppTextStyles.heading3(context),
               ),
-            ],
-          ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("Category", style: AppTextStyles.bodyLarge(context)),
+                    DropdownButton<String>(
+                      isExpanded: true,
+                      value: selectedFilter,
+                      items: [
+                        const DropdownMenuItem(value: null, child: Text("All Categories")),
+                        ...categories.map((category) => DropdownMenuItem(
+                          value: category,
+                          child: Text(category),
+                        )),
+                      ],
+                      onChanged: (value) {
+                        setState(() => selectedFilter = value);
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    Text("Sort By", style: AppTextStyles.bodyLarge(context)),
+                    DropdownButton<String>(
+                      isExpanded: true,
+                      value: selectedSort,
+                      items: [
+                        'Name',
+                        'Price (Low to High)',
+                        'Price (High to Low)',
+                      ].map((option) => DropdownMenuItem(
+                        value: option,
+                        child: Text(option),
+                      )).toList(),
+                      onChanged: (value) {
+                        setState(() => selectedSort = value!);
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "Show Only Sale Items",
+                          style: AppTextStyles.bodyLarge(context),
+                        ),
+                        Switch(
+                          value: showMemberPriceOnly,
+                          onChanged: (value) {
+                            setState(() => showMemberPriceOnly = value);
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: const Text("Cancel"),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _filterItems();
+                  },
+                  child: const Text("Apply"),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -247,11 +385,13 @@ class _FavoritesPageState extends State<FavoritesPage> {
               ),
             ),
             actions: [
-              if (filteredItems.isNotEmpty)
-                IconButton(
-                  icon: const Icon(Icons.filter_list),
-                  onPressed: _showFilterDialog,
+              IconButton(
+                icon: Icon(
+                  isFilterActive ? Icons.filter_list_off : Icons.filter_list,
+                  color: Colors.white,
                 ),
+                onPressed: _showFilterDialog,
+              ),
             ],
             bottom: PreferredSize(
               preferredSize: Size.fromHeight(SizeConfig.blockSizeVertical * 8),
@@ -285,22 +425,18 @@ class _FavoritesPageState extends State<FavoritesPage> {
               child: Center(child: CircularProgressIndicator()),
             )
           else if (_searchController.text.isEmpty)
-            SliverFillRemaining(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.search,
-                      size: 64,
-                      color: Colors.grey[400],
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Start typing to search for deals',
-                      style: AppTextStyles.bodyLarge(context),
-                    ),
-                  ],
+            SliverPadding(
+              padding: EdgeInsets.all(SizeConfig.blockSizeHorizontal * 2),
+              sliver: SliverGrid(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
+                  childAspectRatio: 0.6,
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
+                ),
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) => _buildItemCard(filteredItems[index]),
+                  childCount: filteredItems.length,
                 ),
               ),
             )
