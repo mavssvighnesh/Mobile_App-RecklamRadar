@@ -519,17 +519,33 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
   }
 
   Future<void> _showImageEditOptions(String imageUrl) {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
     return showModalBottomSheet(
       context: context,
-      backgroundColor: Theme.of(context).primaryColor,
+      backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (BuildContext context) {
         return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
           decoration: BoxDecoration(
-            color: Theme.of(context).scaffoldBackgroundColor,
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(20),
-            ),
+            gradient: themeProvider.isDarkMode
+                ? LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      const Color(0xFF2C3E50).withOpacity(0.95),
+                      const Color(0xFF3A506B).withOpacity(0.95),
+                    ],
+                  )
+                : LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.white.withOpacity(0.95),
+                      Colors.white.withOpacity(0.90),
+                    ],
+                  ),
+            borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.2),
@@ -544,91 +560,125 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
               Container(
                 width: 40,
                 height: 4,
-                margin: const EdgeInsets.symmetric(vertical: 12),
+                margin: const EdgeInsets.only(top: 16),
                 decoration: BoxDecoration(
-                  color: Colors.grey[300],
+                  color: themeProvider.isDarkMode
+                      ? Colors.white.withOpacity(0.2)
+                      : Colors.grey[300],
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              // Show current image
-             /*Container(
-                height: 200,
-                width: double.infinity,
-                margin: const EdgeInsets.all(16),
+              const SizedBox(height: 20),
+              Container(
+                height: 100,
+                width: 100,
+                margin: const EdgeInsets.only(bottom: 20),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Theme.of(context).primaryColor,
+                    width: 3,
+                  ),
                   image: DecorationImage(
                     image: NetworkImage(imageUrl),
                     fit: BoxFit.cover,
                   ),
                 ),
-              ),*/
-              // Edit options
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).primaryColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    Icons.edit,
-                    color: Theme.of(context).colorScheme.secondary,
-                  ),
-                ),
-                title: Text(
-                  'Change Photo',
-                  style: AppTextStyles.bodyLarge(context),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showImagePickerOptions();
-                },
               ),
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(
-                    Icons.delete_outline,
-                    color: Colors.red,
-                  ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildImageOptionButton(
+                      icon: Icons.camera_alt_rounded,
+                      label: 'Camera',
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Theme.of(context).primaryColor.withOpacity(0.1),
+                          Theme.of(context).primaryColor.withOpacity(0.2),
+                        ],
+                      ),
+                      onTap: () async {
+                        Navigator.pop(context);
+                        final XFile? image = await _picker.pickImage(
+                          source: ImageSource.camera,
+                          maxWidth: 1024,
+                          maxHeight: 1024,
+                          imageQuality: 85,
+                        );
+                        if (image != null && mounted) {
+                          await _uploadProfileImage(image.path);
+                        }
+                      },
+                    ),
+                    _buildImageOptionButton(
+                      icon: Icons.photo_library_rounded,
+                      label: 'Gallery',
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Theme.of(context).primaryColor.withOpacity(0.1),
+                          Theme.of(context).primaryColor.withOpacity(0.2),
+                        ],
+                      ),
+                      onTap: () async {
+                        Navigator.pop(context);
+                        final XFile? image = await _picker.pickImage(
+                          source: ImageSource.gallery,
+                          maxWidth: 1024,
+                          maxHeight: 1024,
+                          imageQuality: 85,
+                        );
+                        if (image != null && mounted) {
+                          await _uploadProfileImage(image.path);
+                        }
+                      },
+                    ),
+                    _buildImageOptionButton(
+                      icon: Icons.delete_rounded,
+                      label: 'Remove',
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Colors.red.withOpacity(0.1),
+                          Colors.red.withOpacity(0.2),
+                        ],
+                      ),
+                      color: Colors.red,
+                      onTap: () {
+                        Navigator.pop(context);
+                        _removeProfileImage();
+                      },
+                    ),
+                  ],
                 ),
-                title: Text(
-                  'Remove Photo',
-                  style: AppTextStyles.bodyLarge(context).copyWith(
-                    color: Colors.red,
-                  ),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _removeProfileImage();
-                },
               ),
               const SizedBox(height: 16),
-              SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: TextButton(
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        backgroundColor: Colors.grey[200],
-                      ),
-                      onPressed: () => Navigator.pop(context),
-                      child: Text(
-                        'Cancel',
-                        style: AppTextStyles.bodyLarge(context).copyWith(
-                          color: Colors.black87,
-                        ),
-                      ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: themeProvider.isDarkMode
+                        ? Colors.white.withOpacity(0.1)
+                        : Colors.grey[200],
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    minimumSize: const Size(double.infinity, 0),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    'Cancel',
+                    style: AppTextStyles.bodyLarge(context).copyWith(
+                      color: themeProvider.isDarkMode
+                          ? Colors.white
+                          : Colors.black87,
                     ),
                   ),
                 ),
@@ -642,62 +692,55 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     return Scaffold(
       extendBodyBehindAppBar: true,
       body: Container(
         decoration: BoxDecoration(
-          gradient: Provider.of<ThemeProvider>(context).backgroundGradient,
+          gradient: themeProvider.backgroundGradient,
         ),
-        child: CustomScrollView(
-          controller: _scrollController,
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            SliverAppBar(
-              expandedHeight: 120,
-              floating: true,
-              pinned: false,
-              backgroundColor: Colors.transparent,
-              leading: AnimatedOpacity(
-                duration: const Duration(milliseconds: 200),
-                opacity: _isScrolled ? 0.0 : 1.0,
-                child: IconButton(
-                  icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ),
-              flexibleSpace: FlexibleSpaceBar(
-                background: AnimatedOpacity(
-                  duration: const Duration(milliseconds: 200),
-                  opacity: _isScrolled ? 0.0 : 1.0,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: Provider.of<ThemeProvider>(context).cardGradient,
-                    ),
-                  ),
-                ),
-                title: AnimatedOpacity(
-                  duration: const Duration(milliseconds: 200),
-                  opacity: _isScrolled ? 0.0 : 1.0,
-                  child: const Text(
-                    'Account Details',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
+        child: SafeArea(
+          child: CustomScrollView(
+            controller: _scrollController,
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
             ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
+            slivers: [
+              SliverAppBar(
+                expandedHeight: 120,
+                floating: false,
+                pinned: true,
+                stretch: true,
+                backgroundColor: Colors.transparent,
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Container(
+                    decoration: BoxDecoration(
+                      gradient: themeProvider.cardGradient,
+                    ),
+                  ),
+                  title: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 200),
+                    opacity: _isScrolled ? 1.0 : 1.0,
+                    child: Text(
+                      'Account Details',
+                      style: AppTextStyles.heading2(context).copyWith(
+                        color: Colors.white,
+                        fontSize: 20,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
                     Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      margin: const EdgeInsets.only(bottom: 16),
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
-                        gradient: Provider.of<ThemeProvider>(context).isDarkMode
+                        gradient: themeProvider.isDarkMode
                             ? LinearGradient(
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
@@ -716,7 +759,7 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
                               ),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: Provider.of<ThemeProvider>(context).isDarkMode
+                          color: themeProvider.isDarkMode
                               ? Colors.white.withOpacity(0.1)
                               : Colors.black.withOpacity(0.05),
                         ),
@@ -731,81 +774,8 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Center(
-                            child: Stack(
-                              children: [
-                                GestureDetector(
-                                  onTap: () {
-                                    if (_currentProfileImage != null) {
-                                      _showImageEditOptions(_currentProfileImage!);
-                                    } else {
-                                      _showImagePickerOptions();
-                                    }
-                                  },
-                                  child: Hero(
-                                    tag: 'profileImage',
-                                    child: CircleAvatar(
-                                      radius: 50,
-                                      backgroundColor: Theme.of(context).primaryColor.withOpacity(0.2),
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          gradient: Provider.of<ThemeProvider>(context).isDarkMode
-                                              ? LinearGradient(
-                                                  begin: Alignment.topLeft,
-                                                  end: Alignment.bottomRight,
-                                                  colors: [
-                                                    const Color(0xFF2C3E50).withOpacity(0.9),
-                                                    const Color(0xFF3A506B).withOpacity(0.9),
-                                                  ],
-                                                )
-                                              : LinearGradient(
-                                                  begin: Alignment.topLeft,
-                                                  end: Alignment.bottomRight,
-                                                  colors: [
-                                                    Theme.of(context).primaryColor.withOpacity(0.1),
-                                                    Theme.of(context).primaryColor.withOpacity(0.2),
-                                                  ],
-                                                ),
-                                        ),
-                                        child: _currentProfileImage != null
-                                            ? CircleAvatar(
-                                                radius: 50,
-                                                backgroundImage: NetworkImage(_currentProfileImage!),
-                                              )
-                                            : Icon(
-                                                Icons.person,
-                                                size: 50,
-                                                color: Theme.of(context).primaryColor,
-                                              ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                Positioned(
-                                  right: 0,
-                                  bottom: 0,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: BoxDecoration(
-                                      color: Theme.of(context).colorScheme.primary,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: Theme.of(context).scaffoldBackgroundColor,
-                                        width: 2,
-                                      ),
-                                    ),
-                                    child: Icon(
-                                      _currentProfileImage != null ? Icons.edit : Icons.add_a_photo,
-                                      size: 20,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 16),
+                          _buildProfileImage(),
+                          const SizedBox(height: 24),
                           Text(
                             _nameController.text.isNotEmpty ? _nameController.text : 'No Name',
                             style: AppTextStyles.heading2(context),
@@ -818,75 +788,78 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 32),
-                          Consumer<ThemeProvider>(
-                            builder: (context, themeProvider, child) {
-                              return themeProvider.isDarkMode
-                                  ? _buildDarkModeFields()
-                                  : _buildLightModeFields();
-                            },
-                          ),
+                          themeProvider.isDarkMode
+                              ? _buildDarkModeFields()
+                              : _buildLightModeFields(),
                         ],
                       ),
                     ),
                     const SizedBox(height: 24),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: _updateUserData,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Theme.of(context).colorScheme.primary,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                            ),
-                            child: const Text('Save Changes'),
-                          ),
+                    // Action Buttons
+                    ElevatedButton(
+                      onPressed: _updateUserData,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const ChangePasswordPage(),
-                                ),
-                              );
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Theme.of(context).colorScheme.primary,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                            ),
-                            child: const Text('Change Password'),
-                          ),
+                      ),
+                      child: Text(
+                        'Save Changes',
+                        style: AppTextStyles.bodyLarge(context).copyWith(
+                          color: Colors.white,
                         ),
-                      ],
+                      ),
                     ),
                     const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () {
-                              _showDeleteAccountDialog();
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                            ),
-                            child: const Text('Delete Account'),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ChangePasswordPage(),
                           ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                      ],
+                      ),
+                      child: Text(
+                        'Change Password',
+                        style: AppTextStyles.bodyLarge(context).copyWith(
+                          color: Colors.white,
+                        ),
+                      ),
                     ),
-                  ],
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () => _showDeleteAccountDialog(),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        'Delete Account',
+                        style: AppTextStyles.bodyLarge(context).copyWith(
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                    // Add bottom padding to ensure content is scrollable past the bottom edge
+                    const SizedBox(height: 32),
+                  ]),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -931,87 +904,75 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
     );
   }
 
-  // ignore: unused_element
   Widget _buildTextField(
     String label,
     TextEditingController controller,
     IconData icon, {
     bool enabled = true,
     TextInputType keyboardType = TextInputType.text,
-    String? Function(String?)? validator,
-    void Function(String)? onChanged,
   }) {
-    return TextFormField(
-      controller: controller,
-      enabled: enabled,
-      keyboardType: keyboardType,
-      validator: validator,
-      onChanged: onChanged,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon),
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: themeProvider.isDarkMode 
+              ? Colors.white.withOpacity(0.1)
+              : Theme.of(context).primaryColor.withOpacity(0.1),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+        gradient: themeProvider.isDarkMode
+            ? LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFF2C3E50).withOpacity(0.3),
+                  const Color(0xFF3A506B).withOpacity(0.3),
+                ],
+              )
+            : LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withOpacity(0.9),
+                  Colors.white.withOpacity(0.7),
+                ],
+              ),
+      ),
+      child: TextFormField(
+        controller: controller,
+        enabled: enabled,
+        keyboardType: keyboardType,
+        style: AppTextStyles.bodyLarge(context).copyWith(
+          color: themeProvider.isDarkMode ? Colors.white : Colors.black87,
+        ),
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: AppTextStyles.label(context).copyWith(
+            color: themeProvider.isDarkMode ? Colors.white70 : Colors.black87,
           ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: Theme.of(context).colorScheme.primary,
-            width: 2,
+          prefixIcon: Icon(
+            icon,
+            color: themeProvider.isDarkMode ? Colors.white70 : Theme.of(context).primaryColor,
           ),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.red, width: 1),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(
+              color: Theme.of(context).primaryColor,
+              width: 2,
+            ),
+          ),
+          filled: true,
+          fillColor: Colors.transparent,
         ),
       ),
-    );
-  }
-
-  // ignore: unused_element
-  Widget _buildDropdownField(String label, String? value, {required String? Function(dynamic value) validator}) {
-    return DropdownButtonFormField<String>(
-      value: value,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: const Icon(Icons.person_outline),
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-          ),
-        ),
-      ),
-      dropdownColor: Colors.white,
-      style: TextStyle(
-        color: Theme.of(context).colorScheme.primary,
-        fontSize: 16,
-      ),
-      validator: validator,
-      items: ['Male', 'Female', 'Other']
-          .map((gender) => DropdownMenuItem(
-                value: gender,
-                child: Text(gender),
-              ))
-          .toList(),
-      onChanged: (newValue) {
-        setState(() {
-          _gender = newValue!;
-        });
-      },
     );
   }
 
@@ -1069,7 +1030,6 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
     );
   }
 
-  // ignore: unused_element
   Widget _buildProfileField(BuildContext context, String label, String value) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -1131,16 +1091,16 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  const Color(0xFF2C3E50).withOpacity(0.8),
-                  const Color(0xFF3A506B).withOpacity(0.8),
+                  const Color(0xFF2C3E50).withOpacity(0.3),
+                  const Color(0xFF3A506B).withOpacity(0.3),
                 ],
               )
-            : LinearGradient(
+            : const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Colors.white.withOpacity(0.9),
-                  Colors.white.withOpacity(0.7),
+                  Colors.white,
+                  Colors.white,
                 ],
               ),
       ),
@@ -1148,7 +1108,11 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
         value: _gender,
         decoration: InputDecoration(
           labelText: 'Gender',
-          labelStyle: AppTextStyles.label(context),
+          labelStyle: AppTextStyles.label(context).copyWith(
+            color: themeProvider.isDarkMode 
+                ? const Color.fromARGB(255, 255, 255, 255) 
+                : Colors.black87,
+          ),
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
@@ -1165,16 +1129,20 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
               width: 2,
             ),
           ),
+          filled: true,
+          fillColor: themeProvider.isDarkMode 
+              ? Colors.transparent 
+              : Colors.white,
         ),
         style: AppTextStyles.bodyLarge(context).copyWith(
           color: themeProvider.isDarkMode ? Colors.white : Colors.black87,
         ),
         dropdownColor: themeProvider.isDarkMode 
             ? const Color(0xFF2C3E50)
-            : Theme.of(context).scaffoldBackgroundColor,
+            : Colors.white,
         icon: Icon(
           Icons.arrow_drop_down_circle,
-          color: Theme.of(context).primaryColor,
+          color: themeProvider.isDarkMode ? const Color.fromARGB(255, 255, 255, 255) : Theme.of(context).primaryColor,
         ),
         items: _genderOptions.map((String gender) {
           return DropdownMenuItem(
@@ -1189,13 +1157,15 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
                         : gender == 'Female' 
                             ? Icons.female 
                             : Icons.person_outline,
-                    color: Theme.of(context).primaryColor,
+                    color: themeProvider.isDarkMode ? const Color.fromARGB(255, 255, 254, 254) : Theme.of(context).primaryColor,
                     size: 20,
                   ),
                   const SizedBox(width: 12),
                   Text(
                     gender,
-                    style: AppTextStyles.bodyMedium(context),
+                    style: AppTextStyles.bodyMedium(context).copyWith(
+                      color: themeProvider.isDarkMode ? Colors.white : Colors.black87,
+                    ),
                   ),
                 ],
               ),
@@ -1207,34 +1177,6 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
         },
         validator: (value) => value == null ? 'Please select your gender' : null,
         isExpanded: true,
-        menuMaxHeight: 300,
-        elevation: 8,
-        selectedItemBuilder: (BuildContext context) {
-          return _genderOptions.map<Widget>((String item) {
-            return Container(
-              alignment: Alignment.centerLeft,
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Row(
-                children: [
-                  Icon(
-                    item == 'Male' 
-                        ? Icons.male 
-                        : item == 'Female' 
-                            ? Icons.female 
-                            : Icons.person_outline,
-                    color: Theme.of(context).primaryColor,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    item,
-                    style: AppTextStyles.bodyMedium(context),
-                  ),
-                ],
-              ),
-            );
-          }).toList();
-        },
       ),
     );
   }
@@ -1309,6 +1251,61 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
         const SizedBox(height: 16),
         _buildGenderDropdown(),
       ],
+    );
+  }
+
+  Widget _buildProfileImage() {
+    return Center(
+      child: Stack(
+        children: [
+          GestureDetector(
+            onTap: () {
+              if (_currentProfileImage != null) {
+                _showImageEditOptions(_currentProfileImage!);
+              } else {
+                _showImagePickerOptions();
+              }
+            },
+            child: Hero(
+              tag: 'profileImage',
+              child: CircleAvatar(
+                radius: 50,
+                backgroundColor: Theme.of(context).primaryColor.withOpacity(0.2),
+                backgroundImage: _currentProfileImage != null
+                    ? NetworkImage(_currentProfileImage!)
+                    : null,
+                child: _currentProfileImage == null
+                    ? Icon(
+                        Icons.person,
+                        size: 50,
+                        color: Theme.of(context).primaryColor,
+                      )
+                    : null,
+              ),
+            ),
+          ),
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Theme.of(context).primaryColor,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  width: 2,
+                ),
+              ),
+              child: Icon(
+                _currentProfileImage != null ? Icons.edit : Icons.add_a_photo,
+                size: 20,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
