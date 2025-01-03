@@ -326,13 +326,13 @@ class _FavoritesPageState extends State<FavoritesPage> {
             )
           else
             SliverPadding(
-              padding: EdgeInsets.all(SizeConfig.blockSizeHorizontal * 4),
+              padding: EdgeInsets.all(SizeConfig.blockSizeHorizontal * 2),
               sliver: SliverGrid(
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
-                  childAspectRatio: 0.75,
-                  mainAxisSpacing: SizeConfig.blockSizeVertical * 2,
-                  crossAxisSpacing: SizeConfig.blockSizeHorizontal * 4,
+                  childAspectRatio: 0.6,
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
                 ),
                 delegate: SliverChildBuilderDelegate(
                   (context, index) => _buildItemCard(filteredItems[index]),
@@ -347,157 +347,276 @@ class _FavoritesPageState extends State<FavoritesPage> {
 
   Widget _buildItemCard(StoreItem item) {
     return ThemedCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            flex: 3,
-            child: Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                  child: Container(
-                    width: double.infinity,
-                    height: double.infinity,
-                    child: Image.network(
-                      item.imageUrl,
-                      fit: BoxFit.cover,
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
-                        return Center(
-                          child: CircularProgressIndicator(
-                            value: loadingProgress.expectedTotalBytes != null
-                                ? loadingProgress.cumulativeBytesLoaded /
-                                    loadingProgress.expectedTotalBytes!
-                                : null,
-                          ),
-                        );
-                      },
-                      errorBuilder: (context, error, stackTrace) {
-                        print('Error loading image: $error');
-                        return Container(
-                          color: Colors.grey[200],
-                          child: Center(
-                            child: Icon(
-                              Icons.image_not_supported,
-                              size: 40,
-                              color: Colors.grey[400],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-                if (item.salePrice != null)
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '${(((item.price - item.salePrice!) / item.price) * 100).round()}% OFF',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final maxWidth = constraints.maxWidth;
+          final maxHeight = constraints.maxHeight;
+          
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Image Section
+              SizedBox(
+                height: maxHeight * 0.55,
+                child: Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                      child: SizedBox.expand(
+                        child: Image.network(
+                          item.imageUrl,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Center(
+                              child: CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded /
+                                        loadingProgress.expectedTotalBytes!
+                                    : null,
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: Colors.grey[200],
+                              child: Center(
+                                child: Icon(
+                                  Icons.image_not_supported,
+                                  size: maxWidth * 0.2,
+                                  color: Colors.grey[400],
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       ),
                     ),
-                  ),
-              ],
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
+                    if (item.salePrice != null)
+                      Positioned(
+                        top: 8,
+                        left: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            '${(((item.price - item.salePrice!) / item.price) * 100).round()}% OFF',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: maxWidth * 0.05,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              // Content Section
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.all(maxWidth * 0.03),
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        item.name,
-                        style: AppTextStyles.cardTitle(context),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                      // Title and Store
+                      Expanded(
+                        flex: 2,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item.name,
+                              style: AppTextStyles.cardTitle(context).copyWith(
+                                fontSize: maxWidth * 0.08,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            SizedBox(height: maxHeight * 0.01),
+                            Text(
+                              item.storeName,
+                              style: AppTextStyles.cardSubtitle(context).copyWith(
+                                fontSize: maxWidth * 0.06,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
                       ),
-                      Text(
-                        item.storeName,
-                        style: AppTextStyles.cardSubtitle(context),
+                      // Price and Cart Button
+                      Expanded(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (item.salePrice != null) ...[
+                                    Text(
+                                      'SEK ${item.price}',
+                                      style: AppTextStyles.price(context, isOnSale: true).copyWith(
+                                        fontSize: maxWidth * 0.06,
+                                        decoration: TextDecoration.lineThrough,
+                                      ),
+                                    ),
+                                    Text(
+                                      'SEK ${item.salePrice}',
+                                      style: AppTextStyles.price(context).copyWith(
+                                        fontSize: maxWidth * 0.07,
+                                        color: Colors.red,
+                                      ),
+                                    ),
+                                  ] else
+                                    Text(
+                                      'SEK ${item.price}',
+                                      style: AppTextStyles.price(context).copyWith(
+                                        fontSize: maxWidth * 0.07,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            Column(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                // Quantity selector
+                                Container(
+                                  decoration: BoxDecoration(
+                                    border: Border.all(
+                                      color: Colors.grey[300]!,
+                                      width: 1,
+                                    ),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      InkWell(
+                                        onTap: () {
+                                          if (item.quantity > 0) {
+                                            setState(() {
+                                              item.quantity--;
+                                            });
+                                          }
+                                        },
+                                        child: Container(
+                                          padding: EdgeInsets.all(maxWidth * 0.02),
+                                          child: Icon(
+                                            Icons.remove,
+                                            size: maxWidth * 0.06,
+                                            color: item.quantity > 0 
+                                                ? Theme.of(context).primaryColor 
+                                                : Colors.grey,
+                                          ),
+                                        ),
+                                      ),
+                                      Container(
+                                        width: maxWidth * 0.1,
+                                        alignment: Alignment.center,
+                                        child: Text(
+                                          '${item.quantity}',
+                                          style: TextStyle(
+                                            fontSize: maxWidth * 0.06,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                      InkWell(
+                                        onTap: () {
+                                          if (item.quantity < 99) {
+                                            setState(() {
+                                              item.quantity++;
+                                            });
+                                          }
+                                        },
+                                        child: Container(
+                                          padding: EdgeInsets.all(maxWidth * 0.02),
+                                          child: Icon(
+                                            Icons.add,
+                                            size: maxWidth * 0.06,
+                                            color: item.quantity < 99 
+                                                ? Theme.of(context).primaryColor 
+                                                : Colors.grey,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                SizedBox(height: maxWidth * 0.02),
+                                // Add to cart button
+                                SizedBox(
+                                  width: maxWidth * 0.2,
+                                  height: maxWidth * 0.1,
+                                  child: IconButton(
+                                    icon: Icon(
+                                      Icons.add_shopping_cart,
+                                      size: maxWidth * 0.08,
+                                    ),
+                                    onPressed: () async {
+                                      if (item.quantity == 0) {
+                                        showMessage(
+                                          context, 
+                                          'Please select quantity', 
+                                          false,
+                                        );
+                                        return;
+                                      }
+                                      try {
+                                        final user = FirebaseAuth.instance.currentUser;
+                                        if (user != null) {
+                                          await _firestoreService.addToCart(
+                                            user.uid,
+                                            item,
+                                            item.storeName,
+                                          );
+                                          if (mounted) {
+                                            showMessage(
+                                              context, 
+                                              '${item.quantity}x ${item.name} added to cart', 
+                                              true,
+                                            );
+                                            setState(() {
+                                              item.quantity = 0; // Reset quantity after adding to cart
+                                            });
+                                          }
+                                        }
+                                      } catch (e) {
+                                        print('Error adding to cart: $e');
+                                        if (mounted) {
+                                          showMessage(
+                                            context, 
+                                            'Failed to add item to cart', 
+                                            false,
+                                          );
+                                        }
+                                      }
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (item.salePrice != null) ...[
-                            Text(
-                              'SEK ${item.price}',
-                              style: AppTextStyles.price(context, isOnSale: true),
-                            ),
-                            Text(
-                              'SEK ${item.salePrice}',
-                              style: AppTextStyles.price(context),
-                            ),
-                          ] else
-                            Text(
-                              'SEK ${item.price}',
-                              style: AppTextStyles.price(context),
-                            ),
-                        ],
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.add_shopping_cart),
-                        onPressed: () async {
-                          try {
-                            final user = FirebaseAuth.instance.currentUser;
-                            if (user != null) {
-                              await _firestoreService.addToCart(
-                                user.uid,
-                                item,
-                                item.storeName,
-                              );
-                              if (mounted) {
-                                showMessage(
-                                  context,
-                                  '${item.name} added to cart',
-                                  true,
-                                );
-                              }
-                            }
-                          } catch (e) {
-                            print('Error adding to cart: $e');
-                            if (mounted) {
-                              showMessage(
-                                context,
-                                'Failed to add item to cart',
-                                false,
-                              );
-                            }
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }
