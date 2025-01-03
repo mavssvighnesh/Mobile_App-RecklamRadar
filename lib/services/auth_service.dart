@@ -22,6 +22,7 @@ class AuthService {
     String name,
     bool isBusiness,
     String? imageUrl,
+    Map<String, dynamic> additionalData,
   ) async {
     try {
       final credential = await _auth.createUserWithEmailAndPassword(
@@ -30,8 +31,9 @@ class AuthService {
       );
 
       if (credential.user != null) {
-        // Update user profile with photo URL
+        // Update user profile with photo URL and display name
         await credential.user!.updatePhotoURL(imageUrl);
+        await credential.user!.updateDisplayName(name);
         
         // Create user profile in appropriate collection
         await _firestoreService.createUserProfile(
@@ -41,7 +43,7 @@ class AuthService {
             UserFields.email: email,
             UserFields.isBusiness: isBusiness,
             UserFields.profileImage: imageUrl,
-            UserFields.createdAt: FieldValue.serverTimestamp(),
+            ...additionalData, // Merge additional user data
           },
         );
       }
@@ -49,7 +51,7 @@ class AuthService {
       return credential;
     } catch (e) {
       print('Sign-up error: ${e.toString()}');
-      rethrow; // Rethrow to handle in UI
+      rethrow;
     }
   }
 
@@ -171,7 +173,7 @@ class AuthService {
       await _firestore.collection(collection).doc(userId).update(data);
     } catch (e) {
       print('Error updating user profile: $e');
-      throw e;
+      rethrow;
     }
   }
 

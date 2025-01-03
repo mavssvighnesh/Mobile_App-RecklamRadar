@@ -97,32 +97,32 @@ class ThemeProvider with ChangeNotifier {
   ThemeData get theme => _isDarkMode ? _darkTheme : _lightTheme;
 
   // Update both light and dark theme text themes
-  static final TextTheme _baseTextTheme = TextTheme(
-    headlineLarge: const TextStyle(
+  static final TextTheme _baseTextTheme = const TextTheme(
+    headlineLarge: TextStyle(
       fontSize: 32,
       fontWeight: FontWeight.bold,
       letterSpacing: -0.5,
     ),
-    headlineMedium: const TextStyle(
+    headlineMedium: TextStyle(
       fontSize: 24,
       fontWeight: FontWeight.bold,
       letterSpacing: -0.3,
     ),
-    titleLarge: const TextStyle(
+    titleLarge: TextStyle(
       fontSize: 20,
       fontWeight: FontWeight.bold,
     ),
-    bodyLarge: const TextStyle(
+    bodyLarge: TextStyle(
       fontSize: 16,
       height: 1.5,
       fontWeight: FontWeight.w400,
     ),
-    bodyMedium: const TextStyle(
+    bodyMedium: TextStyle(
       fontSize: 14,
       height: 1.4,
       fontWeight: FontWeight.w400,
     ),
-    labelLarge: const TextStyle(
+    labelLarge: TextStyle(
       fontSize: 14,
       fontWeight: FontWeight.w500,
       letterSpacing: 0.2,
@@ -149,13 +149,11 @@ class ThemeProvider with ChangeNotifier {
     colorScheme: const ColorScheme.light(
       primary: Color(0xFF7B6FF0),      // Deep purple
       secondary: Color(0xFFFFB6C1),    // Light pink
-      surface: Color(0xFFFFFFFF),      // White
-      background: Color(0xFFB5B8FF),   // Light purple-blue
+      surface: Color(0xFFFFFFFF),   // Light purple-blue
       error: Color(0xFFFF8B94),        // Light red
       onPrimary: Color(0xFFFFFFFF),    // White
       onSecondary: Color(0xFF000000),  // Black
-      onSurface: Color(0xFF000000),    // Black
-      onBackground: Color(0xFF000000),  // Black
+      onSurface: Color(0xFF000000),  // Black
       onError: Color(0xFFFFFFFF),      // White
       brightness: Brightness.light,
     ),
@@ -248,13 +246,11 @@ class ThemeProvider with ChangeNotifier {
     colorScheme: const ColorScheme.dark(
       primary: Color(0xFFC34C74),     // Rose
       secondary: Color(0xFF66A6FF),    // Sky blue
-      surface: Color(0xFF2C3E50),      // Deep blue-gray
-      background: Color(0xFF1A1F25),   // Darker blue-gray
+      surface: Color(0xFF2C3E50),   // Darker blue-gray
       error: Color(0xFFFF6B6B),        // Soft red
       onPrimary: Color(0xFFFFFFFF),    // White
       onSecondary: Color(0xFF1A1F25),  // Dark blue-gray
-      onSurface: Color(0xFFFFFFFF),    // White
-      onBackground: Color(0xFFFFFFFF),  // White
+      onSurface: Color(0xFFFFFFFF),  // White
       onError: Color(0xFFFFFFFF),      // White
       brightness: Brightness.dark,
     ),

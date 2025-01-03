@@ -5,7 +5,6 @@ import '../utils/size_config.dart';
 import '../providers/theme_provider.dart';
 import '../services/firestore_service.dart';
 import '../utils/message_utils.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:recklamradar/styles/app_text_styles.dart';
 import 'package:recklamradar/widgets/themed_card.dart';

@@ -9,12 +9,12 @@ class ThemedScaffold extends StatelessWidget {
   final FloatingActionButtonLocation? floatingActionButtonLocation;
 
   const ThemedScaffold({
-    Key? key,
+    super.key,
     required this.body,
     this.appBar,
     this.floatingActionButton,
     this.floatingActionButtonLocation,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

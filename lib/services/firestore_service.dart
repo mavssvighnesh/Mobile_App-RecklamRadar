@@ -28,12 +28,22 @@ class FirestoreService {
       final isAdmin = data[UserFields.isAdmin] ?? false;
       final collection = isAdmin ? 'admins' : 'users';
       
+      // Ensure all required fields are present
+      final userProfile = {
+        UserFields.name: data[UserFields.name],
+        UserFields.email: data[UserFields.email],
+        UserFields.phone: data[UserFields.phone],
+        UserFields.age: data[UserFields.age],
+        UserFields.gender: data[UserFields.gender],
+        UserFields.isBusiness: data[UserFields.isBusiness],
+        UserFields.isAdmin: isAdmin,
+        UserFields.profileImage: data[UserFields.profileImage],
+        UserFields.createdAt: data[UserFields.createdAt] ?? FieldValue.serverTimestamp(),
+        UserFields.updatedAt: data[UserFields.updatedAt] ?? FieldValue.serverTimestamp(),
+      };
+      
       await _firestore.collection(collection).doc(userId).set(
-        {
-          ...data,
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
+        userProfile,
         SetOptions(merge: true),
       );
       
@@ -224,7 +234,7 @@ class FirestoreService {
     return _firestore
         .collection('stores')
         .where('name', isGreaterThanOrEqualTo: query.toLowerCase())
-        .where('name', isLessThan: query.toLowerCase() + 'z')
+        .where('name', isLessThan: '${query.toLowerCase()}z')
         .get();
   }
 
@@ -337,7 +347,7 @@ class FirestoreService {
       print('Successfully added to cart'); // Debug print
     } catch (e) {
       print('Error adding to cart: $e'); // Debug print
-      throw e;
+      rethrow;
     }
   }
 

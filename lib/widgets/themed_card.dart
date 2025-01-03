@@ -8,11 +8,11 @@ class ThemedCard extends StatelessWidget {
   final VoidCallback? onTap;
 
   const ThemedCard({
-    Key? key,
+    super.key,
     required this.child,
     this.padding,
     this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -42,7 +42,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _auth = FirebaseAuth.instance;
-  bool _isLoading = false;
+  final bool _isLoading = false;
   bool _isCurrentPasswordVisible = false;
   bool _isNewPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
@@ -199,7 +199,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                     ),
                   );
                 },
-                child: Text(
+                child: const Text(
                   "Forgot Password?",
                   style: TextStyle(
                     color: Colors.white,
@@ -317,7 +317,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 16),
-                        Text(
+                        const Text(
                           "Enter your email to receive a password reset link",
                           style: TextStyle(
                             fontSize: 16,

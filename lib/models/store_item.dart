@@ -25,7 +25,7 @@ class StoreItem {
   double? get salePrice {
     if (_baseSalePriceSEK == null) return null;
     final currencyService = CurrencyService();
-    final convertedPrice = currencyService.convertPrice(_baseSalePriceSEK!);
+    final convertedPrice = currencyService.convertPrice(_baseSalePriceSEK);
     print('Converting sale price from $_baseSalePriceSEK SEK to ${currencyService.selectedCurrency}: $convertedPrice');
     return convertedPrice;
   }
