@@ -23,12 +23,9 @@ class FirestoreService {
   // User Profile Methods
   Future<void> createUserProfile(String userId, Map<String, dynamic> data) async {
     try {
-      print('Creating user profile: $data'); // Debug print
-      
       final isAdmin = data[UserFields.isAdmin] ?? false;
       final collection = isAdmin ? 'admins' : 'users';
       
-      // Ensure all required fields are present
       final userProfile = {
         UserFields.name: data[UserFields.name],
         UserFields.email: data[UserFields.email],
@@ -38,31 +35,25 @@ class FirestoreService {
         UserFields.isBusiness: data[UserFields.isBusiness],
         UserFields.isAdmin: isAdmin,
         UserFields.profileImage: data[UserFields.profileImage],
-        UserFields.createdAt: data[UserFields.createdAt] ?? FieldValue.serverTimestamp(),
-        UserFields.updatedAt: data[UserFields.updatedAt] ?? FieldValue.serverTimestamp(),
+        UserFields.createdAt: FieldValue.serverTimestamp(),
+        UserFields.updatedAt: FieldValue.serverTimestamp(),
       };
       
       await _firestore.collection(collection).doc(userId).set(
         userProfile,
         SetOptions(merge: true),
       );
-      
-      print('User profile created successfully'); // Debug print
     } catch (e) {
-      print('Error in createUserProfile: $e'); // Debug print
       rethrow;
     }
   }
 
   Future<Map<String, dynamic>?> getUserProfile(String userId) async {
     try {
-      print('Getting user profile for ID: $userId'); // Debug print
-      
       // Check users collection first
       var userDoc = await _firestore.collection('users').doc(userId).get();
       
       if (userDoc.exists) {
-        print('Found user in users collection: ${userDoc.data()}'); // Debug print
         return userDoc.data();
       }
       
@@ -70,17 +61,14 @@ class FirestoreService {
       var adminDoc = await _firestore.collection('admins').doc(userId).get();
       
       if (adminDoc.exists) {
-        print('Found user in admins collection: ${adminDoc.data()}'); // Debug print
         return {
           ...adminDoc.data()!,
           'isAdmin': true,
         };
       }
       
-      print('No user document found'); // Debug print
       return null;
     } catch (e) {
-      print('Error in getUserProfile: $e'); // Debug print
       rethrow;
     }
   }
@@ -310,8 +298,6 @@ class FirestoreService {
 
   Future<void> addToCart(String userId, StoreItem item, String storeName) async {
     try {
-      print('Adding to cart: ${item.name} for user: $userId in store: $storeName'); // Debug print
-      
       // Check if item already exists in cart
       final existingItems = await _firestore
           .collection('users')
@@ -344,9 +330,7 @@ class FirestoreService {
           'addedAt': FieldValue.serverTimestamp(),
         });
       }
-      print('Successfully added to cart'); // Debug print
     } catch (e) {
-      print('Error adding to cart: $e'); // Debug print
       rethrow;
     }
   }
@@ -391,7 +375,6 @@ class FirestoreService {
 
       return items;
     } catch (e) {
-      print('Error getting store items: $e');
       return [];
     }
   }

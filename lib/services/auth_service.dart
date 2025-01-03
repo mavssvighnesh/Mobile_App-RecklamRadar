@@ -50,7 +50,6 @@ class AuthService {
 
       return credential;
     } catch (e) {
-      print('Sign-up error: ${e.toString()}');
       rethrow;
     }
   }

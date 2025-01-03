@@ -23,10 +23,8 @@ class AccountDetailsPage extends StatefulWidget {
 class _AccountDetailsPageState extends State<AccountDetailsPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirestoreService _firestoreService = FirestoreService();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final ImagePicker _picker = ImagePicker();
-  // ignore: unused_field
-  final _formKey = GlobalKey<FormState>();
-  // ignore: unused_field
   bool _isLoading = true;
   String? _currentProfileImage;
 
@@ -36,15 +34,10 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
   late TextEditingController _ageController;
   String? _gender;
 
-  final _firestore = FirebaseFirestore.instance;
-
-  // Add scroll controller
   final ScrollController _scrollController = ScrollController();
   bool _isScrolled = false;
-  // ignore: unused_field
-  double _opacity = 0.0;
-
   final List<String> _genderOptions = ['Male', 'Female', 'Other'];
+  double _opacity = 0.0;
 
   @override
   void initState() {
@@ -70,14 +63,7 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
     try {
       final userId = _auth.currentUser?.uid;
       if (userId != null) {
-        // Debug print
-        print('Fetching data for user: $userId');
-        
         final userData = await _firestoreService.getUserProfile(userId);
-        
-        // Debug print
-        print('Fetched user data: $userData');
-
         if (mounted && userData != null) {
           setState(() {
             _nameController.text = userData[UserFields.name]?.toString() ?? '';
@@ -86,20 +72,13 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
             _ageController.text = userData[UserFields.age]?.toString() ?? '';
             _gender = userData[UserFields.gender]?.toString();
             _currentProfileImage = userData[UserFields.profileImage];
-            // Debug prints
-            print('Name: ${_nameController.text}');
-            print('Email: ${_emailController.text}');
-            print('Phone: ${_phoneController.text}');
-            print('Age: ${_ageController.text}');
-            print('Gender: $_gender');
           });
         }
       }
     } catch (e) {
-      print('Error loading user data: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading profile: $e')),
-      );
+      if (mounted) {
+        showMessage(context, 'Error loading profile: $e', false);
+      }
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -136,71 +115,230 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
     }
   }
 
-  // ignore: unused_element
-  Future<void> _pickImage() async {
-    showModalBottomSheet(
+  Future<void> _showImagePickerOptions() {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    return showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(20),
-        ),
-      ),
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (BuildContext context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Wrap(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.photo_camera, color: Colors.blue),
-                  title: const Text(
-                    'Take a Photo',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          decoration: BoxDecoration(
+            gradient: themeProvider.isDarkMode
+                ? LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      const Color(0xFF2C3E50).withOpacity(0.95),
+                      const Color(0xFF3A506B).withOpacity(0.95),
+                    ],
+                  )
+                : LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.white.withOpacity(0.95),
+                      Colors.white.withOpacity(0.90),
+                    ],
                   ),
-                  onTap: () async {
-                    Navigator.pop(context);
-                    final image = await _picker.pickImage(source: ImageSource.camera);
-                    if (image != null) {
-                      _uploadProfileImage(image.path);
-                    }
-                  },
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: themeProvider.isDarkMode
+                  ? Colors.white.withOpacity(0.1)
+                  : Colors.black.withOpacity(0.05),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 10,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(top: 16, bottom: 8),
+                decoration: BoxDecoration(
+                  color: themeProvider.isDarkMode
+                      ? Colors.white.withOpacity(0.2)
+                      : Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
                 ),
-                ListTile(
-                  leading: const Icon(Icons.photo_library, color: Colors.blue),
-                  title: const Text(
-                    'Choose from Gallery',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text(
+                  'Profile Photo',
+                  style: AppTextStyles.heading2(context).copyWith(
+                    color: themeProvider.isDarkMode ? Colors.white : Colors.black87,
                   ),
-                  onTap: () async {
-                    Navigator.pop(context);
-                    final image = await _picker.pickImage(source: ImageSource.gallery);
-                    if (image != null) {
-                      _uploadProfileImage(image.path);
-                    }
-                  },
                 ),
-                if (_currentProfileImage != null)
-                  ListTile(
-                    leading: const Icon(Icons.delete, color: Colors.red),
-                    title: const Text(
-                      'Remove Photo',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildImageOptionButton(
+                      icon: Icons.camera_alt_rounded,
+                      label: 'Camera',
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: themeProvider.isDarkMode
+                            ? [
+                                const Color(0xFF2C3E50).withOpacity(0.8),
+                                const Color(0xFF3A506B).withOpacity(0.8),
+                              ]
+                            : [
+                                Theme.of(context).primaryColor.withOpacity(0.1),
+                                Theme.of(context).primaryColor.withOpacity(0.2),
+                              ],
+                      ),
+                      onTap: () async {
+                        Navigator.pop(context);
+                        final XFile? image = await _picker.pickImage(
+                          source: ImageSource.camera,
+                          maxWidth: 1024,
+                          maxHeight: 1024,
+                          imageQuality: 85,
+                        );
+                        if (image != null && mounted) {
+                          await _uploadProfileImage(image.path);
+                        }
+                      },
+                    ),
+                    _buildImageOptionButton(
+                      icon: Icons.photo_library_rounded,
+                      label: 'Gallery',
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: themeProvider.isDarkMode
+                            ? [
+                                const Color(0xFF2C3E50).withOpacity(0.8),
+                                const Color(0xFF3A506B).withOpacity(0.8),
+                              ]
+                            : [
+                                Theme.of(context).primaryColor.withOpacity(0.1),
+                                Theme.of(context).primaryColor.withOpacity(0.2),
+                              ],
+                      ),
+                      onTap: () async {
+                        Navigator.pop(context);
+                        final XFile? image = await _picker.pickImage(
+                          source: ImageSource.gallery,
+                          maxWidth: 1024,
+                          maxHeight: 1024,
+                          imageQuality: 85,
+                        );
+                        if (image != null && mounted) {
+                          await _uploadProfileImage(image.path);
+                        }
+                      },
+                    ),
+                    if (_currentProfileImage != null)
+                      _buildImageOptionButton(
+                        icon: Icons.delete_rounded,
+                        label: 'Remove',
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Colors.red.withOpacity(0.1),
+                            Colors.red.withOpacity(0.2),
+                          ],
+                        ),
                         color: Colors.red,
+                        onTap: () {
+                          Navigator.pop(context);
+                          _removeProfileImage();
+                        },
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: TextButton(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      backgroundColor: themeProvider.isDarkMode
+                          ? Colors.white.withOpacity(0.1)
+                          : Colors.grey[100],
+                      minimumSize: const Size(double.infinity, 0),
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(
+                      'Cancel',
+                      style: AppTextStyles.bodyLarge(context).copyWith(
+                        color: themeProvider.isDarkMode
+                            ? Colors.white
+                            : Colors.black87,
                       ),
                     ),
-                    onTap: () async {
-                      Navigator.pop(context);
-                      await _removeProfileImage();
-                    },
                   ),
-              ],
-            ),
+                ),
+              ),
+            ],
           ),
         );
       },
+    );
+  }
+
+  Widget _buildImageOptionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    required Gradient gradient,
+    Color? color,
+  }) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              gradient: gradient,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: themeProvider.isDarkMode
+                    ? Colors.white.withOpacity(0.1)
+                    : Colors.black.withOpacity(0.05),
+              ),
+            ),
+            child: Icon(
+              icon,
+              size: 32,
+              color: color ?? Theme.of(context).primaryColor,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: AppTextStyles.bodyMedium(context).copyWith(
+              color: themeProvider.isDarkMode
+                  ? Colors.white
+                  : color ?? Theme.of(context).primaryColor,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -208,29 +346,44 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
     try {
       setState(() => _isLoading = true);
       
+      final user = _auth.currentUser;
+      if (user == null) return;
+
       if (_currentProfileImage != null) {
         // Delete from Storage
-        final storageRef = FirebaseStorage.instance.refFromURL(_currentProfileImage!);
-        await storageRef.delete();
-        
-        // Update Firestore
-        final user = _auth.currentUser;
-        if (user != null) {
-          await _firestoreService.updateUserProfile(
-            user.uid,
-            {'profileImage': null},
-            user.email?.toLowerCase().endsWith('@rr.com') ?? false,
-          );
+        try {
+          final storageRef = FirebaseStorage.instance.refFromURL(_currentProfileImage!);
+          await storageRef.delete();
+        } catch (e) {
+          print('Error deleting image from storage: $e');
         }
         
-        setState(() {
-          _currentProfileImage = null;
-        });
+        // Update Firestore profile
+        await _firestoreService.updateUserProfile(
+          user.uid,
+          {UserFields.profileImage: null},
+          user.email?.toLowerCase().endsWith('@rr.com') ?? false,
+        );
+
+        // Update Auth profile
+        await user.updatePhotoURL(null);
+
+        if (mounted) {
+          setState(() {
+            _currentProfileImage = null;
+          });
+          showMessage(context, 'Profile picture removed successfully', true);
+        }
       }
     } catch (e) {
-      showMessage(context, 'Error removing profile photo: $e', false);
+      print('Error removing profile photo: $e');
+      if (mounted) {
+        showMessage(context, 'Error removing profile photo: $e', false);
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -238,40 +391,56 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
     try {
       setState(() => _isLoading = true);
       
+      final user = _auth.currentUser;
+      if (user == null) return;
+
+      // Create storage reference
       final ref = FirebaseStorage.instance
           .ref()
           .child('profile_images')
-          .child('${_auth.currentUser!.uid}_${DateTime.now().millisecondsSinceEpoch}.jpg');
+          .child('${user.uid}_${DateTime.now().millisecondsSinceEpoch}.jpg');
       
+      // Upload new image
       await ref.putFile(File(imagePath));
       final imageUrl = await ref.getDownloadURL();
 
-      // Update Auth profile
-      await _auth.currentUser?.updatePhotoURL(imageUrl);
+      // Delete old image if exists
+      if (_currentProfileImage != null) {
+        try {
+          final oldRef = FirebaseStorage.instance.refFromURL(_currentProfileImage!);
+          await oldRef.delete();
+        } catch (e) {
+          print('Error deleting old image: $e');
+        }
+      }
 
-      // Update Firestore profile
-      final isAdmin = _auth.currentUser?.email?.toLowerCase().endsWith('@rr.com') ?? false;
+      // Update user profile
+      final isAdmin = user.email?.toLowerCase().endsWith('@rr.com') ?? false;
       await _firestoreService.updateUserProfile(
-        _auth.currentUser!.uid,
+        user.uid,
         {UserFields.profileImage: imageUrl},
         isAdmin,
       );
 
-      setState(() => _currentProfileImage = imageUrl);
-      
+      // Update Auth profile
+      await user.updatePhotoURL(imageUrl);
+
+      // Update local state
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile picture updated successfully')),
-        );
+        setState(() {
+          _currentProfileImage = imageUrl;
+        });
+        showMessage(context, 'Profile picture updated successfully', true);
       }
     } catch (e) {
+      print('Error uploading profile image: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error updating profile picture: $e')),
-        );
+        showMessage(context, 'Error updating profile picture: $e', false);
       }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -347,6 +516,128 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  Future<void> _showImageEditOptions(String imageUrl) {
+    return showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).primaryColor,
+      isScrollControlled: true,
+      builder: (BuildContext context) {
+        return Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(20),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 10,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Show current image
+             /*Container(
+                height: 200,
+                width: double.infinity,
+                margin: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  image: DecorationImage(
+                    image: NetworkImage(imageUrl),
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),*/
+              // Edit options
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.edit,
+                    color: Theme.of(context).colorScheme.secondary,
+                  ),
+                ),
+                title: Text(
+                  'Change Photo',
+                  style: AppTextStyles.bodyLarge(context),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showImagePickerOptions();
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.delete_outline,
+                    color: Colors.red,
+                  ),
+                ),
+                title: Text(
+                  'Remove Photo',
+                  style: AppTextStyles.bodyLarge(context).copyWith(
+                    color: Colors.red,
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _removeProfileImage();
+                },
+              ),
+              const SizedBox(height: 16),
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        backgroundColor: Colors.grey[200],
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(
+                        'Cancel',
+                        style: AppTextStyles.bodyLarge(context).copyWith(
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -441,36 +732,90 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Center(
-                            child: Column(
+                            child: Stack(
                               children: [
-                                CircleAvatar(
-                                  radius: 50,
-                                  backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                                  backgroundImage: _currentProfileImage != null
-                                      ? NetworkImage(_currentProfileImage!)
-                                      : null,
-                                  child: _currentProfileImage == null
-                                      ? Icon(
-                                          Icons.person,
-                                          size: 50,
-                                          color: Theme.of(context).colorScheme.primary,
-                                        )
-                                      : null,
+                                GestureDetector(
+                                  onTap: () {
+                                    if (_currentProfileImage != null) {
+                                      _showImageEditOptions(_currentProfileImage!);
+                                    } else {
+                                      _showImagePickerOptions();
+                                    }
+                                  },
+                                  child: Hero(
+                                    tag: 'profileImage',
+                                    child: CircleAvatar(
+                                      radius: 50,
+                                      backgroundColor: Theme.of(context).primaryColor.withOpacity(0.2),
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          gradient: Provider.of<ThemeProvider>(context).isDarkMode
+                                              ? LinearGradient(
+                                                  begin: Alignment.topLeft,
+                                                  end: Alignment.bottomRight,
+                                                  colors: [
+                                                    const Color(0xFF2C3E50).withOpacity(0.9),
+                                                    const Color(0xFF3A506B).withOpacity(0.9),
+                                                  ],
+                                                )
+                                              : LinearGradient(
+                                                  begin: Alignment.topLeft,
+                                                  end: Alignment.bottomRight,
+                                                  colors: [
+                                                    Theme.of(context).primaryColor.withOpacity(0.1),
+                                                    Theme.of(context).primaryColor.withOpacity(0.2),
+                                                  ],
+                                                ),
+                                        ),
+                                        child: _currentProfileImage != null
+                                            ? CircleAvatar(
+                                                radius: 50,
+                                                backgroundImage: NetworkImage(_currentProfileImage!),
+                                              )
+                                            : Icon(
+                                                Icons.person,
+                                                size: 50,
+                                                color: Theme.of(context).primaryColor,
+                                              ),
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  _nameController.text.isNotEmpty ? _nameController.text : 'No Name',
-                                  style: AppTextStyles.heading2(context),
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  _emailController.text.isNotEmpty ? _emailController.text : 'No Email',
-                                  style: AppTextStyles.bodyMedium(context),
-                                  textAlign: TextAlign.center,
+                                Positioned(
+                                  right: 0,
+                                  bottom: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context).colorScheme.primary,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: Theme.of(context).scaffoldBackgroundColor,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      _currentProfileImage != null ? Icons.edit : Icons.add_a_photo,
+                                      size: 20,
+                                      color: Colors.white,
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            _nameController.text.isNotEmpty ? _nameController.text : 'No Name',
+                            style: AppTextStyles.heading2(context),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            _emailController.text.isNotEmpty ? _emailController.text : 'No Email',
+                            style: AppTextStyles.bodyMedium(context),
+                            textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 32),
                           Consumer<ThemeProvider>(
@@ -771,106 +1116,161 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
     );
   }
 
+  Widget _buildGenderDropdown() {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: themeProvider.isDarkMode 
+              ? Colors.white.withOpacity(0.1)
+              : Theme.of(context).primaryColor.withOpacity(0.1),
+        ),
+        gradient: themeProvider.isDarkMode
+            ? LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFF2C3E50).withOpacity(0.8),
+                  const Color(0xFF3A506B).withOpacity(0.8),
+                ],
+              )
+            : LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withOpacity(0.9),
+                  Colors.white.withOpacity(0.7),
+                ],
+              ),
+      ),
+      child: DropdownButtonFormField<String>(
+        value: _gender,
+        decoration: InputDecoration(
+          labelText: 'Gender',
+          labelStyle: AppTextStyles.label(context),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(
+              color: Theme.of(context).primaryColor,
+              width: 2,
+            ),
+          ),
+        ),
+        style: AppTextStyles.bodyLarge(context).copyWith(
+          color: themeProvider.isDarkMode ? Colors.white : Colors.black87,
+        ),
+        dropdownColor: themeProvider.isDarkMode 
+            ? const Color(0xFF2C3E50)
+            : Theme.of(context).scaffoldBackgroundColor,
+        icon: Icon(
+          Icons.arrow_drop_down_circle,
+          color: Theme.of(context).primaryColor,
+        ),
+        items: _genderOptions.map((String gender) {
+          return DropdownMenuItem(
+            value: gender,
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                children: [
+                  Icon(
+                    gender == 'Male' 
+                        ? Icons.male 
+                        : gender == 'Female' 
+                            ? Icons.female 
+                            : Icons.person_outline,
+                    color: Theme.of(context).primaryColor,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    gender,
+                    style: AppTextStyles.bodyMedium(context),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
+        onChanged: (String? newValue) {
+          setState(() => _gender = newValue);
+        },
+        validator: (value) => value == null ? 'Please select your gender' : null,
+        isExpanded: true,
+        menuMaxHeight: 300,
+        elevation: 8,
+        selectedItemBuilder: (BuildContext context) {
+          return _genderOptions.map<Widget>((String item) {
+            return Container(
+              alignment: Alignment.centerLeft,
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                children: [
+                  Icon(
+                    item == 'Male' 
+                        ? Icons.male 
+                        : item == 'Female' 
+                            ? Icons.female 
+                            : Icons.person_outline,
+                    color: Theme.of(context).primaryColor,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    item,
+                    style: AppTextStyles.bodyMedium(context),
+                  ),
+                ],
+              ),
+            );
+          }).toList();
+        },
+      ),
+    );
+  }
+
   Widget _buildDarkModeFields() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TextFormField(
-          controller: _nameController,
-          decoration: InputDecoration(
-            labelText: 'Name',
-            labelStyle: AppTextStyles.label(context),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            filled: true,
-            fillColor: Theme.of(context).cardColor.withOpacity(0.1),
-          ),
-          style: AppTextStyles.bodyLarge(context),
-          validator: (value) {
-            if (value?.isEmpty ?? true) return 'Please enter your name';
-            return null;
-          },
+        _buildTextField(
+          'Name',
+          _nameController,
+          Icons.person,
         ),
         const SizedBox(height: 16),
-        TextFormField(
-          controller: _emailController,
-          decoration: InputDecoration(
-            labelText: 'Email',
-            labelStyle: AppTextStyles.label(context),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            filled: true,
-            fillColor: Theme.of(context).cardColor.withOpacity(0.1),
-          ),
-          style: AppTextStyles.bodyLarge(context),
+        _buildTextField(
+          'Email',
+          _emailController,
+          Icons.email,
           enabled: false,
         ),
         const SizedBox(height: 16),
-        TextFormField(
-          controller: _phoneController,
-          decoration: InputDecoration(
-            labelText: 'Phone',
-            labelStyle: AppTextStyles.label(context),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            filled: true,
-            fillColor: Theme.of(context).cardColor.withOpacity(0.1),
-          ),
-          style: AppTextStyles.bodyLarge(context),
+        _buildTextField(
+          'Phone',
+          _phoneController,
+          Icons.phone,
           keyboardType: TextInputType.phone,
-          validator: (value) {
-            if (value?.isEmpty ?? true) return 'Please enter your phone number';
-            return null;
-          },
         ),
         const SizedBox(height: 16),
-        TextFormField(
-          controller: _ageController,
-          decoration: InputDecoration(
-            labelText: 'Age',
-            labelStyle: AppTextStyles.label(context),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            filled: true,
-            fillColor: Theme.of(context).cardColor.withOpacity(0.1),
-          ),
-          style: AppTextStyles.bodyLarge(context),
+        _buildTextField(
+          'Age',
+          _ageController,
+          Icons.calendar_today,
           keyboardType: TextInputType.number,
-          validator: (value) {
-            if (value?.isEmpty ?? true) return 'Please enter your age';
-            return null;
-          },
         ),
         const SizedBox(height: 16),
-        DropdownButtonFormField<String>(
-          value: _gender,
-          decoration: InputDecoration(
-            labelText: 'Gender',
-            labelStyle: AppTextStyles.label(context),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            filled: true,
-            fillColor: Theme.of(context).cardColor.withOpacity(0.1),
-          ),
-          style: AppTextStyles.bodyLarge(context),
-          dropdownColor: Theme.of(context).cardColor,
-          items: _genderOptions.map((String gender) {
-            return DropdownMenuItem(
-              value: gender,
-              child: Text(gender),
-            );
-          }).toList(),
-          onChanged: (String? newValue) {
-            setState(() {
-              _gender = newValue;
-            });
-          },
-        ),
+        _buildGenderDropdown(),
       ],
     );
   }
@@ -880,66 +1280,34 @@ class _AccountDetailsPageState extends State<AccountDetailsPage> {
       context,
       'Personal Information',
       [
-        TextFormField(
-          controller: _nameController,
-          decoration: InputDecoration(
-            labelText: 'Name',
-            labelStyle: AppTextStyles.label(context),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-          style: AppTextStyles.bodyLarge(context),
+        _buildTextField(
+          'Name',
+          _nameController,
+          Icons.person,
         ),
         const SizedBox(height: 16),
-        TextFormField(
-          controller: _emailController,
-          decoration: const InputDecoration(labelText: 'Email'),
+        _buildTextField(
+          'Email',
+          _emailController,
+          Icons.email,
           enabled: false,
         ),
         const SizedBox(height: 16),
-        TextFormField(
-          controller: _phoneController,
-          decoration: const InputDecoration(labelText: 'Phone'),
+        _buildTextField(
+          'Phone',
+          _phoneController,
+          Icons.phone,
           keyboardType: TextInputType.phone,
-          validator: (value) {
-            if (value?.isEmpty ?? true) return 'Please enter your phone number';
-            return null;
-          },
         ),
         const SizedBox(height: 16),
-        TextFormField(
-          controller: _ageController,
-          decoration: const InputDecoration(labelText: 'Age'),
+        _buildTextField(
+          'Age',
+          _ageController,
+          Icons.calendar_today,
           keyboardType: TextInputType.number,
-          validator: (value) {
-            if (value?.isEmpty ?? true) return 'Please enter your age';
-            return null;
-          },
         ),
         const SizedBox(height: 16),
-        DropdownButtonFormField<String>(
-          value: _gender,
-          decoration: InputDecoration(
-            labelText: 'Gender',
-            labelStyle: AppTextStyles.label(context),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-          style: AppTextStyles.bodyLarge(context),
-          items: _genderOptions.map((String gender) {
-            return DropdownMenuItem(
-              value: gender,
-              child: Text(gender),
-            );
-          }).toList(),
-          onChanged: (String? newValue) {
-            setState(() {
-              _gender = newValue;
-            });
-          },
-        ),
+        _buildGenderDropdown(),
       ],
     );
   }
