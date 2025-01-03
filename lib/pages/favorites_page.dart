@@ -31,6 +31,19 @@ class _FavoritesPageState extends State<FavoritesPage> {
   String selectedSort = 'Name'; // Default sort
   bool showMemberPriceOnly = false;
   bool isFilterActive = false;
+  bool isFilterVisible = false;
+  List<String> recentSearches = [];
+  List<String> popularCategories = [
+    'Fruits',
+    'Vegetables',
+    'Dairy',
+    'Meat',
+    'Beverages',
+    // Add more categories
+  ];
+  
+  String? selectedStore;
+  bool isSearchActive = false;
 
   @override
   void initState() {
@@ -57,6 +70,15 @@ class _FavoritesPageState extends State<FavoritesPage> {
   }
 
   Future<void> _searchItems(String query) async {
+    if (query.isNotEmpty && !recentSearches.contains(query)) {
+      setState(() {
+        recentSearches.insert(0, query);
+        if (recentSearches.length > 5) {
+          recentSearches.removeLast();
+        }
+      });
+    }
+
     if (query.isEmpty) {
       setState(() {
         filteredItems = [];
@@ -266,13 +288,19 @@ class _FavoritesPageState extends State<FavoritesPage> {
   void _filterItems() {
     setState(() {
       filteredItems = allItems.where((item) {
+        // Store filter
+        bool matchesStore = selectedStore == null || 
+            item.storeName == _getStoreName(selectedStore!);
+            
+        // Category filter
         bool matchesCategory = selectedFilter == null || 
             item.category == selectedFilter;
             
+        // Member price filter - Show items with actual discounts
         bool matchesMemberPrice = !showMemberPriceOnly || 
-            item.salePrice != null;
+            (item.salePrice != null && item.salePrice! < item.price);
 
-        return matchesCategory && matchesMemberPrice;
+        return matchesStore && matchesCategory && matchesMemberPrice;
       }).toList();
       
       _sortItems();
@@ -383,85 +411,238 @@ class _FavoritesPageState extends State<FavoritesPage> {
           SliverAppBar(
             floating: true,
             pinned: true,
-            expandedHeight: SizeConfig.blockSizeVertical * 20,
+            expandedHeight: isFilterVisible 
+                ? SizeConfig.blockSizeVertical * 45 
+                : SizeConfig.blockSizeVertical * 15,
             backgroundColor: Theme.of(context).primaryColor,
             elevation: 0,
-            flexibleSpace: FlexibleSpaceBar(
-              centerTitle: true,
-              titlePadding: EdgeInsets.only(bottom: 16),
-              title: Text(
-                'Daily Deals',
-                style: AppTextStyles.heading2(context).copyWith(
+            title: isSearchActive 
+                ? Container(
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.3),
+                      ),
+                    ),
+                    child: TextField(
+                      controller: _searchController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText: 'Search items...',
+                        hintStyle: TextStyle(color: Colors.white.withOpacity(0.8)),
+                        prefixIcon: Icon(Icons.search, color: Colors.white.withOpacity(0.8)),
+                        suffixIcon: IconButton(
+                          icon: Icon(Icons.clear, color: Colors.white.withOpacity(0.8)),
+                          onPressed: () {
+                            setState(() {
+                              _searchController.clear();
+                              isSearchActive = false;
+                              _loadRandomDeals();
+                            });
+                          },
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                      ),
+                      onChanged: (query) {
+                        _debouncer.run(() {
+                          _searchItems(query);
+                        });
+                      },
+                    ),
+                  )
+                : Text(
+                    'Daily Deals',
+                    style: AppTextStyles.heading2(context).copyWith(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+            actions: [
+              IconButton(
+                icon: Icon(
+                  isSearchActive ? Icons.close : Icons.search,
                   color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
+                  size: 28,
                 ),
+                onPressed: () {
+                  setState(() {
+                    isSearchActive = !isSearchActive;
+                    if (!isSearchActive) {
+                      _searchController.clear();
+                      _loadRandomDeals();
+                    }
+                  });
+                },
               ),
+              IconButton(
+                icon: Icon(
+                  isFilterVisible ? Icons.filter_list_off : Icons.filter_list,
+                  color: Colors.white,
+                  size: 28,
+                ),
+                onPressed: () {
+                  setState(() {
+                    isFilterVisible = !isFilterVisible;
+                  });
+                },
+              ),
+              const SizedBox(width: 8),
+            ],
+            flexibleSpace: FlexibleSpaceBar(
               background: Container(
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Theme.of(context).primaryColor,
-                      Theme.of(context).primaryColor.withOpacity(0.8),
-                    ],
-                  ),
+                  gradient: Provider.of<ThemeProvider>(context).cardGradient,
                 ),
-                child: Stack(
+                child: Column(
                   children: [
-                    Positioned(
-                      right: -30,
-                      top: -10,
-                      child: Icon(
-                        Icons.local_offer,
-                        size: 150,
-                        color: Colors.white.withOpacity(0.1),
+                    const SizedBox(height: kToolbarHeight + 20),
+                    if (isFilterVisible) ...[
+                      const SizedBox(height: 16),
+                      // Filter Section
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.1),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            children: [
+                              // Store Selection
+                              _buildFilterDropdown(
+                                title: 'Store',
+                                value: selectedStore,
+                                items: [
+                                  const DropdownMenuItem(
+                                    value: null,
+                                    child: Text('All Stores'),
+                                  ),
+                                  ...['1', '2', '3', '4', '5', '6', '7', '8'].map((store) => 
+                                    DropdownMenuItem(
+                                      value: store,
+                                      child: Text(_getStoreName(store)),
+                                    ),
+                                  ),
+                                ],
+                                onChanged: (value) {
+                                  setState(() {
+                                    selectedStore = value as String?;
+                                    _filterItems();
+                                  });
+                                },
+                              ),
+                              const SizedBox(height: 12),
+                              // Category Selection
+                              _buildFilterDropdown(
+                                title: 'Category',
+                                value: selectedFilter,
+                                items: [
+                                  const DropdownMenuItem(
+                                    value: null,
+                                    child: Text('All Categories'),
+                                  ),
+                                  ...categories.map((category) => 
+                                    DropdownMenuItem(
+                                      value: category,
+                                      child: Text(category),
+                                    ),
+                                  ),
+                                ],
+                                onChanged: (value) {
+                                  setState(() {
+                                    selectedFilter = value as String?;
+                                    _filterItems();
+                                  });
+                                },
+                              ),
+                              const SizedBox(height: 12),
+                              // Sort and Member Price Row
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildFilterDropdown(
+                                      title: 'Sort By',
+                                      value: selectedSort,
+                                      items: [
+                                        'Name',
+                                        'Price (Low to High)',
+                                        'Price (High to Low)',
+                                      ].map((option) => DropdownMenuItem(
+                                        value: option,
+                                        child: Text(option),
+                                      )).toList(),
+                                      onChanged: (value) {
+                                        setState(() {
+                                          selectedSort = value as String;
+                                          _filterItems();
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  // Member Price Toggle with improved styling
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: Colors.white.withOpacity(0.2),
+                                      ),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Member Price',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Switch(
+                                          value: showMemberPriceOnly,
+                                          onChanged: (value) {
+                                            setState(() {
+                                              showMemberPriceOnly = value;
+                                              _filterItems();
+                                            });
+                                          },
+                                          activeColor: Colors.white,
+                                          activeTrackColor: Colors.green,
+                                          inactiveThumbColor: Colors.white.withOpacity(0.8),
+                                          inactiveTrackColor: Colors.white.withOpacity(0.3),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                    Positioned(
-                      left: -20,
-                      bottom: 20,
-                      child: Icon(
-                        Icons.shopping_cart,
-                        size: 100,
-                        color: Colors.white.withOpacity(0.1),
-                      ),
-                    ),
+                    ],
                   ],
                 ),
               ),
             ),
-            actions: [
-              IconButton(
-                icon: const Icon(
-                  Icons.search,
-                  size: 32,
-                  color: Colors.white,
-                ),
-                onPressed: () {
-                  showSearch(
-                    context: context,
-                    delegate: StoreSearchDelegate(
-                      searchFunction: _searchItems,
-                      onItemSelected: (item) {
-                        // Handle item selection
-                      },
-                    ),
-                  );
-                },
-              ),
-              IconButton(
-                icon: const Icon(
-                  Icons.filter_list,
-                  size: 32,
-                  color: Colors.white,
-                ),
-                onPressed: _showFilterDialog,
-              ),
-              const SizedBox(width: 12),
-            ],
           ),
           if (isLoading)
             const SliverFillRemaining(
@@ -505,13 +686,13 @@ class _FavoritesPageState extends State<FavoritesPage> {
             )
           else
             SliverPadding(
-              padding: EdgeInsets.all(SizeConfig.blockSizeHorizontal * 2),
+              padding: const EdgeInsets.all(8),
               sliver: SliverGrid(
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
-                  childAspectRatio: 0.65, // Slightly taller cards
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
+                  childAspectRatio: 0.7,
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
                 ),
                 delegate: SliverChildBuilderDelegate(
                   (context, index) => _buildItemCard(filteredItems[index]),
@@ -793,6 +974,102 @@ class _FavoritesPageState extends State<FavoritesPage> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildSearchSuggestions() {
+    return ListView(
+      children: [
+        if (recentSearches.isNotEmpty) ...[
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Text(
+              'Recent Searches',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ),
+          ...recentSearches.map((search) => ListTile(
+            leading: const Icon(Icons.history),
+            title: Text(search),
+            onTap: () {
+              _searchController.text = search;
+              _searchItems(search);
+            },
+          )),
+          const Divider(),
+        ],
+        const Padding(
+          padding: EdgeInsets.all(16),
+          child: Text(
+            'Popular Categories',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+        ),
+        ...popularCategories.map((category) => ListTile(
+          leading: const Icon(Icons.category),
+          title: Text(category),
+          onTap: () {
+            setState(() {
+              selectedFilter = category;
+              _filterItems();
+            });
+          },
+        )),
+      ],
+    );
+  }
+
+  Widget _buildFilterDropdown({
+    required String title,
+    required dynamic value,
+    required List<DropdownMenuItem> items,
+    required Function(dynamic) onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.2),
+            ),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton(
+              isExpanded: true,
+              value: value,
+              items: items,
+              onChanged: onChanged,
+              dropdownColor: Theme.of(context).primaryColor.withOpacity(0.95),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+              ),
+              icon: Icon(
+                Icons.arrow_drop_down,
+                color: Colors.white.withOpacity(0.8),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
