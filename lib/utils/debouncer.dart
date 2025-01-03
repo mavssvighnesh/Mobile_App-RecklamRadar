@@ -2,14 +2,14 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 class Debouncer {
-  final Duration delay;
+  final int milliseconds;
   Timer? _timer;
 
-  Debouncer({this.delay = const Duration(milliseconds: 500)});
+  Debouncer({this.milliseconds = 500});
 
   void run(VoidCallback action) {
     _timer?.cancel();
-    _timer = Timer(delay, action);
+    _timer = Timer(Duration(milliseconds: milliseconds), action);
   }
 
   void dispose() {
