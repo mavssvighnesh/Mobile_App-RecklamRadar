@@ -10,6 +10,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'package:recklamradar/styles/app_text_styles.dart';
 import 'package:recklamradar/services/currency_service.dart';
+import 'package:recklamradar/widgets/glass_container.dart';
+import 'package:recklamradar/widgets/glass_dialog.dart';
 
 class CartPage extends StatefulWidget {
   const CartPage({super.key});
@@ -124,110 +126,48 @@ class _CartPageState extends State<CartPage> {
   }
 
   void _editQuantity(String store, Map<String, dynamic> item) {
-    final TextEditingController quantityController = TextEditingController(text: item['quantity'].toString());
+    final TextEditingController quantityController = TextEditingController(
+      text: item['quantity'].toString(),
+    );
     
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        backgroundColor: Colors.white,
-        title: Text(
-          'Edit ${item['name']} Quantity',
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
-        ),
-        content: Container(
-          decoration: BoxDecoration(
-            color: Colors.grey[50],
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: Colors.grey[200]!,
+      builder: (context) => GlassDialog(
+        title: 'Edit ${item['name']} Quantity',
+        content: TextField(
+          controller: quantityController,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            labelText: 'New Quantity',
+            labelStyle: TextStyle(color: Theme.of(context).primaryColor),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: TextField(
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              labelText: 'New Quantity',
-              labelStyle: TextStyle(color: Theme.of(context).primaryColor),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Theme.of(context).primaryColor),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: Theme.of(context).primaryColor,
-                  width: 2,
-                ),
-              ),
-              filled: true,
-              fillColor: Colors.white,
-              prefixIcon: Icon(
-                Icons.shopping_cart,
-                color: Theme.of(context).primaryColor,
-              ),
+            prefixIcon: Icon(
+              Icons.shopping_cart,
+              color: Theme.of(context).primaryColor,
             ),
-            controller: quantityController,
-            onChanged: (value) {
-              int? newQuantity = int.tryParse(value);
-              if (newQuantity != null && newQuantity > 0) {
-                setState(() {
-                  item['quantity'] = newQuantity;
-                });
-              }
-            },
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            child: const Text('Cancel'),
           ),
-          Container(
-            decoration: BoxDecoration(
-              gradient: Provider.of<ThemeProvider>(context).cardGradient,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: ElevatedButton(
-              onPressed: () async {
-                int? newQuantity = int.tryParse(quantityController.text);
-                if (newQuantity != null && newQuantity > 0) {
-                  await _firestoreService.updateCartItemQuantity(
-                    _auth.currentUser!.uid,
-                    item['id'],
-                    newQuantity,
-                  );
-                  Navigator.pop(context);
-                  showMessage(context, "Quantity updated", true);
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.transparent,
-                shadowColor: Colors.transparent,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: const Text(
-                'Save',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
+          ElevatedButton(
+            onPressed: () async {
+              int? newQuantity = int.tryParse(quantityController.text);
+              if (newQuantity != null && newQuantity > 0) {
+                await _firestoreService.updateCartItemQuantity(
+                  _auth.currentUser!.uid,
+                  item['id'],
+                  newQuantity,
+                );
+                Navigator.pop(context);
+                showMessage(context, "Quantity updated", true);
+              }
+            },
+            child: const Text('Update'),
           ),
         ],
       ),
@@ -515,8 +455,8 @@ class _CartPageState extends State<CartPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.all(16),
+        GlassContainer(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Row(
             children: [
               Container(
@@ -596,82 +536,87 @@ class _CartPageState extends State<CartPage> {
         }
         return true;
       },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-        child: Card(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            leading: CachedNetworkImage(
-              imageUrl: item['imageUrl'] ?? '',
-              placeholder: (context, url) => Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.shopping_cart,
-                  color: Theme.of(context).primaryColor,
+      child: GlassContainer(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: SizedBox(
+                width: 50,
+                height: 50,
+                child: CachedNetworkImage(
+                  imageUrl: item['imageUrl'] ?? '',
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.shopping_cart,
+                      color: Theme.of(context).primaryColor,
+                      size: 20,
+                    ),
+                  ),
+                  errorWidget: (context, url, error) => Icon(
+                    Icons.error,
+                    color: Theme.of(context).primaryColor,
+                    size: 20,
+                  ),
                 ),
               ),
-              errorWidget: (context, url, error) => Icon(
-                Icons.error,
-                color: Theme.of(context).primaryColor,
+            ),
+            const SizedBox(width: 12),
+            
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    item['name'],
+                    style: AppTextStyles.cardTitle(context).copyWith(fontSize: 14),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    '${_currencyService.formatPrice(item['price'])} × ${item['quantity']}',
+                    style: AppTextStyles.bodyMedium(context).copyWith(fontSize: 12),
+                  ),
+                ],
               ),
             ),
-            title: Text(
-              item['name'],
-              style: AppTextStyles.cardTitle(context),
-            ),
-            subtitle: Text(
-              '${_currencyService.formatPrice(item['price'])} ${_currencyService.selectedCurrency} x ${item['quantity']}',
-              style: AppTextStyles.bodyMedium(context),
-            ),
-            trailing: Row(
+            
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '${_currencyService.formatPrice(item['price'] * item['quantity'])} ${_currencyService.selectedCurrency}',
-                  style: AppTextStyles.price(context),
+                  _currencyService.formatPrice(item['price'] * item['quantity']),
+                  style: AppTextStyles.price(context).copyWith(fontSize: 14),
                 ),
-                const SizedBox(width: 8),
                 Transform.scale(
-                  scale: 1.2,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: item['picked'] ? Theme.of(context).primaryColor : Colors.transparent,
-                      border: Border.all(
-                        color: Theme.of(context).primaryColor,
-                        width: 2,
-                      ),
-                    ),
-                    child: InkWell(
-                      onTap: () async {
-                        await _firestoreService.updateCartItemPicked(
-                          _auth.currentUser!.uid,
-                          item['id'],
-                          !item['picked'],
-                        );
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.all(2),
-                        child: item['picked']
-                            ? const Icon(Icons.check, size: 16, color: Colors.white)
-                            : const SizedBox(width: 16, height: 16),
-                      ),
+                  scale: 0.9,
+                  child: Checkbox(
+                    value: item['picked'] ?? false,
+                    onChanged: (value) async {
+                      await _firestoreService.updateCartItemPicked(
+                        _auth.currentUser!.uid,
+                        item['id'],
+                        value ?? false,
+                      );
+                    },
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4),
                     ),
                   ),
                 ),
               ],
             ),
-          ),
+          ],
         ),
       ),
     );

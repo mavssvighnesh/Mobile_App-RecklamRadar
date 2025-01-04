@@ -1,43 +1,37 @@
 import 'package:flutter/material.dart';
-
+import '../widgets/glass_snackbar.dart';
+import '../widgets/glass_dialog.dart';
 void showMessage(BuildContext context, String message, bool isSuccess) {
   ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        decoration: BoxDecoration(
-          color: isSuccess ? Colors.green.shade50 : Colors.red.shade50,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isSuccess ? Colors.green.shade200 : Colors.red.shade200,
-          ),
+    GlassSnackBar(
+      message: message,
+      isSuccess: isSuccess,
+    ),
+  );
+}
+
+Future<bool?> showGlassConfirmDialog({
+  required BuildContext context,
+  required String title,
+  required String message,
+  String confirmText = 'Confirm',
+  String cancelText = 'Cancel',
+}) async {
+  return showDialog<bool>(
+    context: context,
+    builder: (context) => GlassDialog(
+      title: title,
+      content: Text(message),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: Text(cancelText),
         ),
-        child: Row(
-          children: [
-            Icon(
-              isSuccess ? Icons.check_circle : Icons.error,
-              color: isSuccess ? Colors.green : Colors.red,
-              size: 24,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                message,
-                style: TextStyle(
-                  color: isSuccess ? Colors.green.shade900 : Colors.red.shade900,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ],
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: Text(confirmText),
         ),
-      ),
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      duration: const Duration(seconds: 3),
-      behavior: SnackBarBehavior.floating,
-      margin: const EdgeInsets.all(16),
+      ],
     ),
   );
 } 

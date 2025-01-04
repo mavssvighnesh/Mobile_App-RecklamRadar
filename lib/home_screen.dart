@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:recklamradar/pages/store_details_page.dart';
 import 'providers/theme_provider.dart';
@@ -10,6 +9,7 @@ import 'cartpage.dart';
 import 'services/firestore_service.dart';
 import 'utils/size_config.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'widgets/glass_container.dart';
 
 class UserHomeScreen extends StatefulWidget {
   const UserHomeScreen({super.key});
@@ -55,29 +55,25 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              theme.colorScheme.surface.withOpacity(0.9),
-              theme.colorScheme.surface.withOpacity(0.8),
-            ],
-          ),
+          color: Colors.white,
           boxShadow: [
             BoxShadow(
-              color: theme.colorScheme.primary.withOpacity(0.1),
-              blurRadius: 8,
-              spreadRadius: 2,
-              offset: const Offset(0, -2),
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -5),
             ),
           ],
         ),
         child: BottomNavigationBar(
-          backgroundColor: Colors.transparent,
+          backgroundColor: Colors.white,
           elevation: 0,
           selectedItemColor: theme.colorScheme.primary,
           unselectedItemColor: Colors.grey.shade400,
           currentIndex: _currentIndex,
+          type: BottomNavigationBarType.fixed,
+          selectedFontSize: 12,
+          unselectedFontSize: 12,
+          iconSize: 24,
           onTap: (index) {
             setState(() {
               _currentIndex = index;
@@ -89,44 +85,21 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
             });
           },
           items: [
-            BottomNavigationBarItem(
-              icon: SizedBox(
-                height: SizeConfig.blockSizeVertical * 3,
-                width: SizeConfig.blockSizeVertical * 3,
-                child: Image.asset(
-                  'assets/icons/home.png',
-                  color: _currentIndex == 0 ? Colors.blue : Colors.grey,
-                ),
-              ),
-              label: 'Home',
-            ),
-            BottomNavigationBarItem(
-              icon: Image.asset(
-                'assets/icons/search.png',
-                color: _currentIndex == 1 ? Colors.blue : Colors.grey,
-                height: 24,
-              ),
-              label: 'Search',
-            ),
-            BottomNavigationBarItem(
-              icon: Image.asset(
-                'assets/icons/cart.png',
-                color: _currentIndex == 2 ? Colors.blue : Colors.grey,
-                height: 24,
-              ),
-              label: 'Cart',
-            ),
-            BottomNavigationBarItem(
-              icon: Image.asset(
-                'assets/icons/settings.png',
-                color: _currentIndex == 3 ? Colors.blue : Colors.grey,
-                height: 24,
-              ),
-              label: 'Settings',
-            ),
+            _buildNavItem(Icons.home_rounded, 'Home'),
+            _buildNavItem(Icons.favorite_rounded, 'Favorites'),
+            _buildNavItem(Icons.shopping_cart_rounded, 'Cart'),
+            _buildNavItem(Icons.person_rounded, 'Profile'),
           ],
         ),
       ),
+    );
+  }
+
+  BottomNavigationBarItem _buildNavItem(IconData icon, String label) {
+    return BottomNavigationBarItem(
+      icon: Icon(icon),
+      activeIcon: Icon(icon, size: 28),
+      label: label,
     );
   }
 }
@@ -235,8 +208,22 @@ class _HomePageState extends State<HomePage> {
       });
     } catch (e) {
       print('Error loading stores: $e');
-      setState(() => isLoading = false);
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
+  }
+
+  void _navigateToStore(Map<String, dynamic> store) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => StoreDetailsPage(
+          storeId: store['id'],
+          storeName: store['name'],
+        ),
+      ),
+    );
   }
 
   @override
@@ -448,6 +435,18 @@ class _StoreCardState extends State<_StoreCard> with SingleTickerProviderStateMi
     super.dispose();
   }
 
+  void _navigateToStore() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => StoreDetailsPage(
+          storeId: widget.store['id'],
+          storeName: widget.store['name'],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
@@ -458,109 +457,52 @@ class _StoreCardState extends State<_StoreCard> with SingleTickerProviderStateMi
         builder: (context, child) {
           return Transform.scale(
             scale: _scaleAnimation.value,
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Colors.white.withOpacity(_opacityAnimation.value),
-                    Colors.white.withOpacity(_opacityAnimation.value - 0.1),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Theme.of(context).primaryColor.withOpacity(0.05),
-                    blurRadius: 10,
-                    spreadRadius: _scaleAnimation.value * 2,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
+            child: GlassContainer(
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => StoreDetailsPage(
-                          storeId: widget.store['id'],
-                          storeName: widget.store['name'],
+                  onTap: _navigateToStore,
+                  borderRadius: BorderRadius.circular(20),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          child: Hero(
+                            tag: 'store-${widget.store["id"]}',
+                            child: Image.asset(
+                              widget.store["image"]!,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
                         ),
                       ),
-                    );
-                  },
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.7),
-                              borderRadius: BorderRadius.circular(15),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.03 * _opacityAnimation.value),
-                                  blurRadius: 8,
-                                  spreadRadius: 1,
-                                ),
-                              ],
-                            ),
-                            child: Hero(
-                              tag: 'store-${widget.store["id"]}',
-                              child: Image.asset(
-                                widget.store["image"]!,
-                                fit: BoxFit.contain,
-                              ),
-                            ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                        child: Text(
+                          widget.store["name"]!,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).primaryColor,
+                            letterSpacing: 0.5,
                           ),
+                          textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                Theme.of(context).primaryColor.withOpacity(0.1 * _opacityAnimation.value),
-                                Theme.of(context).primaryColor.withOpacity(0.05 * _opacityAnimation.value),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(10),
+                      ),
+                      if (widget.store["description"] != null)
+                        Text(
+                          widget.store["description"]!,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
                           ),
-                          child: Text(
-                            widget.store["name"]!,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).primaryColor,
-                              letterSpacing: 0.5,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        if (widget.store["description"] != null) ...[
-                          const SizedBox(height: 8),
-                          Text(
-                            widget.store["description"]!,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                            textAlign: TextAlign.center,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ],
-                    ),
+                    ],
                   ),
                 ),
               ),

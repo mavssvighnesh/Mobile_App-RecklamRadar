@@ -19,6 +19,9 @@ import 'package:recklamradar/utils/animation_config.dart';
 import 'package:recklamradar/utils/performance_config.dart';
 import 'package:recklamradar/services/network_service.dart';
 import 'package:recklamradar/services/currency_service.dart';
+import 'dart:ui';
+import 'package:recklamradar/widgets/glass_container.dart';
+
 
 class StoreDetailsPage extends StatefulWidget {
   final String storeId;
@@ -198,75 +201,17 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
     });
   }
 
-  Widget _buildCartIndicator(StoreItem item) {
-    final isInCart = _cartData.containsKey(item.id);
-    final quantity = isInCart ? _cartData[item.id]['quantity'] ?? 0 : 0;
-    
-    return Container(
-      padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 4,
-            spreadRadius: 1,
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.shopping_cart,
-            size: 16,
-            color: isInCart ? Colors.green : Colors.black54,
-          ),
-          if (isInCart && quantity > 0)
-            Container(
-              margin: const EdgeInsets.only(left: 4),
-              padding: const EdgeInsets.all(4),
-              decoration: const BoxDecoration(
-                color: Colors.green,
-                shape: BoxShape.circle,
-              ),
-              child: Text(
-                quantity.toString(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildItemCard(StoreItem item, int index) {
     return Dismissible(
       key: Key(item.id),
-      direction: DismissDirection.horizontal,
+      direction: DismissDirection.startToEnd,
       confirmDismiss: (direction) async {
-        final isRight = direction == DismissDirection.endToStart;
-        
-        // Add haptic feedback
         HapticFeedback.mediumImpact();
-        
-        // Animate the card
         await Future.delayed(const Duration(milliseconds: 200));
-        
-        if (isRight) {
-          return _handleRemoveFromCart(item);
-        } else {
-          return _handleAddToCart(item);
-        }
+        return _handleAddToCart(item);
       },
       dismissThresholds: const {
         DismissDirection.startToEnd: AnimationConfig.swipeThreshold,
-        DismissDirection.endToStart: AnimationConfig.swipeThreshold,
       },
       movementDuration: AnimationConfig.defaultDuration,
       background: AnimatedContainer(
@@ -292,150 +237,166 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
           ),
         ),
       ),
-      secondaryBackground: AnimatedContainer(
-        duration: AnimationConfig.defaultDuration,
-        decoration: AnimationConfig.dismissibleBackground,
-        child: Align(
-          alignment: Alignment.centerRight,
-          child: Padding(
-            padding: const EdgeInsets.only(right: 20),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Text(
-                  'Remove',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Icon(Icons.delete, color: Colors.white.withOpacity(0.9)),
-              ],
+      secondaryBackground: Container(
+        color: Colors.transparent,
+      ),
+      child: Container(
+        margin: EdgeInsets.only(bottom: SizeConfig.blockSizeVertical * 1.5),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.9),
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              spreadRadius: 2,
             ),
+          ],
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.white.withOpacity(0.9),
+              Colors.white.withOpacity(0.7),
+            ],
+          ),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.3),
+            width: 1,
           ),
         ),
-      ),
-      child: TweenAnimationBuilder<double>(
-        duration: AnimationConfig.defaultDuration,
-        tween: Tween(begin: 0.0, end: 1.0),
-        curve: AnimationConfig.defaultCurve,
-        builder: (context, value, child) {
-          return Transform.scale(
-            scale: 0.95 + (0.05 * value),
-            child: Opacity(
-              opacity: value,
-              child: child,
-            ),
-          );
-        },
-        child: Card(
-          margin: EdgeInsets.only(bottom: SizeConfig.blockSizeVertical * 1.5),
-          child: Stack(
-            children: [
-              Padding(
-                padding: EdgeInsets.all(SizeConfig.blockSizeHorizontal * 3),
-                child: Row(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: SizedBox(
-                        width: SizeConfig.blockSizeHorizontal * 20,
-                        height: SizeConfig.blockSizeHorizontal * 20,
-                        child: CachedNetworkImage(
-                          imageUrl: item.imageUrl,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) => Container(
-                            color: Colors.grey[200],
-                            child: const Center(
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.grey),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(15),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Padding(
+              padding: EdgeInsets.all(SizeConfig.blockSizeHorizontal * 3),
+              child: Row(
+                children: [
+                  // Image section
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: SizedBox(
+                      width: SizeConfig.blockSizeHorizontal * 20,
+                      height: SizeConfig.blockSizeHorizontal * 20,
+                      child: CachedNetworkImage(
+                        imageUrl: item.imageUrl,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Container(
+                          color: Colors.grey[200]?.withOpacity(0.3),
+                          child: const Center(
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.grey),
+                            ),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => Container(
+                          color: Colors.grey[200]?.withOpacity(0.3),
+                          child: const Icon(
+                            Icons.image_not_supported,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  
+                  // Details section
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.name,
+                          style: AppTextStyles.cardTitle(context),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          item.category,
+                          style: AppTextStyles.cardSubtitle(context),
+                        ),
+                        const SizedBox(height: 6),
+                        // Price section remains the same
+                        if (item.salePrice != null) ...[
+                          // Regular price with unit
+                          Text(
+                            "${_currencyService.formatPrice(item.price)}/${item.unit}",
+                            style: AppTextStyles.price(context, isOnSale: true).copyWith(
+                              decoration: TextDecoration.lineThrough,
+                              color: Colors.black54,
+                              fontSize: 14,
+                            ),
+                          ),
+                          // Member price with unit
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              "${_currencyService.formatPrice(item.salePrice!)}/${item.unit}",
+                              style: AppTextStyles.price(context).copyWith(
+                                color: Colors.green,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
                               ),
                             ),
                           ),
-                          errorWidget: (context, url, error) => Container(
-                            color: Colors.grey[200],
-                            child: const Icon(
-                              Icons.image_not_supported,
-                              color: Colors.grey,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    // Item details section
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
+                        ] else
+                          // Regular price with unit (no sale)
                           Text(
-                            item.name,
-                            style: AppTextStyles.cardTitle(context),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            item.category,
-                            style: AppTextStyles.cardSubtitle(context),
-                          ),
-                          if (item.salePrice != null) ...[
-                            Text(
-                              CurrencyService().formatPrice(item.price),
-                              style: AppTextStyles.price(context, isOnSale: true),
-                            ),
-                            Text(
-                              CurrencyService().formatPrice(item.salePrice!),
-                              style: AppTextStyles.price(context),
-                            ),
-                          ] else
-                            Text(
-                              CurrencyService().formatPrice(item.price),
-                              style: AppTextStyles.price(context),
-                            ),
-                        ],
-                      ),
-                    ),
-                    // Quantity controls
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.remove_circle_outline),
-                          onPressed: () => _updateQuantity(index, false),
-                          constraints: const BoxConstraints(minWidth: 40),
-                          padding: EdgeInsets.zero,
-                        ),
-                        SizedBox(
-                          width: 32,
-                          child: Text(
-                            '${item.quantity}',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
+                            "${_currencyService.formatPrice(item.price)}/${item.unit}",
+                            style: AppTextStyles.price(context).copyWith(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.add_circle_outline),
-                          onPressed: () => _updateQuantity(index, true),
-                          constraints: const BoxConstraints(minWidth: 40),
-                          padding: EdgeInsets.zero,
+                        // Add unit explanation if needed
+                        Text(
+                          "Price per ${item.unit}",
+                          style: AppTextStyles.bodySmall(context).copyWith(
+                            color: Colors.grey[600],
+                            fontSize: 12,
+                          ),
                         ),
                       ],
                     ),
-                  ],
-                ),
+                  ),
+                  
+                  // Quantity controls
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.remove_circle_outline),
+                        onPressed: () => _updateQuantity(index, false),
+                        color: Theme.of(context).primaryColor.withOpacity(0.8),
+                      ),
+                      Container(
+                        width: 32,
+                        child: Text(
+                          '${item.quantity}',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.add_circle_outline),
+                        onPressed: () => _updateQuantity(index, true),
+                        color: Theme.of(context).primaryColor.withOpacity(0.8),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              // Cart indicator
-              Positioned(
-                top: 8,
-                right: 8,
-                child: _buildCartIndicator(item),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -445,17 +406,17 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
   Widget _buildSearchBar() {
     return Padding(
       padding: const EdgeInsets.all(16.0),
-      child: TextField(
-        controller: searchController,
-        onChanged: _searchItems,
-        decoration: InputDecoration(
-          hintText: 'Search items...',
-          hintStyle: AppTextStyles.bodyMedium(context),
-          prefixIcon: const Icon(Icons.search),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
+      child: GlassContainer(
+        child: TextField(
+          controller: searchController,
+          onChanged: _searchItems,
+          decoration: InputDecoration(
+            hintText: 'Search items...',
+            hintStyle: AppTextStyles.bodyMedium(context),
+            prefixIcon: const Icon(Icons.search),
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
           ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
         ),
       ),
     );

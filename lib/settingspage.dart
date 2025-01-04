@@ -9,6 +9,8 @@ import 'providers/theme_provider.dart';
 import 'package:recklamradar/styles/app_text_styles.dart';
 import 'package:provider/provider.dart';
 import 'services/currency_service.dart';
+import 'package:recklamradar/widgets/glass_container.dart';
+import 'package:recklamradar/widgets/glass_dialog.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -149,48 +151,17 @@ class _SettingsPageState extends State<SettingsPage> {
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // Profile Section
-                    Container(
-                      width: double.infinity,
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-                      decoration: BoxDecoration(
-                        gradient: Provider.of<ThemeProvider>(context).isDarkMode
-                            ? LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  const Color(0xFF2C3E50).withOpacity(0.8),
-                                  const Color(0xFF3A506B).withOpacity(0.8),
-                                ],
-                              )
-                            : LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  Colors.white.withOpacity(0.95),
-                                  Colors.white.withOpacity(0.85),
-                                ],
-                              ),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Provider.of<ThemeProvider>(context).isDarkMode
-                              ? Colors.white.withOpacity(0.1)
-                              : Colors.black.withOpacity(0.05),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                            blurRadius: 8,
-                            spreadRadius: 2,
-                          ),
-                        ],
-                      ),
+                    GlassContainer(
+                      margin: const EdgeInsets.symmetric(vertical: 8),
+                      padding: const EdgeInsets.all(24),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
+                          // Profile Image
                           GestureDetector(
                             onTap: () {
                               Navigator.push(
@@ -200,28 +171,40 @@ class _SettingsPageState extends State<SettingsPage> {
                                 ),
                               );
                             },
-                            child: CircleAvatar(
-                              radius: 60,
-                              backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                              backgroundImage: _profileImage != null
-                                  ? NetworkImage(_profileImage!)
-                                  : null,
-                              child: _profileImage == null
-                                  ? Icon(
-                                      Icons.person,
-                                      size: 60,
-                                      color: Theme.of(context).colorScheme.primary,
-                                    )
-                                  : null,
+                            child: Container(
+                              width: 120,
+                              height: 120,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                              ),
+                              child: CircleAvatar(
+                                radius: 60,
+                                backgroundColor: Colors.transparent,
+                                backgroundImage: _profileImage != null
+                                    ? NetworkImage(_profileImage!)
+                                    : null,
+                                child: _profileImage == null
+                                    ? Icon(
+                                        Icons.person,
+                                        size: 60,
+                                        color: Theme.of(context).colorScheme.primary,
+                                      )
+                                    : null,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 24),
+                          
+                          // User Name
                           Text(
                             _userName.isNotEmpty ? _userName : 'No Name',
                             style: AppTextStyles.heading2(context),
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 8),
+                          
+                          // User Email
                           Text(
                             _userEmail.isNotEmpty ? _userEmail : 'No Email',
                             style: AppTextStyles.bodyMedium(context),
@@ -230,13 +213,13 @@ class _SettingsPageState extends State<SettingsPage> {
                         ],
                       ),
                     ),
+
                     const SizedBox(height: 24),
 
-                    // App Settings Section
+                    // Settings Sections
                     _buildSettingsSection(
                       'App Settings',
                       [
-
                         ListTile(
                           leading: const Icon(Icons.currency_exchange),
                           title: const Text('Currency'),
@@ -312,8 +295,6 @@ class _SettingsPageState extends State<SettingsPage> {
                       ],
                     ),
 
-                    const SizedBox(height: 16),
-
                     // Account Settings Section
                     _buildSettingsSection(
                       'Account Settings',
@@ -363,41 +344,8 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _buildSettingsSection(String title, List<Widget> children) {
-    return Container(
+    return GlassContainer(
       margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: Provider.of<ThemeProvider>(context).isDarkMode
-            ? LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  const Color(0xFF2C3E50).withOpacity(0.8),
-                  const Color(0xFF3A506B).withOpacity(0.8),
-                ],
-              )
-            : LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Colors.white.withOpacity(0.9),
-                  Colors.white.withOpacity(0.7),
-                ],
-              ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Provider.of<ThemeProvider>(context).isDarkMode
-              ? Colors.white.withOpacity(0.1)
-              : Colors.black.withOpacity(0.05),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-            blurRadius: 8,
-            spreadRadius: 2,
-          ),
-        ],
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -415,29 +363,27 @@ class _SettingsPageState extends State<SettingsPage> {
   void _showCurrencyPicker(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Select Currency'),
+      builder: (context) => GlassDialog(
+        title: 'Select Currency',
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              title: const Text('Swedish Krona (SEK)'),
-              onTap: () => _updateCurrency('SEK'),
-            ),
-            ListTile(
-              title: const Text('US Dollar (USD)'),
-              onTap: () => _updateCurrency('USD'),
-            ),
-            ListTile(
-              title: const Text('Euro (EUR)'),
-              onTap: () => _updateCurrency('EUR'),
-            ),
-            ListTile(
-              title: const Text('Indian Rupee (INR)'),
-              onTap: () => _updateCurrency('INR'),
-            ),
+            _buildCurrencyOption('Swedish Krona (SEK)', 'SEK'),
+            _buildCurrencyOption('US Dollar (USD)', 'USD'),
+            _buildCurrencyOption('Euro (EUR)', 'EUR'),
+            _buildCurrencyOption('Indian Rupee (INR)', 'INR'),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildCurrencyOption(String label, String currency) {
+    return GlassContainer(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      child: ListTile(
+        title: Text(label),
+        onTap: () => _updateCurrency(currency),
       ),
     );
   }

@@ -191,13 +191,9 @@ class _StoreDealsPageState extends State<StoreDealsPage> {
             final item = filteredItems[index];
             return Dismissible(
               key: Key(item["name"]),
-              direction: DismissDirection.horizontal,
+              direction: DismissDirection.startToEnd,
               onDismissed: (direction) {
-                if (direction == DismissDirection.startToEnd) {
-                  addToCart(item);
-                } else if (direction == DismissDirection.endToStart) {
-                  removeFromCart(item);
-                }
+                addToCart(item);
               },
               background: Container(
                 color: Colors.green,
@@ -206,10 +202,7 @@ class _StoreDealsPageState extends State<StoreDealsPage> {
                 child: const Icon(Icons.add_shopping_cart, color: Colors.white),
               ),
               secondaryBackground: Container(
-                color: Colors.red,
-                alignment: Alignment.centerRight,
-                padding: const EdgeInsets.only(right: 16),
-                child: const Icon(Icons.remove_shopping_cart, color: Colors.white),
+                color: Colors.transparent,
               ),
               child: Container(
                 margin: const EdgeInsets.only(bottom: 16),
@@ -282,21 +275,33 @@ class _StoreDealsPageState extends State<StoreDealsPage> {
                           Row(
                             children: [
                               Text(
-                                item["price"]!,
-                                style: const TextStyle(
+                                "${item["price"]!}/${item['unit']}",
+                                style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.black,
+                                  color: item["memberPrice"] != null 
+                                      ? Colors.black54  // Dimmed if there's a member price
+                                      : Colors.black87, // Normal black if no member price
+                                  decoration: item["memberPrice"] != null 
+                                      ? TextDecoration.lineThrough  // Strike through if there's a member price
+                                      : null,
                                 ),
                               ),
                               if (item["memberPrice"] != null) ...[
-                                const SizedBox(width: 6),
-                                Text(
-                                  item["memberPrice"]!,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.green,
-                                    fontWeight: FontWeight.bold,
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    "${item["memberPrice"]!}/${item['unit']}",
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.green,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
                               ],

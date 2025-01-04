@@ -4,6 +4,7 @@ import 'package:recklamradar/providers/theme_provider.dart';
 import 'package:recklamradar/utils/message_utils.dart';
 import 'package:provider/provider.dart';
 import 'package:recklamradar/styles/app_text_styles.dart';
+import 'package:recklamradar/widgets/glass_container.dart';
 // Full-Screen Photo Page
 class FullScreenPhotoPage extends StatelessWidget {
   final String imagePath;
@@ -278,107 +279,91 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                       maxWidth: size.width * 0.9,
                       minHeight: size.height * 0.5,
                     ),
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Colors.white.withOpacity(0.95),
-                          Colors.white.withOpacity(0.85),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: theme.colorScheme.primary.withOpacity(0.2),
-                          blurRadius: 15,
-                          spreadRadius: 5,
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.lock_reset,
-                          size: 64,
-                          color: theme.colorScheme.primary,
-                        ),
-                        const SizedBox(height: 24),
-                        Text(
-                          "Reset Password",
-                          style: TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
+                    child: GlassContainer(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.lock_reset,
+                            size: 64,
                             color: theme.colorScheme.primary,
                           ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          "Enter your email to receive a password reset link",
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.black45,
+                          const SizedBox(height: 24),
+                          Text(
+                            "Reset Password",
+                            style: TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: theme.colorScheme.primary,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 32),
-                        TextFormField(
-                          controller: _emailController,
-                          keyboardType: TextInputType.emailAddress,
-                          decoration: InputDecoration(
-                            labelText: "Email",
-                            labelStyle: AppTextStyles.label(context),
-                            prefixIcon: Icon(Icons.email_outlined,
-                              color: theme.colorScheme.primary),
-                            filled: true,
-                            fillColor: const Color.fromARGB(255, 248, 246, 248),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
+                          const SizedBox(height: 16),
+                          const Text(
+                            "Enter your email to receive a password reset link",
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.black45,
                             ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                color: theme.colorScheme.primary.withOpacity(0.3),
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                color: theme.colorScheme.primary,
-                                width: 2,
-                              ),
-                            ),
+                            textAlign: TextAlign.center,
                           ),
-                        ),
-                        const SizedBox(height: 32),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: _isLoading ? null : _sendResetLink,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: theme.colorScheme.primary,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
+                          const SizedBox(height: 32),
+                          TextFormField(
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            decoration: InputDecoration(
+                              labelText: "Email",
+                              labelStyle: AppTextStyles.label(context),
+                              prefixIcon: Icon(Icons.email_outlined,
+                                color: theme.colorScheme.primary),
+                              filled: true,
+                              fillColor: const Color.fromARGB(255, 248, 246, 248),
+                              border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              minimumSize: Size(size.width * 0.7, 50),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(
+                                  color: theme.colorScheme.primary.withOpacity(0.3),
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(
+                                  color: theme.colorScheme.primary,
+                                  width: 2,
+                                ),
+                              ),
                             ),
-                            child: _isLoading
-                                ? const CircularProgressIndicator(color: Colors.white)
-                                : const Text(
-                                    "Send Reset Link",
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 32),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: _isLoading ? null : _sendResetLink,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: theme.colorScheme.primary,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                minimumSize: Size(size.width * 0.7, 50),
+                              ),
+                              child: _isLoading
+                                  ? const CircularProgressIndicator(color: Colors.white)
+                                  : const Text(
+                                      "Send Reset Link",
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
