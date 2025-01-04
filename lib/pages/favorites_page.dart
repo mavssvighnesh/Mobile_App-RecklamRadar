@@ -946,26 +946,26 @@ class _FavoritesPageState extends State<FavoritesPage> {
                                   try {
                                     final user = FirebaseAuth.instance.currentUser;
                                     if (user != null) {
-                                      final totalPrice = item.price * item.quantity;
+                                      final priceToUse = item.salePrice ?? item.price;
+                                      final totalPrice = priceToUse * item.quantity;
                                       
-                                      // Create cart item with correct store information
                                       final cartItem = StoreItem(
                                         id: item.id,
                                         name: item.name,
                                         category: item.category,
-                                        price: totalPrice,
+                                        price: item.price,
                                         salePrice: item.salePrice,
                                         imageUrl: item.imageUrl,
                                         unit: item.unit,
                                         inStock: item.inStock,
                                         quantity: item.quantity,
-                                        storeName: item.storeName, // Preserve the original store name
+                                        storeName: item.storeName,
                                       );
                                       
                                       await _firestoreService.addToCart(
                                         user.uid,
                                         cartItem,
-                                        cartItem.storeName, // Use the preserved store name
+                                        cartItem.storeName,
                                       );
                                       
                                       if (mounted) {

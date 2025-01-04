@@ -5,6 +5,7 @@ import 'package:recklamradar/services/firestore_service.dart';
 import 'package:recklamradar/utils/message_utils.dart';
 import 'package:recklamradar/models/store_item.dart';
 import 'package:recklamradar/item_adding_page.dart';
+import 'package:recklamradar/utils/price_formatter.dart';
 import 'package:recklamradar/utils/size_config.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:recklamradar/widgets/themed_scaffold.dart';
@@ -155,9 +156,48 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
     });
   }
 
-  // ignore: unused_element
-  void _addToCart(StoreItem item) {
-    // Implementation of _addToCart
+  Future<void> _addToCart(StoreItem item) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        // Use sale price if available
+        final priceToUse = item.salePrice ?? item.price;
+        final totalPrice = priceToUse * item.quantity;
+        
+        final cartItem = StoreItem(
+          id: item.id,
+          name: item.name,
+          category: item.category,
+          price: item.price,        // Keep original price for reference
+          salePrice: item.salePrice, // Keep sale price for reference
+          imageUrl: item.imageUrl,
+          unit: item.unit,
+          inStock: item.inStock,
+          quantity: item.quantity,
+          storeName: widget.storeName,
+        );
+
+        await _firestoreService.addToCart(
+          user.uid,
+          cartItem,
+          widget.storeName,
+        );
+
+        if (mounted) {
+          showMessage(
+            context, 
+            '${item.quantity}x ${item.name}\n${PriceFormatter.formatPrice(totalPrice)}', 
+            true,
+          );
+          setState(() => item.quantity = 0);
+        }
+      }
+    } catch (e) {
+      print('Error adding to cart: $e');
+      if (mounted) {
+        showMessage(context, 'Failed to add item to cart', false);
+      }
+    }
   }
 
   // ignore: unused_element
@@ -321,35 +361,44 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
                         const SizedBox(height: 6),
                         // Price section remains the same
                         if (item.salePrice != null) ...[
-                          // Regular price with unit
                           Text(
-                            "${_currencyService.formatPrice(item.price)}/${item.unit}",
+                            PriceFormatter.formatPriceWithUnit(item.price, item.unit),
                             style: AppTextStyles.price(context, isOnSale: true).copyWith(
                               decoration: TextDecoration.lineThrough,
                               color: Colors.black54,
                               fontSize: 14,
                             ),
                           ),
-                          // Member price with unit
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
                               color: Colors.green.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.green.withOpacity(0.2)),
                             ),
-                            child: Text(
-                              "${_currencyService.formatPrice(item.salePrice!)}/${item.unit}",
-                              style: AppTextStyles.price(context).copyWith(
-                                color: Colors.green,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.verified_user,
+                                  size: 14,
+                                  color: Colors.green[700],
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  PriceFormatter.formatPriceWithUnit(item.salePrice!, item.unit),
+                                  style: AppTextStyles.price(context).copyWith(
+                                    color: Colors.green[700],
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ] else
-                          // Regular price with unit (no sale)
                           Text(
-                            "${_currencyService.formatPrice(item.price)}/${item.unit}",
+                            PriceFormatter.formatPriceWithUnit(item.price, item.unit),
                             style: AppTextStyles.price(context).copyWith(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
