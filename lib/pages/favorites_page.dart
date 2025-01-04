@@ -934,10 +934,17 @@ class _FavoritesPageState extends State<FavoritesPage> {
                                       // Calculate total price based on quantity
                                       final totalPrice = item.price * item.quantity;
                                       
+                                      // Create a new item with the updated quantity and price but keep original store name
+                                      final cartItem = item.copyWith(
+                                        price: totalPrice,
+                                        quantity: item.quantity,
+                                        storeName: item.storeName, // Explicitly keep the store name
+                                      );
+                                      
                                       await _firestoreService.addToCart(
                                         user.uid,
-                                        item.copyWith(price: totalPrice),
-                                        item.storeName,
+                                        cartItem,
+                                        cartItem.storeName, // Use the store name from the item
                                       );
                                       
                                       if (mounted) {
