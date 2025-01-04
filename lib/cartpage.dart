@@ -35,6 +35,8 @@ class _CartPageState extends State<CartPage> {
   double _titleOpacity = 0.0;
   static const String _budgetKey = 'cart_max_budget';
   final bool _isLoading = false;
+  late StreamSubscription _currencySubscription;
+  String _budgetCurrency = 'SEK';
 
   @override
   void initState() {
@@ -42,6 +44,13 @@ class _CartPageState extends State<CartPage> {
     _initializeCartStream();
     _loadSavedBudget();
     _scrollController.addListener(_onScroll);
+    
+    // Listen to currency changes
+    _currencySubscription = _currencyService.currencyStream.listen((newCurrency) {
+      _updateBudgetForNewCurrency(_budgetCurrency, newCurrency);
+      _budgetCurrency = newCurrency;
+      setState(() {});
+    });
   }
 
   void _onScroll() {
@@ -80,12 +89,31 @@ class _CartPageState extends State<CartPage> {
   }
 
   Future<void> _loadSavedBudget() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedBudget = prefs.getDouble(_budgetKey);
-    if (savedBudget != null && mounted) {
+    final budgetData = await _currencyService.loadBudget();
+    if (budgetData['amount'] != null && mounted) {
+      final convertedAmount = _currencyService.convertBetweenCurrencies(
+        budgetData['amount']!,
+        budgetData['currency']!,
+        _currencyService.selectedCurrency,
+      );
       setState(() {
-        maxBudget = savedBudget;
-        _budgetController.text = savedBudget.toString();
+        maxBudget = convertedAmount;
+        _budgetController.text = convertedAmount.toStringAsFixed(2);
+        _budgetCurrency = _currencyService.selectedCurrency;
+      });
+    }
+  }
+
+  void _updateBudgetForNewCurrency(String oldCurrency, String newCurrency) {
+    if (maxBudget != null) {
+      final convertedBudget = _currencyService.convertBetweenCurrencies(
+        maxBudget!,
+        oldCurrency,
+        newCurrency,
+      );
+      setState(() {
+        maxBudget = convertedBudget;
+        _budgetController.text = convertedBudget.toStringAsFixed(2);
       });
     }
   }
@@ -94,8 +122,10 @@ class _CartPageState extends State<CartPage> {
     if (_formKey.currentState?.validate() ?? false) {
       final newBudget = double.tryParse(_budgetController.text);
       if (newBudget != null) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setDouble(_budgetKey, newBudget);
+        await _currencyService.saveBudget(
+          newBudget,
+          _currencyService.selectedCurrency,
+        );
         setState(() => maxBudget = newBudget);
         showMessage(context, "Budget updated successfully", true);
       }
@@ -107,6 +137,7 @@ class _CartPageState extends State<CartPage> {
     _scrollController.dispose();
     _debounceTimer?.cancel();
     _budgetController.dispose();
+    _currencySubscription.cancel(); // Cancel the subscription
     super.dispose();
   }
 
@@ -114,7 +145,15 @@ class _CartPageState extends State<CartPage> {
     double total = 0.0;
     items.forEach((store, storeItems) {
       for (var item in storeItems) {
-        total += (item["price"] ?? 0.0) * (item["quantity"] ?? 1);
+        // Convert item price from SEK to current currency
+        final price = double.parse(item["price"].toString());
+        final convertedPrice = _currencyService.convertBetweenCurrencies(
+          price,
+          'SEK', // Assuming prices are stored in SEK
+          _currencyService.selectedCurrency,
+        );
+        final quantity = item["quantity"] ?? 1;
+        total += convertedPrice * quantity;
       }
     });
     return total;
@@ -484,6 +523,15 @@ class _CartPageState extends State<CartPage> {
   }
 
   Widget _buildCartItem(String store, Map<String, dynamic> item) {
+    // Convert price from SEK to current currency
+    final sekPrice = double.parse(item['price'].toString());
+    final convertedPrice = _currencyService.convertBetweenCurrencies(
+      sekPrice,
+      'SEK',
+      _currencyService.selectedCurrency,
+    );
+    final quantity = item['quantity'] ?? 1;
+    
     return Dismissible(
       key: Key('$store-${item['name']}'),
       background: Container(
@@ -583,7 +631,7 @@ class _CartPageState extends State<CartPage> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
-                    '${_currencyService.formatPrice(item['price'])} × ${item['quantity']}',
+                    '${_currencyService.formatPrice(convertedPrice)} × $quantity',
                     style: AppTextStyles.bodyMedium(context).copyWith(fontSize: 12),
                   ),
                 ],
@@ -595,7 +643,7 @@ class _CartPageState extends State<CartPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  _currencyService.formatPrice(item['price'] * item['quantity']),
+                  _currencyService.formatPrice(convertedPrice * quantity),
                   style: AppTextStyles.price(context).copyWith(fontSize: 14),
                 ),
                 Transform.scale(

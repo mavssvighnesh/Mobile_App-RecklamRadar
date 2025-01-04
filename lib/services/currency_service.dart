@@ -1,11 +1,15 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
 
 class CurrencyService {
   static final CurrencyService _instance = CurrencyService._internal();
   factory CurrencyService() => _instance;
   CurrencyService._internal();
+
+  final _currencyController = StreamController<String>.broadcast();
+  Stream<String> get currencyStream => _currencyController.stream;
 
   static const String _baseUrl = 'http://apilayer.net/api/live';
   static const String _apiKey = '3d5207802c94cd3f344fa072890871bb';
@@ -122,14 +126,11 @@ class CurrencyService {
   }
 
   Future<void> setSelectedCurrency(String currency) async {
-    if (_selectedCurrency != currency) {
-      _selectedCurrency = currency;
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('selected_currency', currency);
-      
-      // Don't fetch rates here, just notify of change
-      notifyPriceChange();
-    }
+    _selectedCurrency = currency;
+    _currencyController.add(currency);
+    // Save to preferences
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('selected_currency', currency);
   }
 
   // Update the convertPrice method
@@ -179,5 +180,38 @@ class CurrencyService {
   // Add this method to round converted prices
   double roundToTwoDecimals(double value) {
     return double.parse(value.toStringAsFixed(2));
+  }
+
+  // Add method to convert between currencies
+  double convertBetweenCurrencies(double amount, String fromCurrency, String toCurrency) {
+    // First convert to SEK (our base currency)
+    double sekAmount = amount;
+    if (fromCurrency != 'SEK') {
+      sekAmount = amount / (_exchangeRates?[fromCurrency] ?? 1.0);
+    }
+    
+    // Then convert from SEK to target currency
+    if (toCurrency == 'SEK') {
+      return roundToTwoDecimals(sekAmount);
+    }
+    return roundToTwoDecimals(sekAmount * (_exchangeRates?[toCurrency] ?? 1.0));
+  }
+
+  // Add method to store budget with currency
+  Future<void> saveBudget(double amount, String currency) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('budget_amount', amount);
+    await prefs.setString('budget_currency', currency);
+  }
+
+  // Add method to load budget with currency
+  Future<Map<String, dynamic>> loadBudget() async {
+    final prefs = await SharedPreferences.getInstance();
+    final amount = prefs.getDouble('budget_amount');
+    final currency = prefs.getString('budget_currency') ?? 'SEK';
+    return {
+      'amount': amount,
+      'currency': currency,
+    };
   }
 }
