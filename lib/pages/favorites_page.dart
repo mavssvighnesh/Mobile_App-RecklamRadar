@@ -146,7 +146,22 @@ class _FavoritesPageState extends State<FavoritesPage> {
                     _findSimilarMatches(searchText, word)
                   );
                 })
-                .map((doc) => StoreItem.fromFirestore(doc))
+                .map((doc) {
+                  final data = doc.data();
+                  return StoreItem(
+                    id: doc.id,
+                    name: data['name'] ?? '',
+                    category: data['category'] ?? '',
+                    price: (data['price'] as num).toDouble(),
+                    salePrice: data['memberPrice'] != null ? 
+                        (data['memberPrice'] as num).toDouble() : null,
+                    imageUrl: data['imageUrl'] ?? '',
+                    unit: data['unit'] ?? '',
+                    inStock: data['inStock'] ?? true,
+                    quantity: 0,
+                    storeName: _getStoreName(storeNumber),
+                  );
+                })
                 .toList();
           } catch (e) {
             print('Error searching store $storeNumber: $e');
@@ -931,26 +946,32 @@ class _FavoritesPageState extends State<FavoritesPage> {
                                   try {
                                     final user = FirebaseAuth.instance.currentUser;
                                     if (user != null) {
-                                      // Calculate total price based on quantity
                                       final totalPrice = item.price * item.quantity;
                                       
-                                      // Create a new item with the updated quantity and price but keep original store name
-                                      final cartItem = item.copyWith(
+                                      // Create cart item with correct store information
+                                      final cartItem = StoreItem(
+                                        id: item.id,
+                                        name: item.name,
+                                        category: item.category,
                                         price: totalPrice,
+                                        salePrice: item.salePrice,
+                                        imageUrl: item.imageUrl,
+                                        unit: item.unit,
+                                        inStock: item.inStock,
                                         quantity: item.quantity,
-                                        storeName: item.storeName, // Explicitly keep the store name
+                                        storeName: item.storeName, // Preserve the original store name
                                       );
                                       
                                       await _firestoreService.addToCart(
                                         user.uid,
                                         cartItem,
-                                        cartItem.storeName, // Use the store name from the item
+                                        cartItem.storeName, // Use the preserved store name
                                       );
                                       
                                       if (mounted) {
                                         showMessage(
                                           context, 
-                                          '${item.quantity}x ${item.name}\n${PriceFormatter.formatPrice(totalPrice)}', 
+                                          '${item.quantity}x ${item.name} from ${item.storeName}\n${PriceFormatter.formatPrice(totalPrice)}', 
                                           true,
                                         );
                                         setState(() => item.quantity = 0);
