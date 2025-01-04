@@ -60,6 +60,7 @@ class StoreItem {
       unit: data['unit'] ?? '',
       inStock: data['inStock'] ?? true,
       storeName: data['storeName'] ?? 'Unknown Store',
+      quantity: data['quantity'] ?? 0,
     );
   }
 
@@ -88,6 +89,7 @@ class StoreItem {
       'unit': unit,
       'inStock': inStock,
       'storeName': storeName,
+      'quantity': quantity,
     };
   }
 
@@ -100,16 +102,19 @@ class StoreItem {
     double? salePrice,
     String? unit,
     String? storeName,
+    int? quantity,
   }) {
     return StoreItem(
       id: id ?? this.id,
       name: name ?? this.name,
       category: category ?? this.category,
-      imageUrl: imageUrl ?? this.imageUrl,
       price: price ?? this.price,
-      unit: unit ?? this.unit,
       salePrice: salePrice ?? this.salePrice,
+      imageUrl: imageUrl ?? this.imageUrl,
+      unit: unit ?? this.unit,
+      inStock: this.inStock,
       storeName: storeName ?? this.storeName,
+      quantity: quantity ?? this.quantity,
     );
   }
 

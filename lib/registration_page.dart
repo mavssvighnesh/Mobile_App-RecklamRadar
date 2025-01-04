@@ -40,6 +40,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
   File? _profileImage;
   File? _imageFile;
   final ImagePicker _picker = ImagePicker();
+  String _countryCode = '+46'; // Default Swedish country code
 
   // ignore: unused_element
   Future<void> _uploadProfileImage(String userId) async {
@@ -90,15 +91,19 @@ class _RegistrationPageState extends State<RegistrationPage> {
           }
         }
 
+        // Clean and combine the phone number
+        final cleanPhoneNumber = _phoneController.text.replaceAll(RegExp(r'[^\d]'), '');
+        final fullPhoneNumber = '$_countryCode$cleanPhoneNumber';
+
         // Create user with email and password
         final userCredential = await _authService.signUpWithEmail(
           _emailController.text.trim(),
           _passwordController.text,
           _nameController.text.trim(),
           _isBusiness,
-          imageUrl, // Pass the image URL to the auth service
+          imageUrl,
           {
-            UserFields.phone: _phoneController.text.trim(),
+            UserFields.phone: fullPhoneNumber, // Save the full phone number with country code
             UserFields.age: int.parse(_ageController.text.trim()),
             UserFields.gender: _gender,
             UserFields.createdAt: FieldValue.serverTimestamp(),
@@ -321,72 +326,72 @@ class _RegistrationPageState extends State<RegistrationPage> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Colors.white.withOpacity(0.9),
-                    Colors.white.withOpacity(0.7),
+                    Colors.white.withOpacity(0.95),
+                    Colors.white.withOpacity(0.85),
                   ],
                 ),
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: theme.colorScheme.primary.withOpacity(0.2),
-                    blurRadius: 15,
+                    color: theme.colorScheme.primary.withOpacity(0.1),
+                    blurRadius: 20,
                     spreadRadius: 5,
+                    offset: const Offset(0, 10),
                   ),
                 ],
               ),
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
               child: Form(
                 key: _formKey,
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Center(
-                      child: Stack(
-                        children: [
-                          _buildImagePicker(),
-                          if (_profileImage != null)
-                            Positioned(
-                              right: 0,
-                              bottom: 0,
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).primaryColor,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.edit,
-                                  size: 20,
-                                  color: Colors.white,
-                                ),
+                    Stack(
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: theme.colorScheme.primary.withOpacity(0.2),
+                                blurRadius: 15,
+                                spreadRadius: 2,
                               ),
-                            ),
-                        ],
-                      ),
+                            ],
+                          ),
+                          child: _buildImagePicker(),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 32),
                     TextFormField(
                       controller: _nameController,
                       decoration: InputDecoration(
                         labelText: 'Full Name',
-                        prefixIcon: const Icon(Icons.person),
+                        prefixIcon: Icon(
+                          Icons.person_outline,
+                          color: theme.colorScheme.primary,
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey[300]!),
+                          borderSide: BorderSide(
+                            color: theme.colorScheme.primary.withOpacity(0.3),
+                          ),
                         ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: theme.colorScheme.primary,
+                            width: 2,
+                          ),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white.withOpacity(0.1),
                       ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter your name';
-                        }
-                        if (value.length < 2) {
-                          return 'Name must be at least 2 characters';
-                        }
-                        return null;
-                      },
+                      validator: (value) => 
+                        value?.isEmpty ?? true ? 'Please enter your name' : null,
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
@@ -425,10 +430,14 @@ class _RegistrationPageState extends State<RegistrationPage> {
                       obscureText: !_isPasswordVisible,
                       decoration: InputDecoration(
                         labelText: 'Password',
-                        prefixIcon: const Icon(Icons.lock),
+                        prefixIcon: Icon(
+                          Icons.lock_outline,
+                          color: Theme.of(context).primaryColor,
+                        ),
                         suffixIcon: IconButton(
                           icon: Icon(
                             _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                            color: Theme.of(context).primaryColor,
                           ),
                           onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
                         ),
@@ -437,8 +446,19 @@ class _RegistrationPageState extends State<RegistrationPage> {
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey[300]!),
+                          borderSide: BorderSide(
+                            color: Theme.of(context).primaryColor.withOpacity(0.3),
+                          ),
                         ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: Theme.of(context).primaryColor,
+                            width: 2,
+                          ),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white.withOpacity(0.1),
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
@@ -447,39 +467,79 @@ class _RegistrationPageState extends State<RegistrationPage> {
                         if (value.length < 6) {
                           return 'Password must be at least 6 characters';
                         }
-                        if (!value.contains(RegExp(r'[A-Z]'))) {
-                          return 'Password must contain at least one uppercase letter';
-                        }
-                        if (!value.contains(RegExp(r'[0-9]'))) {
-                          return 'Password must contain at least one number';
-                        }
                         return null;
                       },
                     ),
                     const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _phoneController,
-                      keyboardType: TextInputType.phone,
-                      decoration: InputDecoration(
-                        labelText: 'Phone Number',
-                        prefixIcon: const Icon(Icons.phone),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Country Code Field
+                        Container(
+                          width: 80,
+                          margin: const EdgeInsets.only(right: 8),
+                          child: TextFormField(
+                            initialValue: _countryCode,
+                            decoration: InputDecoration(
+                              labelText: 'Code',
+                              prefixIcon: const Icon(Icons.flag),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: Colors.grey[300]!),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                            ),
+                            textAlign: TextAlign.center,
+                            onChanged: (value) {
+                              setState(() {
+                                _countryCode = value.startsWith('+') ? value : '+$value';
+                              });
+                            },
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Required';
+                              }
+                              if (!value.startsWith('+')) {
+                                return 'Add +';
+                              }
+                              return null;
+                            },
+                          ),
                         ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        
+                        // Phone Number Field
+                        Expanded(
+                          child: TextFormField(
+                            controller: _phoneController,
+                            keyboardType: TextInputType.phone,
+                            decoration: InputDecoration(
+                              labelText: 'Phone Number',
+                              prefixIcon: const Icon(Icons.phone),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: Colors.grey[300]!),
+                              ),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter your phone number';
+                              }
+                              // Remove any spaces or special characters
+                              final cleanNumber = value.replaceAll(RegExp(r'[^\d]'), '');
+                              if (cleanNumber.isEmpty) {
+                                return 'Please enter valid digits';
+                              }
+                              return null;
+                            },
+                          ),
                         ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter your phone number';
-                        }
-                        if (!RegExp(r'^\d{10}$').hasMatch(value)) {
-                          return 'Please enter a valid 10-digit phone number';
-                        }
-                        return null;
-                      },
+                      ],
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
@@ -538,33 +598,39 @@ class _RegistrationPageState extends State<RegistrationPage> {
                           value == null ? 'Please select your gender' : null,
                     ),
                     const SizedBox(height: 32),
-                    ElevatedButton(
-                      onPressed: _isLoading ? null : _register,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(context).primaryColor,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(top: 32),
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _register,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: theme.colorScheme.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 4,
+                          shadowColor: theme.colorScheme.primary.withOpacity(0.4),
                         ),
-                        elevation: 2,
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text(
+                                'Create Account',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
                       ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : const Text(
-                              'Create Account',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
                     ),
                     const SizedBox(height: 24),
                     Row(

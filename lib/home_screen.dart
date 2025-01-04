@@ -86,7 +86,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
           },
           items: [
             _buildNavItem(Icons.home_rounded, 'Home'),
-            _buildNavItem(Icons.favorite_rounded, 'Favorites'),
+            _buildNavItem(Icons.search_rounded, 'Search'),
             _buildNavItem(Icons.shopping_cart_rounded, 'Cart'),
             _buildNavItem(Icons.person_rounded, 'Profile'),
           ],

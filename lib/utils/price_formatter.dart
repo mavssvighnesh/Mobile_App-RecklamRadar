@@ -1,45 +1,35 @@
-  import '../services/currency_service.dart';
+import 'package:recklamradar/constants/app_constants.dart';
+
+import '../services/currency_service.dart';
 
 class PriceFormatter {
+  static final CurrencyService _currencyService = CurrencyService();
+
+  static String formatPrice(double price) {
+    final currency = _currencyService.selectedCurrency;
+    final symbol = AppConstants.currencySymbols[currency] ?? currency;
+    
+    return price < 100 
+        ? '${price.toStringAsFixed(2)} $symbol'  // 99.90 kr
+        : '${price.toStringAsFixed(0)} $symbol'; // 100 kr
+  }
+
+  static String formatPriceWithCurrency(double price) {
+    return _currencyService.formatPriceWithCurrency(price);
+  }
+
   static String formatPriceWithUnit(double price, String unit, {double? salePrice}) {
-    final currency = CurrencyService().selectedCurrency;
-    final formattedPrice = price.toStringAsFixed(2);
-    final formattedUnit = formatUnit(unit);
-    
-    if (salePrice != null) {
-      final formattedSalePrice = salePrice.toStringAsFixed(2);
-      return '$formattedSalePrice $currency/$formattedUnit\n(Reg: $formattedPrice $currency/$formattedUnit)';
-    }
-    
-    return '$formattedPrice $currency/$formattedUnit';
+    final formattedPrice = formatPrice(price);
+    final unitStr = formatUnit(unit);
+    return '$formattedPrice/$unitStr';
   }
 
   static String formatUnit(String unit) {
-    switch (unit.toLowerCase()) {
-      case 'kg':
-      case 'kilo':
-      case 'kilogram':
-        return 'kg';
-      case 'st':
-      case 'piece':
-      case 'pieces':
-        return 'st';
-      case 'g':
-      case 'gram':
-      case 'grams':
-        return 'g';
-      case 'l':
-      case 'liter':
-      case 'liters':
-        return 'L';
-      case 'ml':
-      case 'milliliter':
-        return 'ml';
-      case 'pack':
-      case 'pk':
-        return 'pk';
-      default:
-        return unit;
-    }
+    return unit.toLowerCase();
+  }
+
+  static String calculateDiscount(double originalPrice, double salePrice) {
+    final discount = ((originalPrice - salePrice) / originalPrice * 100).round();
+    return '$discount% OFF';
   }
 } 
