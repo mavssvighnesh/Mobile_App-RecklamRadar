@@ -32,7 +32,6 @@ class _FavoritesPageState extends State<FavoritesPage> {
   Set<String> stores = {};
   final _debouncer = Debouncer(milliseconds: 500);
   String selectedSort = 'Name'; // Default sort
-  bool showMemberPriceOnly = false;
   bool isFilterActive = false;
   bool isFilterVisible = false;
   List<String> recentSearches = [];
@@ -231,9 +230,24 @@ class _FavoritesPageState extends State<FavoritesPage> {
     if (!mounted) return;
 
     setState(() {
+      // Start with all items
       List<StoreItem> results = List.from(allItems);
 
-      // Apply search filter if there's a search query
+      // Apply store filter if selected
+      if (selectedStore != null) {
+        results = results.where((item) =>
+          item.storeName == _getStoreName(selectedStore!)
+        ).toList();
+      }
+
+      // Apply category filter if selected
+      if (selectedFilter != null) {
+        results = results.where((item) =>
+          item.category == selectedFilter
+        ).toList();
+      }
+
+      // Apply search filter if there's a query
       if (_searchController.text.isNotEmpty) {
         final queryWords = _searchController.text.toLowerCase().split(' ');
         results = results.where((item) {
@@ -245,27 +259,26 @@ class _FavoritesPageState extends State<FavoritesPage> {
         }).toList();
       }
 
-      // Apply category filter
-      if (selectedFilter != null) {
-        results = results.where((item) =>
-          item.category == selectedFilter
-        ).toList();
-      }
-
-      // Apply store filter
-      if (selectedStore != null) {
-        results = results.where((item) =>
-          item.storeName == _getStoreName(selectedStore!)
-        ).toList();
-      }
-
-      // Apply member price filter
-      if (showMemberPriceOnly) {
-        results = results.where((item) => item.salePrice != null).toList();
-      }
-
       // Apply sorting
-      _sortItems(results);
+      switch (selectedSort) {
+        case 'Name':
+          results.sort((a, b) => a.name.compareTo(b.name));
+          break;
+        case 'Price (Low to High)':
+          results.sort((a, b) {
+            final priceA = a.salePrice ?? a.price;
+            final priceB = b.salePrice ?? b.price;
+            return priceA.compareTo(priceB);
+          });
+          break;
+        case 'Price (High to Low)':
+          results.sort((a, b) {
+            final priceA = a.salePrice ?? a.price;
+            final priceB = b.salePrice ?? b.price;
+            return priceB.compareTo(priceA);
+          });
+          break;
+      }
 
       filteredItems = results;
     });
@@ -275,29 +288,31 @@ class _FavoritesPageState extends State<FavoritesPage> {
     setState(() => isLoading = true);
     try {
       List<StoreItem> deals = [];
-      final storeNumbers = ['1', '2', '3', '4', '5', '6', '7', '8'];
-      
-      // Shuffle store numbers to randomize store order
+      final storeNumbers = _storeNames.keys.toList();
       storeNumbers.shuffle();
-      
+
       for (String storeNumber in storeNumbers) {
         try {
-          final itemsSnapshot = await FirebaseFirestore.instance
+          final snapshot = await FirebaseFirestore.instance
               .collection('stores')
               .doc(storeNumber)
               .collection('items')
               .get();
 
-          // Convert all items to list and shuffle them
-          final items = itemsSnapshot.docs.map((doc) {
+          final items = snapshot.docs.map((doc) {
             final data = doc.data();
+            final regularPrice = (data['price'] as num).toDouble();
+            // Correctly handle member price
+            final memberPrice = data['memberPrice'] != null ? 
+                (data['memberPrice'] as num).toDouble() : null;
+
             return StoreItem(
               id: doc.id,
               name: data['name'] ?? '',
               category: data['category'] ?? '',
-              price: (data['price'] as num).toDouble(),
-              salePrice: data['memberPrice'] != null ? 
-                  (data['memberPrice'] as num).toDouble() : null,
+              price: regularPrice,
+              // Only set salePrice if it's a valid discount
+              salePrice: memberPrice != null && memberPrice < regularPrice ? memberPrice : null,
               imageUrl: data['imageUrl'] ?? '',
               unit: data['unit'] ?? '',
               inStock: data['inStock'] ?? true,
@@ -306,22 +321,19 @@ class _FavoritesPageState extends State<FavoritesPage> {
             );
           }).toList();
 
-          // Shuffle items and take random number between 2 and 6
+          // If member price filter is on, only add items with valid member prices
+
           items.shuffle();
-          final randomCount = 2 + (DateTime.now().millisecondsSinceEpoch % 4);
-          deals.addAll(items.take(randomCount));
+          deals.addAll(items.take(3));
         } catch (e) {
           print('Error loading deals from store $storeNumber: $e');
         }
       }
 
-      // Final shuffle of all deals
-      deals.shuffle();
-
       if (mounted) {
         setState(() {
-          filteredItems = deals;
           allItems = deals;
+          filteredItems = deals;
           categories = deals.map((item) => item.category).toSet();
           isLoading = false;
         });
@@ -384,17 +396,27 @@ class _FavoritesPageState extends State<FavoritesPage> {
                     ),
                     const SizedBox(height: 16),
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          "Show Only Sale Items",
-                          style: AppTextStyles.bodyLarge(context),
-                        ),
-                        Switch(
-                          value: showMemberPriceOnly,
-                          onChanged: (value) {
-                            setState(() => showMemberPriceOnly = value);
-                          },
+                        Expanded(
+                          flex: 3,
+                          child: _buildFilterDropdown(
+                            title: 'Sort By',
+                            value: selectedSort,
+                            items: [
+                              'Name',
+                              'Price (Low to High)',
+                              'Price (High to Low)',
+                            ].map((option) => DropdownMenuItem(
+                              value: option,
+                              child: Text(option),
+                            )).toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                selectedSort = value as String;
+                                _filterItems();
+                              });
+                            },
+                          ),
                         ),
                       ],
                     ),
@@ -441,8 +463,8 @@ class _FavoritesPageState extends State<FavoritesPage> {
             floating: true,
             pinned: true,
             expandedHeight: isFilterVisible 
-                ? SizeConfig.blockSizeVertical * 30 
-                : SizeConfig.blockSizeVertical * 12,
+                ? MediaQuery.of(context).size.height * 0.32 
+                : MediaQuery.of(context).size.height * 0.12,
             backgroundColor: Theme.of(context).primaryColor,
             elevation: 0,
             title: isSearchActive 
@@ -528,30 +550,22 @@ class _FavoritesPageState extends State<FavoritesPage> {
                 ),
                 child: Column(
                   children: [
-                    const SizedBox(height: kToolbarHeight + 20),
+                    const SizedBox(height: kToolbarHeight + 10),
                     if (isFilterVisible) ...[
-                      const SizedBox(height: 8),
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         child: Container(
-                          padding: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
                             color: Colors.black.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: Colors.white.withOpacity(0.1),
                             ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 8,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
                           ),
                           child: Column(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              // Store Selection
                               _buildFilterDropdown(
                                 title: 'Store',
                                 value: selectedStore,
@@ -574,8 +588,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                                   });
                                 },
                               ),
-                              const SizedBox(height: 12),
-                              // Category Selection
+                              const SizedBox(height: 8),
                               _buildFilterDropdown(
                                 title: 'Category',
                                 value: selectedFilter,
@@ -598,69 +611,24 @@ class _FavoritesPageState extends State<FavoritesPage> {
                                   });
                                 },
                               ),
-                              const SizedBox(height: 12),
-                              // Sort and Member Price Row
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _buildFilterDropdown(
-                                      title: 'Sort By',
-                                      value: selectedSort,
-                                      items: [
-                                        'Name',
-                                        'Price (Low to High)',
-                                        'Price (High to Low)',
-                                      ].map((option) => DropdownMenuItem(
-                                        value: option,
-                                        child: Text(option),
-                                      )).toList(),
-                                      onChanged: (value) {
-                                        setState(() {
-                                          selectedSort = value as String;
-                                          _filterItems();
-                                        });
-                                      },
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  // Member Price Toggle with improved styling
-                                  Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(
-                                        color: Colors.white.withOpacity(0.2),
-                                      ),
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        const Text(
-                                          'Member Price',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Switch(
-                                          value: showMemberPriceOnly,
-                                          onChanged: (value) {
-                                            setState(() {
-                                              showMemberPriceOnly = value;
-                                              _filterItems();
-                                            });
-                                          },
-                                          activeColor: Colors.white,
-                                          activeTrackColor: Colors.green,
-                                          inactiveThumbColor: Colors.white.withOpacity(0.8),
-                                          inactiveTrackColor: Colors.white.withOpacity(0.3),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
+                              const SizedBox(height: 8),
+                              _buildFilterDropdown(
+                                title: 'Sort By',
+                                value: selectedSort,
+                                items: [
+                                  'Name',
+                                  'Price (Low to High)',
+                                  'Price (High to Low)',
+                                ].map((option) => DropdownMenuItem(
+                                  value: option,
+                                  child: Text(option),
+                                )).toList(),
+                                onChanged: (value) {
+                                  setState(() {
+                                    selectedSort = value as String;
+                                    _filterItems();
+                                  });
+                                },
                               ),
                             ],
                           ),
@@ -779,24 +747,42 @@ class _FavoritesPageState extends State<FavoritesPage> {
                     ),
                     if (item.salePrice != null)
                       Positioned(
-                        top: 4,
-                        left: 4,
+                        top: 8,
+                        left: 8,
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
+                            horizontal: 8,
+                            vertical: 4,
                           ),
                           decoration: BoxDecoration(
                             color: Colors.red,
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.2),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
                           ),
-                          child: Text(
-                            '${(((item.price - item.salePrice!) / item.price) * 100).round()}% OFF',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: maxWidth * 0.06,
-                            ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.local_offer,
+                                color: Colors.white,
+                                size: maxWidth * 0.05,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${(((item.price - item.salePrice!) / item.price) * 100).round()}% OFF',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: maxWidth * 0.05,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -1072,20 +1058,22 @@ class _FavoritesPageState extends State<FavoritesPage> {
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           title,
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 14,
+            fontSize: 12,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 2),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          height: 36,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
           decoration: BoxDecoration(
             color: Colors.white.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: Colors.white.withOpacity(0.2),
             ),
@@ -1099,11 +1087,12 @@ class _FavoritesPageState extends State<FavoritesPage> {
               dropdownColor: Theme.of(context).primaryColor.withOpacity(0.95),
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 16,
+                fontSize: 14,
               ),
               icon: Icon(
                 Icons.arrow_drop_down,
                 color: Colors.white.withOpacity(0.8),
+                size: 20,
               ),
             ),
           ),
