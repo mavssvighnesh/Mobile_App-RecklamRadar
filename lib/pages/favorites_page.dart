@@ -520,7 +520,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                     ),
                   )
                 : Text(
-                    'Daily Deals',
+                    'Deals',
                     style: AppTextStyles.heading2(context).copyWith(
                       color: Colors.white,
                       fontSize: 24,

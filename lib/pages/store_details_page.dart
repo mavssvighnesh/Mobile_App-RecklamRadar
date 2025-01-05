@@ -760,6 +760,9 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    final isAdmin = user?.email == 'vv@gmail.com';  // Check for admin email
+
     return ThemedScaffold(
       appBar: AppBar(
         title: AnimatedSwitcher(
@@ -828,7 +831,7 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: isAdmin ? FloatingActionButton.extended(
         onPressed: () {
           Navigator.push(
             context,
@@ -844,7 +847,7 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
         icon: const Icon(Icons.add),
         label: const Text('Add Item'),
         backgroundColor: Theme.of(context).primaryColor,
-      ),
+      ) : null,  // Return null to hide FAB for non-admin users
     );
   }
 } 
