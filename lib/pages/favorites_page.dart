@@ -867,7 +867,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Container(
-                            height: maxHeight * 0.12,
+                            height: maxHeight * 0.16,
                             decoration: BoxDecoration(
                               border: Border.all(
                                 color: Theme.of(context).primaryColor.withOpacity(0.3),
@@ -888,7 +888,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                                   size: maxWidth * 0.06,
                                 ),
                                 SizedBox(
-                                  width: maxWidth * 0.12,
+                                  width: maxWidth * 0.16,
                                   child: Text(
                                     '${item.quantity}',
                                     textAlign: TextAlign.center,
@@ -914,8 +914,8 @@ class _FavoritesPageState extends State<FavoritesPage> {
                           
                           // Cart button with adjusted size and better design
                           Container(
-                            height: maxHeight * 0.12,
-                            width: maxHeight * 0.12,
+                            height: maxHeight * 0.18,
+                            width: maxHeight * 0.18,
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
                                 begin: Alignment.topLeft,
@@ -946,6 +946,9 @@ class _FavoritesPageState extends State<FavoritesPage> {
                                   try {
                                     final user = FirebaseAuth.instance.currentUser;
                                     if (user != null) {
+                                      // Get correct store name using the mapping
+                                      final storeName = _getStoreName(item.storeName);  // Use the mapping function
+                                      
                                       // Create map with base SEK prices
                                       final cartData = {
                                         'id': item.id,
@@ -956,13 +959,13 @@ class _FavoritesPageState extends State<FavoritesPage> {
                                         'imageUrl': item.imageUrl,
                                         'unit': item.unit,
                                         'quantity': item.quantity,
-                                        'storeName': item.storeName,
+                                        'storeName': storeName,  // Use mapped store name
                                       };
                                       
                                       await _firestoreService.addToCart(
                                         user.uid,
-                                        cartData,  // Pass map directly
-                                        item.storeName,
+                                        cartData,
+                                        storeName,  // Use mapped store name
                                       );
                                       
                                       if (mounted) {
@@ -971,7 +974,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                                         
                                         showMessage(
                                           context, 
-                                          '${item.quantity}x ${item.name}\n${PriceFormatter.formatPrice(displayTotal)}', 
+                                          '${item.quantity}x ${item.name} from $storeName\n${PriceFormatter.formatPrice(displayTotal)}', 
                                           true,
                                         );
                                         setState(() => item.quantity = 0);
