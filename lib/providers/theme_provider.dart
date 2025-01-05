@@ -97,7 +97,7 @@ class ThemeProvider with ChangeNotifier {
   ThemeData get theme => _isDarkMode ? _darkTheme : _lightTheme;
 
   // Update both light and dark theme text themes
-  static final TextTheme _baseTextTheme = const TextTheme(
+  static const TextTheme _baseTextTheme = TextTheme(
     headlineLarge: TextStyle(
       fontSize: 32,
       fontWeight: FontWeight.bold,

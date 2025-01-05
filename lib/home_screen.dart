@@ -7,7 +7,6 @@ import 'package:provider/provider.dart';
 
 import 'cartpage.dart';
 import 'services/firestore_service.dart';
-import 'utils/size_config.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'widgets/glass_container.dart';
 

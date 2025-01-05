@@ -28,7 +28,7 @@ class _SettingsPageState extends State<SettingsPage> {
   String _userName = '';
   String _userEmail = '';
   String? _profileImage;
-  String _selectedLanguage = 'English';
+  final String _selectedLanguage = 'English';
   final String _selectedCurrency = 'SEK';
   // ignore: unused_field
   final bool _isDarkMode = false;

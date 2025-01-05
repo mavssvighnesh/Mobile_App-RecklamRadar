@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/store_item.dart';
 import '../utils/price_formatter.dart';
 import '../styles/app_text_styles.dart';
+import '../styles/app_styles.dart';
 
 class CartItemWidget extends StatelessWidget {
   final StoreItem item;
@@ -45,7 +46,7 @@ class CartItemWidget extends StatelessWidget {
                 children: [
                   Text(
                     item.name,
-                    style: AppTextStyles.subtitle(context),
+                    style: AppTextStyles.bodySmall(context),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -122,7 +123,7 @@ class CartItemWidget extends StatelessWidget {
                 ),
                 Text(
                   '${item.quantity}',
-                  style: AppTextStyles.body(context),
+                  style: AppTextStyles.bodySmall(context),
                 ),
                 IconButton(
                   icon: const Icon(Icons.add_circle_outline),

@@ -242,213 +242,132 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
   }
 
   Widget _buildItemCard(StoreItem item, int index) {
-    return Dismissible(
-      key: Key(item.id),
-      direction: DismissDirection.startToEnd,
-      confirmDismiss: (direction) async {
-        HapticFeedback.mediumImpact();
-        await Future.delayed(const Duration(milliseconds: 200));
-        return _handleAddToCart(item);
-      },
-      dismissThresholds: const {
-        DismissDirection.startToEnd: AnimationConfig.swipeThreshold,
-      },
-      movementDuration: AnimationConfig.defaultDuration,
-      background: AnimatedContainer(
-        duration: AnimationConfig.defaultDuration,
-        decoration: AnimationConfig.dismissibleBackground,
-        child: Align(
-          alignment: Alignment.centerLeft,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxWidth = constraints.maxWidth;
+        return Card(
           child: Padding(
-            padding: const EdgeInsets.only(left: 20),
+            padding: const EdgeInsets.all(8.0),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Icon(Icons.add_shopping_cart, color: Colors.white.withOpacity(0.9)),
-                const SizedBox(width: 8),
-                Text(
-                  'Add to Cart',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-      secondaryBackground: Container(
-        color: Colors.transparent,
-      ),
-      child: Container(
-        margin: EdgeInsets.only(bottom: SizeConfig.blockSizeVertical * 1.5),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.9),
-          borderRadius: BorderRadius.circular(15),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              spreadRadius: 2,
-            ),
-          ],
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.white.withOpacity(0.9),
-              Colors.white.withOpacity(0.7),
-            ],
-          ),
-          border: Border.all(
-            color: Colors.white.withOpacity(0.3),
-            width: 1,
-          ),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(15),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: Padding(
-              padding: EdgeInsets.all(SizeConfig.blockSizeHorizontal * 3),
-              child: Row(
-                children: [
-                  // Image section
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: SizedBox(
-                      width: SizeConfig.blockSizeHorizontal * 20,
-                      height: SizeConfig.blockSizeHorizontal * 20,
-                      child: CachedNetworkImage(
-                        imageUrl: item.imageUrl,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => Container(
-                          color: Colors.grey[200]?.withOpacity(0.3),
-                          child: const Center(
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.grey),
-                            ),
-                          ),
-                        ),
-                        errorWidget: (context, url, error) => Container(
-                          color: Colors.grey[200]?.withOpacity(0.3),
-                          child: const Icon(
-                            Icons.image_not_supported,
-                            color: Colors.grey,
-                          ),
-                        ),
+                // Image section with fixed size
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: SizedBox(
+                    width: maxWidth * 0.2,
+                    height: maxWidth * 0.2,
+                    child: CachedNetworkImage(
+                      imageUrl: item.imageUrl,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Container(
+                        color: Colors.grey[200]?.withOpacity(0.3),
+                        child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                      ),
+                      errorWidget: (context, url, error) => Container(
+                        color: Colors.grey[200]?.withOpacity(0.3),
+                        child: const Icon(Icons.error),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  
-                  // Details section
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
+                ),
+                const SizedBox(width: 12),
+                
+                // Content section
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Name with Flexible
+                      Flexible(
+                        child: Text(
                           item.name,
                           style: AppTextStyles.cardTitle(context),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        Text(
+                      ),
+                      const SizedBox(height: 4),
+                      
+                      // Category with Flexible
+                      Flexible(
+                        child: Text(
                           item.category,
                           style: AppTextStyles.cardSubtitle(context),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 6),
-                        // Price section remains the same
-                        if (item.salePrice != null) ...[
-                          Text(
-                            PriceFormatter.formatPriceWithUnit(item.price, item.unit),
-                            style: AppTextStyles.price(context, isOnSale: true).copyWith(
-                              decoration: TextDecoration.lineThrough,
-                              color: Colors.black54,
-                              fontSize: 14,
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.green.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: Colors.green.withOpacity(0.2)),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.verified_user,
-                                  size: 14,
-                                  color: Colors.green[700],
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  PriceFormatter.formatPriceWithUnit(item.salePrice!, item.unit),
-                                  style: AppTextStyles.price(context).copyWith(
-                                    color: Colors.green[700],
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ] else
-                          Text(
-                            PriceFormatter.formatPriceWithUnit(item.price, item.unit),
-                            style: AppTextStyles.price(context).copyWith(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        // Add unit explanation if needed
+                      ),
+                      const SizedBox(height: 4),
+                      
+                      // Price section
+                      if (item.salePrice != null) ...[
                         Text(
-                          "Price per ${item.unit}",
-                          style: AppTextStyles.bodySmall(context).copyWith(
-                            color: Colors.grey[600],
+                          PriceFormatter.formatPriceWithUnit(item.price, item.unit),
+                          style: AppTextStyles.price(context, isOnSale: true).copyWith(
                             fontSize: 12,
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  
-                  // Quantity controls
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.remove_circle_outline),
-                        onPressed: () => _updateQuantity(index, false),
-                        color: Theme.of(context).primaryColor.withOpacity(0.8),
-                      ),
-                      Container(
-                        width: 32,
-                        child: Text(
-                          '${item.quantity}',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            PriceFormatter.formatPriceWithUnit(item.salePrice!, item.unit),
+                            style: TextStyle(
+                              color: Colors.green[700],
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
                           ),
                         ),
-                      ),
+                      ] else
+                        Text(
+                          PriceFormatter.formatPriceWithUnit(item.price, item.unit),
+                          style: AppTextStyles.price(context),
+                        ),
+                    ],
+                  ),
+                ),
+                
+                // Quantity controls with fixed width
+                SizedBox(
+                  width: maxWidth * 0.15,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                       IconButton(
                         icon: const Icon(Icons.add_circle_outline),
                         onPressed: () => _updateQuantity(index, true),
-                        color: Theme.of(context).primaryColor.withOpacity(0.8),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        iconSize: 24,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(
+                          '${item.quantity}',
+                          style: AppTextStyles.bodyMedium(context),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.remove_circle_outline),
+                        onPressed: () => _updateQuantity(index, false),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        iconSize: 24,
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 

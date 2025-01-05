@@ -12,7 +12,6 @@ import 'package:recklamradar/admin_home_screen.dart';
 import 'providers/theme_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
-import 'package:path/path.dart' as path;
 
 class RegistrationPage extends StatefulWidget {
   const RegistrationPage({super.key});

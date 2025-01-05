@@ -6,7 +6,7 @@ class GlassSnackBar extends SnackBar {
     super.key,
     required String message,
     bool isSuccess = true,
-    Duration duration = const Duration(seconds: 3),
+    super.duration = const Duration(seconds: 3),
   }) : super(
           content: GlassContainer(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -28,7 +28,6 @@ class GlassSnackBar extends SnackBar {
           ),
           backgroundColor: Colors.transparent,
           elevation: 0,
-          duration: duration,
           behavior: SnackBarBehavior.floating,
           margin: const EdgeInsets.all(16),
         );
