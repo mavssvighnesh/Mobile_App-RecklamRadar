@@ -142,21 +142,18 @@ class _CartPageState extends State<CartPage> {
   }
 
   double calculateTotal(Map<String, List<Map<String, dynamic>>> items) {
-    double total = 0.0;
-    items.forEach((store, storeItems) {
-      for (var item in storeItems) {
-        // Convert item price from SEK to current currency
-        final price = double.parse(item["price"].toString());
-        final convertedPrice = _currencyService.convertBetweenCurrencies(
-          price,
-          'SEK', // Assuming prices are stored in SEK
-          _currencyService.selectedCurrency,
-        );
-        final quantity = item["quantity"] ?? 1;
-        total += convertedPrice * quantity;
+    double totalSEK = 0.0;
+    items.forEach((store, itemList) {
+      for (var item in itemList) {
+        // Use SEK prices stored in Firestore
+        final basePriceSEK = item['salePrice'] ?? item['price'];  // These are SEK prices
+        final quantity = item['quantity'] ?? 1;
+        totalSEK += basePriceSEK * quantity;
       }
     });
-    return total;
+    
+    // Convert only the final total for display
+    return _currencyService.convertPrice(totalSEK);
   }
 
   void _removeItem(String store, Map<String, dynamic> item) async {
@@ -523,15 +520,20 @@ class _CartPageState extends State<CartPage> {
   }
 
   Widget _buildCartItem(String store, Map<String, dynamic> item) {
-    // Convert price from SEK to current currency
-    final sekPrice = double.parse(item['price'].toString());
-    final convertedPrice = _currencyService.convertBetweenCurrencies(
-      sekPrice,
-      'SEK',
-      _currencyService.selectedCurrency,
-    );
+    // Get SEK prices from Firestore
+    final basePriceSEK = item['salePrice'] ?? item['price'];  // SEK prices
+    final originalPriceSEK = item['price'];
     final quantity = item['quantity'] ?? 1;
     
+    // Calculate total in SEK
+    final totalSEK = basePriceSEK * quantity;
+    
+    // Convert only for display
+    final displayPrice = _currencyService.convertPrice(basePriceSEK);
+    final displayTotal = _currencyService.convertPrice(totalSEK);
+    final displayOriginalPrice = item['salePrice'] != null ? 
+      _currencyService.convertPrice(originalPriceSEK) : null;
+
     return Dismissible(
       key: Key('$store-${item['name']}'),
       background: Container(
@@ -631,7 +633,7 @@ class _CartPageState extends State<CartPage> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
-                    '${_currencyService.formatPrice(convertedPrice)} × $quantity',
+                    '${_currencyService.formatPrice(displayPrice)} × $quantity',
                     style: AppTextStyles.bodyMedium(context).copyWith(fontSize: 12),
                   ),
                 ],
@@ -642,8 +644,16 @@ class _CartPageState extends State<CartPage> {
               crossAxisAlignment: CrossAxisAlignment.end,
               mainAxisSize: MainAxisSize.min,
               children: [
+                if (displayOriginalPrice != null)
+                  Text(
+                    _currencyService.formatPrice(displayOriginalPrice),
+                    style: const TextStyle(
+                      decoration: TextDecoration.lineThrough,
+                      color: Colors.grey,
+                    ),
+                  ),
                 Text(
-                  _currencyService.formatPrice(convertedPrice * quantity),
+                  _currencyService.formatPrice(displayTotal),
                   style: AppTextStyles.price(context).copyWith(fontSize: 14),
                 ),
                 Transform.scale(

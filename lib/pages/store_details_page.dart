@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:recklamradar/providers/theme_provider.dart';
 import 'package:recklamradar/services/firestore_service.dart';
+import 'package:recklamradar/styles/app_styles.dart';
 import 'package:recklamradar/utils/message_utils.dart';
 import 'package:recklamradar/models/store_item.dart';
 import 'package:recklamradar/item_adding_page.dart';
@@ -159,34 +160,34 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
   Future<void> _addToCart(StoreItem item) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        // Use sale price if available
-        final priceToUse = item.salePrice ?? item.price;
-        final totalPrice = priceToUse * item.quantity;
-        
-        final cartItem = StoreItem(
-          id: item.id,
-          name: item.name,
-          category: item.category,
-          price: item.price,        // Keep original price for reference
-          salePrice: item.salePrice, // Keep sale price for reference
-          imageUrl: item.imageUrl,
-          unit: item.unit,
-          inStock: item.inStock,
-          quantity: item.quantity,
-          storeName: widget.storeName,
-        );
+      if (user != null && item.quantity > 0) {
+        // Convert StoreItem to Map with SEK prices
+        final cartData = {
+          'id': item.id,
+          'name': item.name,
+          'category': item.category,
+          'price': item.originalPriceSEK,        // Base SEK price
+          'salePrice': item.originalSalePriceSEK, // Base SEK sale price
+          'imageUrl': item.imageUrl,
+          'unit': item.unit,
+          'quantity': item.quantity,
+          'storeName': widget.storeName,
+        };
 
         await _firestoreService.addToCart(
           user.uid,
-          cartItem,
+          cartData,  // Pass the map instead of StoreItem
           widget.storeName,
         );
 
         if (mounted) {
+          // Calculate total in SEK and convert only for display message
+          final totalSEK = (item.originalSalePriceSEK ?? item.originalPriceSEK) * item.quantity;
+          final displayTotal = _currencyService.convertPrice(totalSEK);
+          
           showMessage(
             context, 
-            '${item.quantity}x ${item.name}\n${PriceFormatter.formatPrice(totalPrice)}', 
+            '${item.quantity}x ${item.name}\n${PriceFormatter.formatPrice(displayTotal)}', 
             true,
           );
           setState(() => item.quantity = 0);
@@ -212,10 +213,14 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
           filteredItems.sort((a, b) => a.name.compareTo(b.name));
           break;
         case 'Price (Low to High)':
-          filteredItems.sort((a, b) => a.price.compareTo(b.price));
+          filteredItems.sort((a, b) => 
+            (a.originalSalePriceSEK ?? a.originalPriceSEK)
+            .compareTo(b.originalSalePriceSEK ?? b.originalPriceSEK));
           break;
         case 'Price (High to Low)':
-          filteredItems.sort((a, b) => b.price.compareTo(a.price));
+          filteredItems.sort((a, b) => 
+            (b.originalSalePriceSEK ?? b.originalPriceSEK)
+            .compareTo(a.originalSalePriceSEK ?? a.originalPriceSEK));
           break;
       }
     });
@@ -370,10 +375,10 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
                             ),
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
                             decoration: BoxDecoration(
                               color: Colors.green.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(4),
+                              borderRadius: BorderRadius.circular(8),
                               border: Border.all(color: Colors.green.withOpacity(0.2)),
                             ),
                             child: Row(
@@ -389,7 +394,7 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
                                   PriceFormatter.formatPriceWithUnit(item.salePrice!, item.unit),
                                   style: AppTextStyles.price(context).copyWith(
                                     color: Colors.green[700],
-                                    fontSize: 16,
+                                  
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -645,7 +650,7 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
           return false;
         }
         
-        await _firestoreService.addToCart(user.uid, item, widget.storeName);
+        await _firestoreService.addToCart(user.uid, item.toMap(), widget.storeName);
         if (mounted) {
           showMessage(context, "${item.quantity}x ${item.name} added to cart", true);
           setState(() => item.quantity = 0);

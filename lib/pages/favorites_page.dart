@@ -946,32 +946,32 @@ class _FavoritesPageState extends State<FavoritesPage> {
                                   try {
                                     final user = FirebaseAuth.instance.currentUser;
                                     if (user != null) {
-                                      final priceToUse = item.salePrice ?? item.price;
-                                      final totalPrice = priceToUse * item.quantity;
-                                      
-                                      final cartItem = StoreItem(
-                                        id: item.id,
-                                        name: item.name,
-                                        category: item.category,
-                                        price: item.price,
-                                        salePrice: item.salePrice,
-                                        imageUrl: item.imageUrl,
-                                        unit: item.unit,
-                                        inStock: item.inStock,
-                                        quantity: item.quantity,
-                                        storeName: item.storeName,
-                                      );
+                                      // Create map with base SEK prices
+                                      final cartData = {
+                                        'id': item.id,
+                                        'name': item.name,
+                                        'category': item.category,
+                                        'price': item.originalPriceSEK,        // Base SEK price
+                                        'salePrice': item.originalSalePriceSEK, // Base SEK sale price
+                                        'imageUrl': item.imageUrl,
+                                        'unit': item.unit,
+                                        'quantity': item.quantity,
+                                        'storeName': item.storeName,
+                                      };
                                       
                                       await _firestoreService.addToCart(
                                         user.uid,
-                                        cartItem,
-                                        cartItem.storeName,
+                                        cartData,  // Pass map directly
+                                        item.storeName,
                                       );
                                       
                                       if (mounted) {
+                                        final totalSEK = (item.originalSalePriceSEK ?? item.originalPriceSEK) * item.quantity;
+                                        final displayTotal = _currencyService.convertPrice(totalSEK);
+                                        
                                         showMessage(
                                           context, 
-                                          '${item.quantity}x ${item.name} from ${item.storeName}\n${PriceFormatter.formatPrice(totalPrice)}', 
+                                          '${item.quantity}x ${item.name}\n${PriceFormatter.formatPrice(displayTotal)}', 
                                           true,
                                         );
                                         setState(() => item.quantity = 0);
@@ -1149,6 +1149,50 @@ class _FavoritesPageState extends State<FavoritesPage> {
   // Helper method to convert store number to store name
   String _getStoreName(String storeId) {
     return _storeNames[storeId] ?? 'Store $storeId';
+  }
+
+  Future<void> _addToCart(StoreItem item) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null && item.quantity > 0) {
+        // Create map with base SEK prices
+        final cartData = {
+          'id': item.id,
+          'name': item.name,
+          'category': item.category,
+          'price': item.originalPriceSEK,        // Base SEK price
+          'salePrice': item.originalSalePriceSEK, // Base SEK sale price
+          'imageUrl': item.imageUrl,
+          'unit': item.unit,
+          'quantity': item.quantity,
+          'storeName': item.storeName,
+        };
+
+        await _firestoreService.addToCart(
+          user.uid,
+          cartData,  // Pass map directly
+          item.storeName,
+        );
+
+        if (mounted) {
+          // Calculate total in SEK and convert only for display
+          final totalSEK = (item.originalSalePriceSEK ?? item.originalPriceSEK) * item.quantity;
+          final displayTotal = _currencyService.convertPrice(totalSEK);
+          
+          showMessage(
+            context, 
+            '${item.quantity}x ${item.name}\n${PriceFormatter.formatPrice(displayTotal)}', 
+            true,
+          );
+          setState(() => item.quantity = 0);
+        }
+      }
+    } catch (e) {
+      print('Error adding to cart: $e');
+      if (mounted) {
+        showMessage(context, 'Failed to add item to cart', false);
+      }
+    }
   }
 }
 

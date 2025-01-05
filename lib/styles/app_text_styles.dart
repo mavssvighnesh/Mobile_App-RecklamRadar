@@ -87,7 +87,7 @@ class AppTextStyles {
 
   // Price text
   static TextStyle price(BuildContext context, {bool isOnSale = false}) => TextStyle(
-    fontSize: 18,
+    fontSize: 12,
     fontWeight: FontWeight.w600,
     color: isOnSale 
         ? Theme.of(context).colorScheme.error

@@ -296,14 +296,14 @@ class FirestoreService {
     return doc.data()?['preferences'] ?? {};
   }
 
-  Future<void> addToCart(String userId, StoreItem item, String storeName) async {
+  Future<void> addToCart(String userId, Map<String, dynamic> cartData, String storeName) async {
     try {
       // Check if item already exists in cart
       final existingItems = await _firestore
           .collection('users')
           .doc(userId)
           .collection('cart')
-          .where('name', isEqualTo: item.name)
+          .where('name', isEqualTo: cartData['name'])
           .where('storeName', isEqualTo: storeName)
           .get();
 
@@ -312,20 +312,16 @@ class FirestoreService {
         final existingItem = existingItems.docs.first;
         final currentQuantity = existingItem.data()['quantity'] ?? 0;
         await existingItem.reference.update({
-          'quantity': currentQuantity + item.quantity,
+          'quantity': currentQuantity + cartData['quantity'],
         });
       } else {
-        // Add new item if it doesn't exist
+        // Add new item with SEK prices
         await _firestore
             .collection('users')
             .doc(userId)
             .collection('cart')
             .add({
-          'name': item.name,
-          'price': item.price,
-          'quantity': item.quantity,
-          'storeName': storeName,
-          'imageUrl': item.imageUrl,
+          ...cartData,
           'picked': false,
           'addedAt': FieldValue.serverTimestamp(),
         });

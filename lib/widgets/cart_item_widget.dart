@@ -2,24 +2,33 @@ import 'package:flutter/material.dart';
 import '../models/store_item.dart';
 import '../utils/price_formatter.dart';
 import '../styles/app_text_styles.dart';
+import '../services/currency_service.dart';
 
 class CartItemWidget extends StatelessWidget {
   final StoreItem item;
   final Function(StoreItem) onRemove;
   final Function(StoreItem, bool) onQuantityChanged;
+  final CurrencyService _currencyService;
 
   const CartItemWidget({
     Key? key,
     required this.item,
     required this.onRemove,
     required this.onQuantityChanged,
-  }) : super(key: key);
+    required this.currencyService,
+  }) : _currencyService = currencyService, super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    // Always use sale price if available
-    final priceToUse = item.salePrice ?? item.price;
-    final totalPrice = priceToUse * item.quantity;
+    // Use SEK prices for calculations
+    final basePriceSEK = item.originalSalePriceSEK ?? item.originalPriceSEK;
+    final totalPriceSEK = basePriceSEK * item.quantity;
+
+    // Convert only for display
+    final displayUnitPrice = _currencyService.convertPrice(basePriceSEK);
+    final displayTotalPrice = _currencyService.convertPrice(totalPriceSEK);
+    final displayOriginalPrice = item.originalSalePriceSEK != null ? 
+      _currencyService.convertPrice(item.originalPriceSEK) : null;
 
     return Card(
       child: Padding(
@@ -45,7 +54,7 @@ class CartItemWidget extends StatelessWidget {
                 children: [
                   Text(
                     item.name,
-                    style: AppTextStyles.subtitle(context),
+                    style: AppTextStyles.bodySmall(context),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -56,9 +65,9 @@ class CartItemWidget extends StatelessWidget {
                   const SizedBox(height: 4),
                   
                   // Price section
-                  if (item.salePrice != null) ...[
+                  if (displayOriginalPrice != null) ...[
                     Text(
-                      PriceFormatter.formatPrice(item.price * item.quantity),
+                      PriceFormatter.formatPrice(displayOriginalPrice * item.quantity),
                       style: AppTextStyles.price(context, isOnSale: true).copyWith(
                         decoration: TextDecoration.lineThrough,
                         color: Colors.black54,
@@ -82,7 +91,7 @@ class CartItemWidget extends StatelessWidget {
                           ),
                           const SizedBox(width: 2),
                           Text(
-                            PriceFormatter.formatPrice(totalPrice),
+                            PriceFormatter.formatPrice(displayTotalPrice),
                             style: TextStyle(
                               color: Colors.green[700],
                               fontWeight: FontWeight.bold,
@@ -94,7 +103,7 @@ class CartItemWidget extends StatelessWidget {
                     ),
                   ] else
                     Text(
-                      PriceFormatter.formatPrice(totalPrice),
+                      PriceFormatter.formatPrice(displayTotalPrice),
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
@@ -103,7 +112,7 @@ class CartItemWidget extends StatelessWidget {
                   
                   // Unit price
                   Text(
-                    '${PriceFormatter.formatPriceWithUnit(priceToUse, item.unit)}',
+                    PriceFormatter.formatPriceWithUnit(displayUnitPrice, item.unit),
                     style: TextStyle(
                       color: Colors.grey[600],
                       fontSize: 12,
@@ -122,7 +131,7 @@ class CartItemWidget extends StatelessWidget {
                 ),
                 Text(
                   '${item.quantity}',
-                  style: AppTextStyles.body(context),
+                  style: AppTextStyles.bodySmall(context),
                 ),
                 IconButton(
                   icon: const Icon(Icons.add_circle_outline),
