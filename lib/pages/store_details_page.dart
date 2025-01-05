@@ -151,10 +151,87 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
 
   void _searchItems(String query) {
     _debouncer.run(() {
+      if (query.isEmpty) {
+        setState(() {
+          filteredItems = items;
+        });
+        return;
+      }
+
+      // Optimize query
+      final queryWords = query.toLowerCase().split(' ')
+          .where((word) => word.length > 1)  // Ignore single characters
+          .toSet()  // Remove duplicates
+          .toList();
+
+      if (queryWords.isEmpty) {
+        setState(() {
+          filteredItems = items;
+        });
+        return;
+      }
+
       setState(() {
-        _filterItems(query);
+        filteredItems = items.where((item) {
+          final searchText = '${item.name} ${item.category}'.toLowerCase();
+          return queryWords.any((word) => 
+            searchText.contains(word) || 
+            _findSimilarMatches(searchText, word)
+          );
+        }).toList();
       });
+
+      _sortItems();
     });
+  }
+
+  // Add helper method for similar word matching
+  bool _findSimilarMatches(String text, String query) {
+    // Dictionary for similar words
+    final similarWords = {
+      'fruit': ['fruits', 'frukt', 'frukter'],
+      'veg': ['vegetable', 'vegetables', 'grönsaker'],
+      'milk': ['mjölk', 'dairy', 'mejeri'],
+      'bread': ['bröd', 'loaf', 'bageri'],
+      'meat': ['kött', 'beef', 'pork', 'chicken', 'fläsk'],
+      'fish': ['fisk', 'seafood', 'skaldjur'],
+      'drink': ['dryck', 'beverage', 'läsk'],
+      // Add more similar words as needed
+    };
+
+    // Check similar words
+    for (var entry in similarWords.entries) {
+      if (entry.key.contains(query) || entry.value.any((word) => word.contains(query))) {
+        if (text.contains(entry.key)) return true;
+      }
+    }
+
+    // Check for partial matches if word is at least 3 characters
+    if (query.length >= 3) {
+      return text.split(' ').any((word) => 
+        word.startsWith(query) || 
+        _calculateSimilarity(word, query) > 0.7
+      );
+    }
+
+    return false;
+  }
+
+  // Add helper method for calculating string similarity
+  double _calculateSimilarity(String s1, String s2) {
+    if (s1.isEmpty || s2.isEmpty) return 0;
+    s1 = s1.toLowerCase();
+    s2 = s2.toLowerCase();
+    
+    int matches = 0;
+    final shorter = s1.length < s2.length ? s1 : s2;
+    final longer = s1.length < s2.length ? s2 : s1;
+    
+    for (int i = 0; i < shorter.length; i++) {
+      if (i < longer.length && shorter[i] == longer[i]) matches++;
+    }
+    
+    return matches / longer.length;
   }
 
   Future<void> _addToCart(StoreItem item) async {
@@ -457,21 +534,27 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
     );
   }
 
-  Widget _buildSearchBar() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: GlassContainer(
-        child: TextField(
-          controller: searchController,
-          onChanged: _searchItems,
-          decoration: InputDecoration(
-            hintText: 'Search items...',
-            hintStyle: AppTextStyles.bodyMedium(context),
-            prefixIcon: const Icon(Icons.search),
-            border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+  Widget _buildSearchField() {
+    return Container(
+      height: 40,
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: TextField(
+        controller: searchController,
+        style: const TextStyle(color: Colors.white),
+        decoration: InputDecoration(
+          hintText: 'Search items...',
+          hintStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          prefixIcon: Icon(
+            Icons.search,
+            color: Colors.white.withOpacity(0.7),
           ),
         ),
+        onChanged: _searchItems,
       ),
     );
   }
@@ -679,9 +762,14 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
   Widget build(BuildContext context) {
     return ThemedScaffold(
       appBar: AppBar(
-        title: Text(
-          widget.storeName,
-          style: AppTextStyles.heading2(context),
+        title: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: isSearchActive 
+            ? _buildSearchField()
+            : Text(
+                widget.storeName,
+                style: AppTextStyles.heading2(context),
+              ),
         ),
         actions: [
           IconButton(
@@ -705,7 +793,7 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
                 isSearchActive = !isSearchActive;
                 if (!isSearchActive) {
                   searchController.clear();
-                  filteredItems = items;
+                  _filterItems(null);
                 }
               });
             },
@@ -725,7 +813,6 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
           ),
           child: Column(
             children: [
-              if (isSearchActive) _buildSearchBar(),
               if (isFilterActive) 
                 _buildFilterSection(),
               Expanded(
