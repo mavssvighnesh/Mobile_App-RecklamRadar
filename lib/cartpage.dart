@@ -145,10 +145,10 @@ class _CartPageState extends State<CartPage> {
     double totalSEK = 0.0;
     items.forEach((store, itemList) {
       for (var item in itemList) {
-        // Use SEK prices stored in Firestore
-        final basePriceSEK = item['salePrice'] ?? item['price'];  // These are SEK prices
+        // Always use sale price if available, otherwise use regular price
+        final effectivePriceSEK = item['salePrice'] ?? item['price'];
         final quantity = item['quantity'] ?? 1;
-        totalSEK += basePriceSEK * quantity;
+        totalSEK += effectivePriceSEK * quantity;
       }
     });
     
@@ -520,19 +520,21 @@ class _CartPageState extends State<CartPage> {
   }
 
   Widget _buildCartItem(String store, Map<String, dynamic> item) {
-    // Get SEK prices from Firestore
-    final basePriceSEK = item['salePrice'] ?? item['price'];  // SEK prices
-    final originalPriceSEK = item['price'];
+    // Get SEK prices from Firestore and use sale price when available
+    final hasDiscount = item['salePrice'] != null;
+    final effectivePriceSEK = hasDiscount ? item['salePrice'] : item['price'];
     final quantity = item['quantity'] ?? 1;
     
-    // Calculate total in SEK
-    final totalSEK = basePriceSEK * quantity;
+    // Calculate total in SEK using effective price
+    final totalSEK = effectivePriceSEK * quantity;
     
-    // Convert only for display
-    final displayPrice = _currencyService.convertPrice(basePriceSEK);
+    // Convert for display
+    final displayUnitPrice = _currencyService.convertPrice(effectivePriceSEK);
     final displayTotal = _currencyService.convertPrice(totalSEK);
-    final displayOriginalPrice = item['salePrice'] != null ? 
-      _currencyService.convertPrice(originalPriceSEK) : null;
+    
+    // Only show original price if there's a discount
+    final displayOriginalPrice = hasDiscount ? 
+      _currencyService.convertPrice(item['price']) : null;
 
     return Dismissible(
       key: Key('$store-${item['name']}'),
@@ -633,7 +635,7 @@ class _CartPageState extends State<CartPage> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
-                    '${_currencyService.formatPrice(displayPrice)} × $quantity',
+                    '${_currencyService.formatPrice(displayUnitPrice)} × $quantity',
                     style: AppTextStyles.bodyMedium(context).copyWith(fontSize: 12),
                   ),
                 ],
@@ -646,10 +648,11 @@ class _CartPageState extends State<CartPage> {
               children: [
                 if (displayOriginalPrice != null)
                   Text(
-                    _currencyService.formatPrice(displayOriginalPrice),
+                    _currencyService.formatPrice(displayOriginalPrice * quantity),
                     style: const TextStyle(
                       decoration: TextDecoration.lineThrough,
                       color: Colors.grey,
+                      fontSize: 12,
                     ),
                   ),
                 Text(

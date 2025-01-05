@@ -242,17 +242,13 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
           showMessage(context, "Please select quantity first", false);
           return false;
         }
-        
-        // Get the effective base price in SEK
-        final effectivePriceSEK = item.originalSalePriceSEK ?? item.originalPriceSEK;
-        
-        // Create cart data with base SEK prices and correct store name
+
+        // Create cart data with SEK prices - directly use sale price if available
         final cartData = {
           'id': item.id,
           'name': item.name,
           'category': item.category,
-          'price': item.originalPriceSEK,        // Original SEK price
-          'salePrice': item.originalSalePriceSEK, // Sale price in SEK if available
+          'price': item.originalSalePriceSEK ?? item.originalPriceSEK, // Use sale price directly if available
           'imageUrl': item.imageUrl,
           'unit': item.unit,
           'quantity': item.quantity,
@@ -266,8 +262,8 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
         );
         
         if (mounted) {
-          // Calculate total using effective price
-          final totalSEK = effectivePriceSEK * item.quantity;
+          // Calculate total using the effective price
+          final totalSEK = (cartData['price'] as num?)?.toDouble() ?? 0.0 * item.quantity;
           final displayTotal = _currencyService.convertPrice(totalSEK);
           
           showMessage(
