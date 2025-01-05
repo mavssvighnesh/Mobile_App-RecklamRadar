@@ -234,17 +234,25 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
     return matches / longer.length;
   }
 
-  Future<void> _addToCart(StoreItem item) async {
+  Future<bool> _handleAddToCart(StoreItem item) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user != null && item.quantity > 0) {
-        // Convert StoreItem to Map with SEK prices
+      if (user != null) {
+        if (item.quantity <= 0) {
+          showMessage(context, "Please select quantity first", false);
+          return false;
+        }
+        
+        // Get the effective base price in SEK
+        final effectivePriceSEK = item.originalSalePriceSEK ?? item.originalPriceSEK;
+        
+        // Create cart data with base SEK prices and correct store name
         final cartData = {
           'id': item.id,
           'name': item.name,
           'category': item.category,
-          'price': item.originalPriceSEK,        // Base SEK price
-          'salePrice': item.originalSalePriceSEK, // Base SEK sale price
+          'price': item.originalPriceSEK,        // Original SEK price
+          'salePrice': item.originalSalePriceSEK, // Sale price in SEK if available
           'imageUrl': item.imageUrl,
           'unit': item.unit,
           'quantity': item.quantity,
@@ -253,29 +261,27 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
 
         await _firestoreService.addToCart(
           user.uid,
-          cartData,  // Pass the map instead of StoreItem
+          cartData,
           widget.storeName,
         );
-
+        
         if (mounted) {
-          // Calculate total in SEK and convert only for display message
-          final totalSEK = (item.originalSalePriceSEK ?? item.originalPriceSEK) * item.quantity;
+          // Calculate total using effective price
+          final totalSEK = effectivePriceSEK * item.quantity;
           final displayTotal = _currencyService.convertPrice(totalSEK);
           
           showMessage(
             context, 
-            '${item.quantity}x ${item.name}\n${PriceFormatter.formatPrice(displayTotal)}', 
-            true,
+            "${item.quantity}x ${item.name} added to cart\n${PriceFormatter.formatPrice(displayTotal)}", 
+            true
           );
           setState(() => item.quantity = 0);
         }
       }
     } catch (e) {
-      print('Error adding to cart: $e');
-      if (mounted) {
-        showMessage(context, 'Failed to add item to cart', false);
-      }
+      if (mounted) showMessage(context, "Failed to add to cart", false);
     }
+    return false;
   }
 
   // ignore: unused_element
@@ -722,27 +728,6 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
         ),
       ),
     );
-  }
-
-  Future<bool> _handleAddToCart(StoreItem item) async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        if (item.quantity <= 0) {
-          showMessage(context, "Please select quantity first", false);
-          return false;
-        }
-        
-        await _firestoreService.addToCart(user.uid, item.toMap(), widget.storeName);
-        if (mounted) {
-          showMessage(context, "${item.quantity}x ${item.name} added to cart", true);
-          setState(() => item.quantity = 0);
-        }
-      }
-    } catch (e) {
-      if (mounted) showMessage(context, "Failed to add to cart", false);
-    }
-    return false;
   }
 
   Future<bool> _handleRemoveFromCart(StoreItem item) async {
