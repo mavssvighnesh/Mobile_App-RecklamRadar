@@ -241,62 +241,110 @@ class _FavoritesPageState extends State<FavoritesPage> {
   }
 
   // Update filter method to work with current search results
-  void _filterItems() {
+  void _filterItems() async {
     if (!mounted) return;
 
-    setState(() {
-      // Start with all items
-      List<StoreItem> results = List.from(allItems);
+    setState(() => isLoading = true);
 
-      // Apply store filter if selected
+    try {
+      // If store filter is selected, fetch all items from that store
       if (selectedStore != null) {
-        results = results.where((item) =>
-          item.storeName == _getStoreName(selectedStore!)
-        ).toList();
-      }
+        final storeItems = await FirebaseFirestore.instance
+            .collection('stores')
+            .doc(selectedStore)
+            .collection('items')
+            .get();
 
-      // Apply category filter if selected
-      if (selectedFilter != null) {
-        results = results.where((item) =>
-          item.category == selectedFilter
-        ).toList();
-      }
+        final items = storeItems.docs.map((doc) {
+          final data = doc.data();
+          final regularPrice = (data['price'] as num).toDouble();
+          final memberPrice = data['memberPrice'] != null ? 
+              (data['memberPrice'] as num).toDouble() : null;
 
-      // Apply search filter if there's a query
-      if (_searchController.text.isNotEmpty) {
-        final queryWords = _searchController.text.toLowerCase().split(' ');
-        results = results.where((item) {
-          final searchText = '${item.name} ${item.category}'.toLowerCase();
-          return queryWords.every((word) =>
-            searchText.contains(word) ||
-            _findSimilarMatches(searchText, word)
+          return StoreItem(
+            id: doc.id,
+            name: data['name'] ?? '',
+            category: data['category'] ?? '',
+            price: regularPrice,
+            salePrice: memberPrice != null && memberPrice < regularPrice ? memberPrice : null,
+            imageUrl: data['imageUrl'] ?? '',
+            unit: data['unit'] ?? '',
+            inStock: data['inStock'] ?? true,
+            quantity: 0,
+            storeName: _getStoreName(selectedStore!),
           );
         }).toList();
-      }
 
-      // Apply sorting
-      switch (selectedSort) {
-        case 'Name':
-          results.sort((a, b) => a.name.compareTo(b.name));
-          break;
-        case 'Price (Low to High)':
-          results.sort((a, b) {
-            final priceA = a.salePrice ?? a.price;
-            final priceB = b.salePrice ?? b.price;
-            return priceA.compareTo(priceB);
-          });
-          break;
-        case 'Price (High to Low)':
-          results.sort((a, b) {
-            final priceA = a.salePrice ?? a.price;
-            final priceB = b.salePrice ?? b.price;
-            return priceB.compareTo(priceA);
-          });
-          break;
-      }
+        // Apply category filter if selected
+        List<StoreItem> results = items;
+        if (selectedFilter != null) {
+          results = results.where((item) => 
+            item.category == selectedFilter
+          ).toList();
+        }
 
-      filteredItems = results;
-    });
+        // Apply search filter if there's a query
+        if (_searchController.text.isNotEmpty) {
+          final queryWords = _searchController.text.toLowerCase().split(' ');
+          results = results.where((item) {
+            final searchText = '${item.name} ${item.category}'.toLowerCase();
+            return queryWords.every((word) =>
+              searchText.contains(word) ||
+              _findSimilarMatches(searchText, word)
+            );
+          }).toList();
+        }
+
+        // Apply sorting
+        _sortItems(results);
+
+        if (mounted) {
+          setState(() {
+            filteredItems = results;
+            categories = results.map((item) => item.category).toSet();
+            isLoading = false;
+          });
+        }
+      } else {
+        // If no store filter, work with current items
+        List<StoreItem> results = List.from(allItems);
+
+        // Apply category filter
+        if (selectedFilter != null) {
+          results = results.where((item) =>
+            item.category == selectedFilter
+          ).toList();
+        }
+
+        // Apply search filter
+        if (_searchController.text.isNotEmpty) {
+          final queryWords = _searchController.text.toLowerCase().split(' ');
+          results = results.where((item) {
+            final searchText = '${item.name} ${item.category}'.toLowerCase();
+            return queryWords.every((word) =>
+              searchText.contains(word) ||
+              _findSimilarMatches(searchText, word)
+            );
+          }).toList();
+        }
+
+        // Apply sorting
+        _sortItems(results);
+
+        if (mounted) {
+          setState(() {
+            filteredItems = results;
+            isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      print('Error filtering items: $e');
+      if (mounted) {
+        setState(() => isLoading = false);
+        showMessage(context, 'Error filtering items', false);
+      }
+    }
   }
 
   Future<void> _loadRandomDeals() async {
