@@ -406,4 +406,59 @@ class ThemeProvider with ChangeNotifier {
   // Add duration for animations
   static const Duration themeDuration = Duration(milliseconds: 300);
   static const Curve themeCurve = Curves.easeInOut;
+
+  ThemeData get darkTheme => ThemeData(
+    brightness: Brightness.dark,
+    primaryColor: Colors.deepPurple,
+    scaffoldBackgroundColor: const Color(0xFF121212),
+    cardColor: const Color(0xFF2C2C2C),
+    dividerColor: Colors.white12,
+    colorScheme: const ColorScheme.dark(
+      primary: Colors.deepPurple,
+      secondary: Colors.deepPurpleAccent,
+      surface: Color(0xFF2C2C2C),
+      background: Color(0xFF121212),
+      error: Colors.redAccent,
+      onSurface: Colors.white,
+      onBackground: Colors.white,
+      onPrimary: Colors.white,
+    ),
+    appBarTheme: const AppBarTheme(
+      backgroundColor: Color(0xFF1F1F1F),
+      elevation: 0,
+      iconTheme: IconThemeData(color: Colors.white),
+    ),
+    textTheme: TextTheme(
+      headlineLarge: TextStyle(color: Colors.white.withOpacity(0.95)),
+      headlineMedium: TextStyle(color: Colors.white.withOpacity(0.95)),
+      titleLarge: TextStyle(color: Colors.white.withOpacity(0.95)),
+      bodyLarge: TextStyle(color: Colors.white.withOpacity(0.87)),
+      bodyMedium: TextStyle(color: Colors.white.withOpacity(0.87)),
+      bodySmall: TextStyle(color: Colors.white.withOpacity(0.75)),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: Color(0xFF2C2C2C),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.deepPurpleAccent),
+      ),
+    ),
+    cardTheme: CardTheme(
+      color: Color(0xFF2C2C2C),
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.white.withOpacity(0.1)),
+      ),
+    ),
+  );
 }

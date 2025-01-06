@@ -2,59 +2,57 @@ import 'package:flutter/material.dart';
 
 class AppTextStyles {
   // Headings
-  static TextStyle heading1(BuildContext context) => TextStyle(
-    fontSize: 32,
-    fontWeight: FontWeight.bold,
-    color: Theme.of(context).brightness == Brightness.dark 
-        ? Colors.white 
-        : const Color(0xFF2D3748),
-    letterSpacing: -0.5,
-  );
+  static TextStyle heading1(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return TextStyle(
+      fontSize: 32,
+      fontWeight: FontWeight.bold,
+      color: isDark ? Colors.white.withOpacity(0.95) : Colors.black87,
+    );
+  }
 
-  static TextStyle heading2(BuildContext context) => TextStyle(
-    fontSize: 24,
-    fontWeight: FontWeight.bold,
-    color: Theme.of(context).brightness == Brightness.dark 
-        ? Colors.white 
-        : const Color(0xFF2D3748),
-    letterSpacing: -0.3,
-  );
+  static TextStyle heading2(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return TextStyle(
+      fontSize: 24,
+      fontWeight: FontWeight.bold,
+      color: isDark ? Colors.white : Colors.black87,
+    );
+  }
 
-  static TextStyle heading3(BuildContext context) => TextStyle(
-    fontSize: 20,
-    fontWeight: FontWeight.bold,
-    color: Theme.of(context).brightness == Brightness.dark 
-        ? Colors.white 
-        : const Color(0xFF2D3748),
-  );
+  static TextStyle heading3(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return TextStyle(
+      fontSize: 20,
+      fontWeight: FontWeight.bold,
+      color: isDark ? Colors.white : Colors.black87,
+    );
+  }
 
   // Body text
-  static TextStyle bodyLarge(BuildContext context) => TextStyle(
-    fontSize: 16,
-    fontWeight: FontWeight.w400,
-    color: Theme.of(context).brightness == Brightness.dark 
-        ? Colors.white.withOpacity(0.9) 
-        : const Color(0xFF4A5568),
-    height: 1.5,
-  );
+  static TextStyle bodyLarge(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return TextStyle(
+      fontSize: 16,
+      color: isDark ? Colors.white.withOpacity(0.87) : Colors.black87,
+    );
+  }
 
-  static TextStyle bodyMedium(BuildContext context) => TextStyle(
-    fontSize: 14,
-    fontWeight: FontWeight.w400,
-    color: Theme.of(context).brightness == Brightness.dark 
-        ? Colors.white.withOpacity(0.8) 
-        : const Color(0xFF718096),
-    height: 1.4,
-  );
+  static TextStyle bodyMedium(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return TextStyle(
+      fontSize: 14,
+      color: isDark ? Colors.white.withOpacity(0.87) : Colors.black87,
+    );
+  }
 
-  static TextStyle bodySmall(BuildContext context) => TextStyle(
-    fontSize: 12,
-    fontWeight: FontWeight.w400,
-    color: Theme.of(context).brightness == Brightness.dark 
-        ? Colors.white.withOpacity(0.7) 
-        : const Color(0xFF718096),
-    height: 1.3,
-  );
+  static TextStyle bodySmall(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return TextStyle(
+      fontSize: 12,
+      color: isDark ? Colors.white.withOpacity(0.6) : Colors.black54,
+    );
+  }
 
   // Button text
   static TextStyle buttonLarge(BuildContext context) => TextStyle(
@@ -86,36 +84,35 @@ class AppTextStyles {
   );
 
   // Price text
-  static TextStyle price(BuildContext context, {bool isOnSale = false}) => TextStyle(
-    fontSize: 12,
-    fontWeight: FontWeight.w600,
-    color: isOnSale 
-        ? Theme.of(context).colorScheme.error
-        : Theme.of(context).brightness == Brightness.dark 
-            ? Colors.white 
-            : const Color(0xFF2D3748),
-    decoration: isOnSale ? TextDecoration.lineThrough : null,
-  );
+  static TextStyle price(BuildContext context, {bool isOnSale = false}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return TextStyle(
+      fontSize: 18,
+      fontWeight: FontWeight.bold,
+      color: isOnSale 
+          ? (isDark ? Colors.redAccent : Colors.red)
+          : (isDark ? Colors.white.withOpacity(0.95) : Colors.black87),
+    );
+  }
 
   // Card title
-  static TextStyle cardTitle(BuildContext context) => TextStyle(
-    fontSize: 16,
-    fontWeight: FontWeight.w600,
-    color: Theme.of(context).brightness == Brightness.dark 
-        ? Colors.white 
-        : const Color(0xFF2D3748),
-    height: 1.3,
-  );
+  static TextStyle cardTitle(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return TextStyle(
+      fontSize: 16,
+      fontWeight: FontWeight.bold,
+      color: isDark ? Colors.white : Colors.black87,
+    );
+  }
 
   // Card subtitle
-  static TextStyle cardSubtitle(BuildContext context) => TextStyle(
-    fontSize: 14,
-    fontWeight: FontWeight.w400,
-    color: Theme.of(context).brightness == Brightness.dark 
-        ? Colors.white.withOpacity(0.7) 
-        : const Color(0xFF718096),
-    height: 1.2,
-  );
+  static TextStyle cardSubtitle(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return TextStyle(
+      fontSize: 14,
+      color: isDark ? Colors.white.withOpacity(0.7) : Colors.black54,
+    );
+  }
 
   // Link text
   static TextStyle link(BuildContext context) => TextStyle(

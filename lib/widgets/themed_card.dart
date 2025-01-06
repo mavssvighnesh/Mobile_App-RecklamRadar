@@ -4,37 +4,43 @@ import '../providers/theme_provider.dart';
 
 class ThemedCard extends StatelessWidget {
   final Widget child;
-  final EdgeInsetsGeometry? padding;
-  final VoidCallback? onTap;
-
-  const ThemedCard({
-    super.key,
-    required this.child,
-    this.padding,
-    this.onTap,
-  });
+  
+  const ThemedCard({super.key, required this.child});
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ThemeProvider>(
-      builder: (context, themeProvider, child) {
-        return Container(
-          decoration: themeProvider.isDarkMode
-              ? ThemeProvider.darkGlassEffect
-              : ThemeProvider.glassEffect,
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(16),
-              child: Padding(
-                padding: padding ?? const EdgeInsets.all(16),
-                child: this.child,
-              ),
-            ),
-          ),
-        );
-      },
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: isDarkMode 
+              ? Colors.white.withOpacity(0.1)
+              : Colors.grey.withOpacity(0.1),
+          width: 1,
+        ),
+      ),
+      color: isDarkMode 
+          ? const Color(0xFF2C2C2C) // Darker background for dark mode
+          : Colors.white,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: isDarkMode
+              ? LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    const Color(0xFF2C2C2C),
+                    const Color(0xFF1F1F1F).withOpacity(0.9),
+                  ],
+                )
+              : null,
+        ),
+        child: child,
+      ),
     );
   }
 } 
