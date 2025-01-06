@@ -29,7 +29,6 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _signIn() async {
     setState(() => _isLoading = true);
     try {
-      // Sign in with Firebase
       final credential = await _auth.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
@@ -39,20 +38,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final userId = credential.user?.uid;
       if (userId != null) {
-        // Create user profile if it doesn't exist
-        final userProfile = await _firestoreService.getUserProfile(userId);
-        if (userProfile == null) {
-          await _firestoreService.createUserProfile(userId, {
-            'email': _emailController.text.trim(),
-            'name': credential.user?.displayName ?? 'User',
-            'isAdmin': _emailController.text.trim().toLowerCase().endsWith('@rr.com'),
-          });
-        }
+        // Show success message before navigation
+        showMessage(context, "Successfully logged in!", true);
+        
+        // Wait briefly for the message to be visible
+        await Future.delayed(const Duration(milliseconds: 500));
 
+        if (!mounted) return;
+        
+        final userProfile = await _firestoreService.getUserProfile(userId);
         final isAdmin = userProfile?['isAdmin'] ?? 
                        _emailController.text.trim().toLowerCase().endsWith('@rr.com');
-
-        showMessage(context, "Successfully logged in!", true);
 
         // Navigate based on user role
         if (!mounted) return;
@@ -117,6 +113,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 32),
                         TextField(
+                          key: const Key('email_field'),
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
                           decoration: InputDecoration(
@@ -144,6 +141,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 20),
                         TextField(
+                          key: const Key('password_field'),
                           controller: _passwordController,
                           obscureText: !_isPasswordVisible,
                           decoration: InputDecoration(
@@ -202,6 +200,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 24),
                         ElevatedButton(
+                          key: const Key('login_button'),
                           onPressed: _isLoading ? null : _signIn,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: theme.colorScheme.primary,

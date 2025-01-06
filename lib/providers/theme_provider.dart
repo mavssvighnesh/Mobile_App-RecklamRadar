@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ThemeProvider with ChangeNotifier {
   bool _isDarkMode = false;
+  ThemeMode get themeMode => _isDarkMode ? ThemeMode.dark : ThemeMode.system;
   static const String _themeKey = 'is_dark_mode';
 
   bool get isDarkMode => _isDarkMode;
@@ -18,10 +19,11 @@ class ThemeProvider with ChangeNotifier {
   }
 
   Future<void> toggleTheme() async {
-    _isDarkMode = !_isDarkMode;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_themeKey, _isDarkMode);
-    notifyListeners();
+    if (themeMode == ThemeMode.light) {
+      setTheme(ThemeMode.dark);
+    } else {
+      setTheme(ThemeMode.light);
+    }
   }
 
   // Light Theme Gradients
@@ -461,4 +463,11 @@ class ThemeProvider with ChangeNotifier {
       ),
     ),
   );
+  
+  Future<void> setTheme(ThemeMode themeMode) async {
+    _isDarkMode = themeMode == ThemeMode.dark;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_themeKey, _isDarkMode);
+    notifyListeners();
+  }
 }

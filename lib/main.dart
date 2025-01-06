@@ -23,7 +23,6 @@ void main() async {
   // Initialize currency service and fetch initial rates
   final currencyService = CurrencyService();
   await currencyService.initializeCurrency();
-  await currencyService.refreshRates();  // Force initial rate fetch
   
   // Apply performance optimizations
   await PerformanceConfig.optimizePerformance();
@@ -53,8 +52,15 @@ void main() async {
         ChangeNotifierProvider(
           create: (_) => ThemeProvider()..loadThemeFromPrefs(),
         ),
+        Provider<CurrencyService>.value(
+          value: currencyService,
+        ),
+        StreamProvider<String>(
+          create: (_) => currencyService.currencyStream,
+          initialData: 'SEK',
+        ),
       ],
-      child: const MyApp(),
+      child: MyApp(),
     ),
   );
 }

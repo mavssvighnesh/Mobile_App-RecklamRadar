@@ -15,7 +15,7 @@ class UserHomeScreen extends StatefulWidget {
   const UserHomeScreen({super.key});
 
   @override
-  _UserHomeScreenState createState() => _UserHomeScreenState();
+  State<UserHomeScreen> createState() => _UserHomeScreenState();
 }
 
 class _UserHomeScreenState extends State<UserHomeScreen> {
@@ -37,6 +37,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
     final size = MediaQuery.of(context).size;
     
     return Scaffold(
+      key: const Key('home_screen'),
       body: SafeArea(
         child: Container(
           decoration: BoxDecoration(
@@ -88,7 +89,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
             _buildNavItem(Icons.home_rounded, 'Home'),
             _buildNavItem(Icons.search_rounded, 'Search'),
             _buildNavItem(Icons.shopping_cart_rounded, 'Cart'),
-            _buildNavItem(Icons.person_rounded, 'Profile'),
+            _buildNavItem(Icons.settings_rounded, 'Profile'),
           ],
         ),
       ),

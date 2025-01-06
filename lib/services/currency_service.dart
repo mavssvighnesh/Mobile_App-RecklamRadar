@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -213,5 +214,16 @@ class CurrencyService {
       'amount': amount,
       'currency': currency,
     };
+  }
+
+  // Add this setter
+  set selectedCurrency(String currency) {
+    _selectedCurrency = currency;
+  }
+
+  // Add this setter for testing purposes
+  @visibleForTesting
+  set exchangeRates(Map<String, double>? rates) {
+    _exchangeRates = rates;
   }
 }

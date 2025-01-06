@@ -312,24 +312,16 @@ class _SettingsPageState extends State<SettingsPage> {
                             );
                           },
                         ),
-                        ListTile(
-                          leading: const Icon(Icons.logout, color: Colors.red),
-                          title: const Text(
-                            'Logout',
-                            style: TextStyle(color: Colors.red),
-                          ),
-                          onTap: () async {
-                            await _auth.signOut();
-                            if (mounted) {
-                              Navigator.pushAndRemoveUntil(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const LoginScreen(),
-                                ),
-                                (route) => false,
-                              );
-                            }
+                        ElevatedButton(
+                          key: const Key('logout_button'),
+                          onPressed: () {
+                            _auth.signOut();
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => const LoginScreen()),
+                            );
                           },
+                          child: const Text('Logout'),
                         ),
                       ],
                     ),
