@@ -317,7 +317,6 @@ class _FavoritesPageState extends State<FavoritesPage> {
           final items = snapshot.docs.map((doc) {
             final data = doc.data();
             final regularPrice = (data['price'] as num).toDouble();
-            // Correctly handle member price
             final memberPrice = data['memberPrice'] != null ? 
                 (data['memberPrice'] as num).toDouble() : null;
 
@@ -326,7 +325,6 @@ class _FavoritesPageState extends State<FavoritesPage> {
               name: data['name'] ?? '',
               category: data['category'] ?? '',
               price: regularPrice,
-              // Only set salePrice if it's a valid discount
               salePrice: memberPrice != null && memberPrice < regularPrice ? memberPrice : null,
               imageUrl: data['imageUrl'] ?? '',
               unit: data['unit'] ?? '',
@@ -1151,7 +1149,9 @@ class _FavoritesPageState extends State<FavoritesPage> {
 
   // Helper method to convert store number to store name
   String _getStoreName(String storeId) {
-    return _storeNames[storeId] ?? 'Store $storeId';
+    // Remove any 'store ' prefix from the store ID before lookup
+    final cleanId = storeId.replaceAll('store ', '');
+    return _storeNames[cleanId] ?? cleanId;  // Return clean store name
   }
 
   Future<void> _addToCart(StoreItem item) async {
@@ -1163,22 +1163,21 @@ class _FavoritesPageState extends State<FavoritesPage> {
           'id': item.id,
           'name': item.name,
           'category': item.category,
-          'price': item.originalPriceSEK,        // Base SEK price
-          'salePrice': item.originalSalePriceSEK, // Base SEK sale price
+          'price': item.originalPriceSEK,        
+          'salePrice': item.originalSalePriceSEK, 
           'imageUrl': item.imageUrl,
           'unit': item.unit,
           'quantity': item.quantity,
-          'storeName': item.storeName,
+          'storeName': item.storeName.replaceAll('store ', ''), // Remove 'store ' prefix if present
         };
 
         await _firestoreService.addToCart(
           user.uid,
-          cartData,  // Pass map directly
-          item.storeName,
+          cartData,
+          item.storeName.replaceAll('store ', ''), // Remove 'store ' prefix here too
         );
 
         if (mounted) {
-          // Calculate total in SEK and convert only for display
           final totalSEK = (item.originalSalePriceSEK ?? item.originalPriceSEK) * item.quantity;
           final displayTotal = _currencyService.convertPrice(totalSEK);
           
