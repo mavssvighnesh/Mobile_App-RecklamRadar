@@ -87,7 +87,7 @@ class AppTextStyles {
   static TextStyle price(BuildContext context, {bool isOnSale = false}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return TextStyle(
-      fontSize: 18,
+      fontSize: 14,
       fontWeight: FontWeight.bold,
       color: isOnSale 
           ? (isDark ? Colors.redAccent : Colors.red)

@@ -86,10 +86,16 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
             });
           },
           items: [
-            _buildNavItem(Icons.home_rounded, 'Home'),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.home_rounded),
+              label: 'Home',
+            ),
             _buildNavItem(Icons.search_rounded, 'Search'),
             _buildNavItem(Icons.shopping_cart_rounded, 'Cart'),
-            _buildNavItem(Icons.settings_rounded, 'Profile'),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.settings_rounded),
+              label: 'Settings',
+            ),
           ],
         ),
       ),
@@ -316,6 +322,7 @@ class _HomePageState extends State<HomePage> {
                           ],
                         ),
                         child: TextField(
+                          key: const Key('store_search_field'),
                           controller: searchController,
                           autofocus: true,
                           decoration: InputDecoration(
