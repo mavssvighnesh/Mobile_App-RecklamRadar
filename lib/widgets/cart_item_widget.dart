@@ -21,14 +21,14 @@ class CartItemWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Use SEK prices for calculations
-    final basePriceSEK = item.originalSalePriceSEK ?? item.originalPriceSEK;
+    final basePriceSEK = item.salePrice ?? item.price;
     final totalPriceSEK = basePriceSEK * item.quantity;
 
     // Convert only for display
     final displayUnitPrice = currencyService.convertPrice(basePriceSEK);
     final displayTotalPrice = currencyService.convertPrice(totalPriceSEK);
-    final displayOriginalPrice = item.originalSalePriceSEK != null ? 
-      currencyService.convertPrice(item.originalPriceSEK) : null;
+    final displayOriginalPrice = item.salePrice != null ? 
+      currencyService.convertPrice(item.salePrice!) : null;
 
     return Container(
       key: Key('cart_item_${item.id}'),

@@ -23,6 +23,7 @@ import 'package:recklamradar/services/network_service.dart';
 import 'package:recklamradar/services/currency_service.dart';
 import 'dart:ui';
 import 'package:recklamradar/widgets/glass_container.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 
 class StoreDetailsPage extends StatefulWidget {
@@ -122,8 +123,43 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
   Future<void> loadStoreItems() async {
     try {
       setState(() => isLoading = true);
-      final storeItems = await _firestoreService.getStoreItems(widget.storeId);
       
+      // Clear existing items first
+      items.clear();
+      filteredItems.clear();
+      categorizedItems.clear();
+
+      // Get fresh data from Firebase
+      final storeRef = FirebaseFirestore.instance
+          .collection('stores')
+          .doc(widget.storeId)
+          .collection('items');
+          
+      final snapshot = await storeRef.get(const GetOptions(
+        source: Source.server, // Force server fetch, don't use cache
+      ));
+      
+      final storeItems = snapshot.docs.map((doc) {
+        final data = doc.data();
+        final regularPrice = (data['price'] as num).toDouble();
+        final salePrice = data['salePrice'] != null ? 
+            (data['salePrice'] as num).toDouble() : 
+            (data['memberPrice'] as num?)?.toDouble();
+
+        return StoreItem(
+          id: doc.id,
+          name: data['name'] ?? '',
+          category: data['category'] ?? '',
+          price: regularPrice,
+          salePrice: salePrice,
+          imageUrl: data['imageUrl'] ?? '',
+          unit: data['unit'] ?? '',
+          inStock: data['inStock'] ?? true,
+          quantity: 0,
+          storeName: widget.storeName,
+        );
+      }).toList();
+
       // Categorize items
       final categorized = <String, List<StoreItem>>{};
       for (var item in storeItems) {
@@ -133,15 +169,20 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
         categorized[item.category]!.add(item);
       }
 
-      setState(() {
-        items = storeItems;
-        filteredItems = items;
-        categorizedItems = categorized;
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          items = storeItems;
+          filteredItems = items;
+          categorizedItems = categorized;
+          isLoading = false;
+        });
+      }
     } catch (e) {
       print('Error loading store items: $e');
-      setState(() => isLoading = false);
+      if (mounted) {
+        setState(() => isLoading = false);
+        showMessage(context, "Error refreshing items", false);
+      }
     }
   }
 
@@ -456,7 +497,7 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
                             style: AppTextStyles.price(context, isOnSale: true).copyWith(
                               decoration: TextDecoration.lineThrough,
                               color: Colors.black54,
-                              fontSize: 14,
+                              fontSize: 12,
                             ),
                           ),
                           Container(
@@ -471,7 +512,7 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
                               children: [
                                 Icon(
                                   Icons.verified_user,
-                                  size: 14,
+                                  size: 12,
                                   color: Colors.green[700],
                                 ),
                                 const SizedBox(width: 4),
@@ -490,7 +531,7 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
                           Text(
                             PriceFormatter.formatPriceWithUnit(item.price, item.unit),
                             style: AppTextStyles.price(context).copyWith(
-                              fontSize: 16,
+                              fontSize: 14,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -499,7 +540,7 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
                           "Price per ${item.unit}",
                           style: AppTextStyles.bodySmall(context).copyWith(
                             color: Colors.grey[600],
-                            fontSize: 12,
+                            fontSize: 11,
                           ),
                         ),
                       ],
@@ -748,7 +789,7 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
-    final isAdmin = user?.email == 'vv@gmail.com';  // Check for admin email
+    final isAdmin = user?.email == 'vv@gmail.com';
 
     return ThemedScaffold(
       appBar: AppBar(
@@ -792,9 +833,19 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          await loadStoreItems();
-          if (mounted) {
-            showMessage(context, "Store items refreshed", true);
+          try {
+            await loadStoreItems();
+            if (mounted) {
+              // Re-apply any active filters after refresh
+              if (selectedCategory != null || selectedSort != 'Name' || showMemberPriceOnly) {
+                _filterItems(searchController.text);
+              }
+              showMessage(context, "Items updated", true);
+            }
+          } catch (e) {
+            if (mounted) {
+              showMessage(context, "Failed to refresh items", false);
+            }
           }
         },
         child: Container(
@@ -809,8 +860,17 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
                 child: isLoading
                     ? const Center(child: CircularProgressIndicator())
                     : filteredItems.isEmpty
-                        ? const Center(
-                            child: Text('No items found'),
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Text('No items found'),
+                                TextButton(
+                                  onPressed: loadStoreItems,
+                                  child: const Text('Refresh'),
+                                ),
+                              ],
+                            ),
                           )
                         : _buildItemList(),
               ),
@@ -834,7 +894,7 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
         icon: const Icon(Icons.add),
         label: const Text('Add Item'),
         backgroundColor: Theme.of(context).primaryColor,
-      ) : null,  // Return null to hide FAB for non-admin users
+      ) : null,
     );
   }
 } 

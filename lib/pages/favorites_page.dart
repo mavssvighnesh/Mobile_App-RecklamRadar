@@ -71,6 +71,21 @@ class _FavoritesPageState extends State<FavoritesPage> {
   // Add caching for search results
   final Map<String, List<StoreItem>> _searchCache = {};
 
+  // Add search index for faster lookups
+  final Map<String, Set<String>> _searchIndex = {};
+  
+  // Cache for filtered results
+  final Map<String, List<StoreItem>> _filteredCache = {};
+
+  // Add a Set to track unique items
+  final Set<String> _loadedItemIds = {};
+  
+  // Cache for store items
+  final Map<String, List<StoreItem>> _storeItemsCache = {};
+  
+  // Batch size for loading
+  static const int _batchSize = 15;
+
   @override
   void initState() {
     super.initState();
@@ -78,12 +93,19 @@ class _FavoritesPageState extends State<FavoritesPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         SizeConfig().init(context);
+        // Load initial data
+        _loadRandomDeals(refresh: true).then((_) {
+          // Set initial filtered items
+          if (mounted) {
+            setState(() {
+              filteredItems = allItems;
+            });
+          }
+        });
       }
     });
-    _loadInitialData();
-    _loadRandomDeals(); // Load random deals on start
     _currencySubscription = _currencyService.currencyStream.listen((_) {
-      if (mounted) setState(() {}); // Refresh to update prices
+      if (mounted) setState(() {});
     });
   }
 
@@ -107,117 +129,58 @@ class _FavoritesPageState extends State<FavoritesPage> {
   Future<void> _searchItems(String query) async {
     if (!mounted) return;
     
-    _debouncer.run(() async {
-      setState(() => isLoading = true);
-      
-      try {
-        if (query.isEmpty) {
-          await _loadRandomDeals();
-          return;
-        }
-
-        // Check cache first
-        final cacheKey = query.toLowerCase();
-        if (_searchCache.containsKey(cacheKey)) {
-          setState(() {
-            filteredItems = _searchCache[cacheKey]!;
-            categories = filteredItems.map((item) => item.category).toSet();
-            isLoading = false;
-          });
-          return;
-        }
-
-        // Optimize query
-        final queryWords = query.toLowerCase().split(' ')
-            .where((word) => word.length > 1)  // Ignore single characters
-            .toSet()  // Remove duplicates
-            .toList();
-        
-        if (queryWords.isEmpty) {
-          await _loadRandomDeals();
-          return;
-        }
-
-        List<StoreItem> searchResults = [];
-        final storeNumbers = _storeNames.keys.toList();
-        
-        // Parallel store fetching
-        final futures = storeNumbers.map((storeNumber) async {
-          try {
-            final snapshot = await FirebaseFirestore.instance
-                .collection('stores')
-                .doc(storeNumber)
-                .collection('items')
-                .get();
-
-            return snapshot.docs
-                .where((doc) {
-                  final data = doc.data();
-                  final searchText = '${data['name']} ${data['category']}'.toLowerCase();
-                  return queryWords.any((word) => 
-                    searchText.contains(word) || 
-                    _findSimilarMatches(searchText, word)
-                  );
-                })
-                .map((doc) {
-                  final data = doc.data();
-                  final regularPrice = (data['price'] as num).toDouble();
-                  // Check both memberPrice and salePrice fields
-                  final salePrice = data['salePrice'] != null ? 
-                      (data['salePrice'] as num).toDouble() : 
-                      (data['memberPrice'] as num?)?.toDouble();
-
-                  return StoreItem(
-                    id: doc.id,
-                    name: data['name'] ?? '',
-                    category: data['category'] ?? '',
-                    price: regularPrice,
-                    salePrice: salePrice,  // This will be either salePrice or memberPrice
-                    imageUrl: data['imageUrl'] ?? '',
-                    unit: data['unit'] ?? '',
-                    inStock: data['inStock'] ?? true,
-                    quantity: 0,
-                    storeName: _getStoreName(storeNumber),
-                  );
-                })
-                .toList();
-          } catch (e) {
-            print('Error searching store $storeNumber: $e');
-            return <StoreItem>[];
-          }
-        });
-
-        // Wait for all store searches to complete
-        final results = await Future.wait(futures);
-        searchResults = results.expand((x) => x).toList();
-
-        // Sort items to prioritize those with valid sale prices
-        searchResults.sort((a, b) {
-          final aHasSale = a.salePrice != null && a.salePrice! < a.price;
-          final bHasSale = b.salePrice != null && b.salePrice! < b.price;
-          if (aHasSale && !bHasSale) return -1;
-          if (!aHasSale && bHasSale) return 1;
-          return 0;
-        });
-
-        // Cache results
-        _searchCache[cacheKey] = searchResults;
-
-        if (mounted) {
-          setState(() {
-            filteredItems = searchResults;
-            categories = searchResults.map((item) => item.category).toSet();
-            isLoading = false;
-          });
-        }
-      } catch (e) {
-        print('Error searching items: $e');
-        if (mounted) {
-          setState(() => isLoading = false);
-          showMessage(context, 'Error searching items', false);
-        }
+    setState(() => isLoading = true);
+    
+    try {
+      if (query.isEmpty) {
+        await _loadRandomDeals();
+        return;
       }
-    });
+
+      final queryWords = query.toLowerCase()
+          .split(' ')
+          .where((word) => word.length > 1)
+          .toSet();
+      
+      if (queryWords.isEmpty) {
+        await _loadRandomDeals();
+        return;
+      }
+
+      // Use indexed search for better performance
+      final results = allItems.where((item) {
+        if (selectedStore != null && 
+            item.storeName != _getStoreName(selectedStore!)) {
+          return false;
+        }
+        
+        if (selectedFilter != null && 
+            item.category != selectedFilter) {
+          return false;
+        }
+
+        final searchText = '${item.name} ${item.category}'.toLowerCase();
+        return queryWords.any((word) => 
+          searchText.contains(word)
+        );
+      }).toList();
+
+      // Sort results
+      _sortItems(results);
+
+      if (mounted) {
+        setState(() {
+          filteredItems = results;
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error searching items: $e');
+      if (mounted) {
+        setState(() => isLoading = false);
+        showMessage(context, 'Error searching items', false);
+      }
+    }
   }
 
   // Add helper method for similar word matching
@@ -259,10 +222,18 @@ class _FavoritesPageState extends State<FavoritesPage> {
         items.sort((a, b) => a.name.compareTo(b.name));
         break;
       case 'Price (Low to High)':
-        items.sort((a, b) => a.price.compareTo(b.price));
+        items.sort((a, b) {
+          final aPrice = a.salePrice ?? a.price;
+          final bPrice = b.salePrice ?? b.price;
+          return aPrice.compareTo(bPrice);
+        });
         break;
       case 'Price (High to Low)':
-        items.sort((a, b) => b.price.compareTo(a.price));
+        items.sort((a, b) {
+          final aPrice = a.salePrice ?? a.price;
+          final bPrice = b.salePrice ?? b.price;
+          return bPrice.compareTo(aPrice);
+        });
         break;
     }
   }
@@ -380,95 +351,100 @@ class _FavoritesPageState extends State<FavoritesPage> {
         _currentPage = 1;
         _hasMoreItems = true;
         isLoading = true;
+        // Clear everything on refresh
+        allItems.clear();
+        filteredItems.clear();
+        _loadedItemIds.clear();
+        _storeItemsCache.clear();
       });
-    } else if (!_hasMoreItems || _isLoadingMore) {
-      return;
     }
 
-    if (!refresh) {
-      setState(() => _isLoadingMore = true);
-    }
+    if (!refresh && (!_hasMoreItems || _isLoadingMore)) return;
+
+    setState(() => _isLoadingMore = true);
 
     try {
-      List<StoreItem> deals = [];
-      Set<String> newCategories = {'Groceries'};
-      final storeNumbers = _storeNames.keys.toList();
-      storeNumbers.shuffle();
+      // Get all store IDs if not cached
+      final storeIds = _storeNames.keys.toList();
+      final batch = FirebaseFirestore.instance.batch();
+      final List<StoreItem> newItems = [];
 
-      // Calculate start and end indices for pagination
-      final startIndex = ((_currentPage - 1) * _itemsPerPage) ~/ 3;
-      final endIndex = min(startIndex + (_itemsPerPage ~/ 3), storeNumbers.length);
+      // Load items in parallel from each store
+      final futures = storeIds.map((storeId) async {
+        // Check cache first
+        if (_storeItemsCache.containsKey(storeId)) {
+          return _storeItemsCache[storeId]!;
+        }
 
-      if (startIndex >= storeNumbers.length) {
-        setState(() => _hasMoreItems = false);
-        return;
-      }
+        final snapshot = await FirebaseFirestore.instance
+            .collection('stores')
+            .doc(storeId)
+            .collection('items')
+            .limit(_batchSize)
+            .get(const GetOptions(source: Source.server));
 
-      for (int i = startIndex; i < endIndex; i++) {
-        String storeNumber = storeNumbers[i];
-        try {
-          final snapshot = await FirebaseFirestore.instance
-              .collection('stores')
-              .doc(storeNumber)
-              .collection('items')
-              .get();
+        final items = snapshot.docs
+            .where((doc) => !_loadedItemIds.contains(doc.id))
+            .map((doc) {
+              final data = doc.data();
+              return StoreItem(
+                id: doc.id,
+                name: data['name'] ?? '',
+                category: data['category'] ?? '',
+                price: (data['price'] as num).toDouble(),
+                salePrice: data['salePrice'] != null ? 
+                    (data['salePrice'] as num).toDouble() : null,
+                imageUrl: data['imageUrl'] ?? '',
+                unit: data['unit'] ?? '',
+                inStock: data['inStock'] ?? true,
+                quantity: 0,
+                storeName: _getStoreName(storeId),
+              );
+            })
+            .toList();
 
-          final items = snapshot.docs.map((doc) {
-            final data = doc.data();
-            final regularPrice = (data['price'] as num).toDouble();
-            // Check both memberPrice and salePrice fields
-            final salePrice = data['salePrice'] != null ? 
-                (data['salePrice'] as num).toDouble() : 
-                (data['memberPrice'] as num?)?.toDouble();
+        // Cache store items
+        _storeItemsCache[storeId] = items;
+        return items;
+      });
 
-            return StoreItem(
-              id: doc.id,
-              name: data['name'] ?? '',
-              category: data['category'] ?? '',
-              price: regularPrice,
-              salePrice: salePrice,  // This will be either salePrice or memberPrice
-              imageUrl: data['imageUrl'] ?? '',
-              unit: data['unit'] ?? '',
-              inStock: data['inStock'] ?? true,
-              quantity: 0,
-              storeName: _getStoreName(storeNumber),
-            );
-          }).toList();
-
-          // Sort items to prioritize those with valid sale prices
-          items.sort((a, b) {
-            final aHasSale = a.salePrice != null && a.salePrice! < a.price;
-            final bHasSale = b.salePrice != null && b.salePrice! < b.price;
-            if (aHasSale && !bHasSale) return -1;
-            if (!aHasSale && bHasSale) return 1;
-            return 0;
-          });
-
-          deals.addAll(items.take(3));
-          newCategories.addAll(items.map((item) => item.category));
-        } catch (e) {
-          print('Error loading deals from store $storeNumber: $e');
+      // Wait for all parallel requests to complete
+      final results = await Future.wait(futures);
+      
+      // Process results
+      for (var items in results) {
+        for (var item in items) {
+          if (_loadedItemIds.add(item.id)) { // Only add if ID is new
+            newItems.add(item);
+          }
         }
       }
+
+      // Sort items by sale price
+      newItems.sort((a, b) {
+        final aHasSale = a.salePrice != null;
+        final bHasSale = b.salePrice != null;
+        if (aHasSale != bHasSale) return aHasSale ? -1 : 1;
+        return 0;
+      });
 
       if (mounted) {
         setState(() {
           if (refresh) {
-            allItems = deals;
-            filteredItems = deals;
+            allItems = newItems;
+            filteredItems = newItems;
           } else {
-            allItems.addAll(deals);
-            filteredItems.addAll(deals);
+            allItems.addAll(newItems);
+            filteredItems.addAll(newItems);
           }
-          categories = newCategories;
+          categories = allItems.map((item) => item.category).toSet();
           isLoading = false;
           _isLoadingMore = false;
-          _currentPage++;
-          _hasMoreItems = deals.isNotEmpty;
+          _hasMoreItems = newItems.length >= _batchSize;
         });
       }
     } catch (e) {
-      print('Error loading random deals: $e');
+      print('Error loading deals: $e');
       if (mounted) {
         setState(() {
           isLoading = false;
@@ -579,10 +555,12 @@ class _FavoritesPageState extends State<FavoritesPage> {
 
   @override
   void dispose() {
-    _currencySubscription?.cancel();
     _searchCache.clear();
+    _storeItemsCache.clear();
+    _loadedItemIds.clear();
     _debouncer.dispose();
     _searchController.dispose();
+    _currencySubscription?.cancel();
     super.dispose();
   }
 
@@ -602,42 +580,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
               backgroundColor: Theme.of(context).primaryColor,
               elevation: 0,
               title: isSearchActive 
-                  ? Container(
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.3),
-                        ),
-                      ),
-                      child: TextField(
-                        controller: _searchController,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
-                          hintText: 'Search items...',
-                          hintStyle: TextStyle(color: Colors.white.withOpacity(0.8)),
-                          prefixIcon: Icon(Icons.search, color: Colors.white.withOpacity(0.8)),
-                          suffixIcon: IconButton(
-                            icon: Icon(Icons.clear, color: Colors.white.withOpacity(0.8)),
-                            onPressed: () {
-                              setState(() {
-                                _searchController.clear();
-                                isSearchActive = false;
-                                _loadRandomDeals();
-                              });
-                            },
-                          ),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                        ),
-                        onChanged: (query) {
-                          _debouncer.run(() {
-                            _searchItems(query);
-                          });
-                        },
-                      ),
-                    )
+                  ? _buildSearchField()
                   : Text(
                       'Deals',
                       style: AppTextStyles.heading2(context).copyWith(
@@ -770,57 +713,59 @@ class _FavoritesPageState extends State<FavoritesPage> {
                 ),
               ),
             ),
-            if (isLoading && _currentPage == 1)
-              const SliverFillRemaining(
-                child: Center(child: CircularProgressIndicator()),
-              )
-            else if (_searchController.text.isEmpty)
-              SliverPadding(
-                padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.02),
-                sliver: SliverGrid(
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
-                    childAspectRatio: 0.75,
-                    mainAxisSpacing: 6,
-                    crossAxisSpacing: 6,
-                  ),
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      // Load more items when reaching the end
-                      if (index == filteredItems.length - 2 && !_isLoadingMore && _hasMoreItems) {
-                        _loadRandomDeals();
-                      }
-                      return _buildItemCard(filteredItems[index]);
-                    },
-                    childCount: filteredItems.length,
-                  ),
-                ),
-              ),
+            SliverPadding(
+              padding: const EdgeInsets.all(8.0),
+              sliver: filteredItems.isEmpty
+                  ? SliverToBoxAdapter(
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(height: 100),
+                            Icon(
+                              Icons.search_off,
+                              size: 64,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              _searchController.text.isEmpty
+                                  ? 'No items available'
+                                  : 'No results found for "${_searchController.text}"',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : SliverGrid(
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 
+                            MediaQuery.of(context).size.width > 600 ? 3 : 2,
+                        childAspectRatio: 0.75,
+                        mainAxisSpacing: 8,
+                        crossAxisSpacing: 8,
+                      ),
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final item = filteredItems[index];
+                          return _buildItemCard(item);
+                        },
+                        childCount: filteredItems.length,
+                      ),
+                    ),
+            ),
 
-            // Add loading indicator at the bottom
+            // Loading indicator
             if (_isLoadingMore)
               const SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.all(16.0),
                   child: Center(
                     child: CircularProgressIndicator(),
-                  ),
-                ),
-              ),
-
-            // Show message when no more items
-            if (!_hasMoreItems && filteredItems.isNotEmpty)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Center(
-                    child: Text(
-                      'No more items to load',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 14,
-                      ),
-                    ),
                   ),
                 ),
               ),
@@ -1279,6 +1224,87 @@ class _FavoritesPageState extends State<FavoritesPage> {
         showMessage(context, 'Failed to add item to cart', false);
       }
     }
+  }
+
+  // Add this method for dynamic search
+  void _handleSearch(String query) {
+    if (!mounted) return;
+
+    // Don't set loading state for instant search
+    if (query.isEmpty) {
+      setState(() {
+        filteredItems = allItems;
+      });
+      return;
+    }
+
+    // Convert query to lowercase once
+    final searchQuery = query.toLowerCase();
+    
+    // Filter items instantly
+    final results = allItems.where((item) {
+      // Apply store filter
+      if (selectedStore != null && 
+          item.storeName != _getStoreName(selectedStore!)) {
+        return false;
+      }
+      
+      // Apply category filter
+      if (selectedFilter != null && 
+          item.category != selectedFilter) {
+        return false;
+      }
+
+      // Search in name and category
+      final searchText = '${item.name} ${item.category}'.toLowerCase();
+      return searchText.contains(searchQuery);
+    }).toList();
+
+    // Sort results
+    _sortItems(results);
+
+    // Update UI
+    setState(() {
+      filteredItems = results;
+    });
+  }
+
+  // Update the search field widget
+  Widget _buildSearchField() {
+    return Container(
+      height: 40,
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.3),
+        ),
+      ),
+      child: TextField(
+        controller: _searchController,
+        style: const TextStyle(color: Colors.white),
+        decoration: InputDecoration(
+          hintText: 'Search items...',
+          hintStyle: TextStyle(color: Colors.white.withOpacity(0.8)),
+          prefixIcon: Icon(Icons.search, color: Colors.white.withOpacity(0.8)),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  icon: Icon(Icons.clear, color: Colors.white.withOpacity(0.8)),
+                  onPressed: () {
+                    _searchController.clear();
+                    _handleSearch('');
+                  },
+                )
+              : null,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+        ),
+        onChanged: (query) {
+          // Use debouncer for smoother experience
+          _debouncer.run(() => _handleSearch(query));
+        },
+      ),
+    );
   }
 }
 
