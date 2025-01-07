@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:collection';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:recklamradar/widgets/glass_container.dart';
@@ -49,6 +51,10 @@ class _FavoritesPageState extends State<FavoritesPage> {
   bool isSearchActive = false;
   final CurrencyService _currencyService = CurrencyService();
   StreamSubscription? _currencySubscription;
+  bool _isLoadingMore = false;
+  int _currentPage = 1;
+  final int _itemsPerPage = 9;  // 3 items from each store
+  bool _hasMoreItems = true;
 
   // Update the store mapping
   final Map<String, String> _storeNames = {
@@ -68,6 +74,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
   @override
   void initState() {
     super.initState();
+    categories = {'Groceries'};  // Add a default category
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         SizeConfig().init(context);
@@ -367,14 +374,38 @@ class _FavoritesPageState extends State<FavoritesPage> {
     }
   }
 
-  Future<void> _loadRandomDeals() async {
-    setState(() => isLoading = true);
+  Future<void> _loadRandomDeals({bool refresh = false}) async {
+    if (refresh) {
+      setState(() {
+        _currentPage = 1;
+        _hasMoreItems = true;
+        isLoading = true;
+      });
+    } else if (!_hasMoreItems || _isLoadingMore) {
+      return;
+    }
+
+    if (!refresh) {
+      setState(() => _isLoadingMore = true);
+    }
+
     try {
       List<StoreItem> deals = [];
+      Set<String> newCategories = {'Groceries'};
       final storeNumbers = _storeNames.keys.toList();
       storeNumbers.shuffle();
 
-      for (String storeNumber in storeNumbers) {
+      // Calculate start and end indices for pagination
+      final startIndex = ((_currentPage - 1) * _itemsPerPage) ~/ 3;
+      final endIndex = min(startIndex + (_itemsPerPage ~/ 3), storeNumbers.length);
+
+      if (startIndex >= storeNumbers.length) {
+        setState(() => _hasMoreItems = false);
+        return;
+      }
+
+      for (int i = startIndex; i < endIndex; i++) {
+        String storeNumber = storeNumbers[i];
         try {
           final snapshot = await FirebaseFirestore.instance
               .collection('stores')
@@ -414,6 +445,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
           });
 
           deals.addAll(items.take(3));
+          newCategories.addAll(items.map((item) => item.category));
         } catch (e) {
           print('Error loading deals from store $storeNumber: $e');
         }
@@ -421,16 +453,27 @@ class _FavoritesPageState extends State<FavoritesPage> {
 
       if (mounted) {
         setState(() {
-          allItems = deals;
-          filteredItems = deals;
-          categories = deals.map((item) => item.category).toSet();
+          if (refresh) {
+            allItems = deals;
+            filteredItems = deals;
+          } else {
+            allItems.addAll(deals);
+            filteredItems.addAll(deals);
+          }
+          categories = newCategories;
           isLoading = false;
+          _isLoadingMore = false;
+          _currentPage++;
+          _hasMoreItems = deals.isNotEmpty;
         });
       }
     } catch (e) {
       print('Error loading random deals: $e');
       if (mounted) {
-        setState(() => isLoading = false);
+        setState(() {
+          isLoading = false;
+          _isLoadingMore = false;
+        });
       }
     }
   }
@@ -546,246 +589,243 @@ class _FavoritesPageState extends State<FavoritesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            floating: true,
-            pinned: true,
-            expandedHeight: isFilterVisible 
-                ? MediaQuery.of(context).size.height * 0.32 
-                : MediaQuery.of(context).size.height * 0.12,
-            backgroundColor: Theme.of(context).primaryColor,
-            elevation: 0,
-            title: isSearchActive 
-                ? Container(
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.3),
-                      ),
-                    ),
-                    child: TextField(
-                      controller: _searchController,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        hintText: 'Search items...',
-                        hintStyle: TextStyle(color: Colors.white.withOpacity(0.8)),
-                        prefixIcon: Icon(Icons.search, color: Colors.white.withOpacity(0.8)),
-                        suffixIcon: IconButton(
-                          icon: Icon(Icons.clear, color: Colors.white.withOpacity(0.8)),
-                          onPressed: () {
-                            setState(() {
-                              _searchController.clear();
-                              isSearchActive = false;
-                              _loadRandomDeals();
-                            });
-                          },
+      body: RefreshIndicator(
+        onRefresh: () => _loadRandomDeals(refresh: true),
+        child: CustomScrollView(
+          slivers: [
+            SliverAppBar(
+              floating: true,
+              pinned: true,
+              expandedHeight: isFilterVisible 
+                  ? MediaQuery.of(context).size.height * 0.32 
+                  : MediaQuery.of(context).size.height * 0.12,
+              backgroundColor: Theme.of(context).primaryColor,
+              elevation: 0,
+              title: isSearchActive 
+                  ? Container(
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.3),
                         ),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                       ),
-                      onChanged: (query) {
-                        _debouncer.run(() {
-                          _searchItems(query);
-                        });
-                      },
+                      child: TextField(
+                        controller: _searchController,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          hintText: 'Search items...',
+                          hintStyle: TextStyle(color: Colors.white.withOpacity(0.8)),
+                          prefixIcon: Icon(Icons.search, color: Colors.white.withOpacity(0.8)),
+                          suffixIcon: IconButton(
+                            icon: Icon(Icons.clear, color: Colors.white.withOpacity(0.8)),
+                            onPressed: () {
+                              setState(() {
+                                _searchController.clear();
+                                isSearchActive = false;
+                                _loadRandomDeals();
+                              });
+                            },
+                          ),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                        ),
+                        onChanged: (query) {
+                          _debouncer.run(() {
+                            _searchItems(query);
+                          });
+                        },
+                      ),
+                    )
+                  : Text(
+                      'Deals',
+                      style: AppTextStyles.heading2(context).copyWith(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  )
-                : Text(
-                    'Deals',
-                    style: AppTextStyles.heading2(context).copyWith(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
+              actions: [
+                IconButton(
+                  icon: Icon(
+                    isSearchActive ? Icons.close : Icons.search,
+                    color: Colors.white,
+                    size: 28,
                   ),
-            actions: [
-              IconButton(
-                icon: Icon(
-                  isSearchActive ? Icons.close : Icons.search,
-                  color: Colors.white,
-                  size: 28,
+                  onPressed: () {
+                    setState(() {
+                      isSearchActive = !isSearchActive;
+                      if (!isSearchActive) {
+                        _searchController.clear();
+                        _loadRandomDeals();
+                      }
+                    });
+                  },
                 ),
-                onPressed: () {
-                  setState(() {
-                    isSearchActive = !isSearchActive;
-                    if (!isSearchActive) {
-                      _searchController.clear();
-                      _loadRandomDeals();
-                    }
-                  });
-                },
-              ),
-              IconButton(
-                icon: Icon(
-                  isFilterVisible ? Icons.filter_list_off : Icons.filter_list,
-                  color: Colors.white,
-                  size: 28,
+                IconButton(
+                  icon: Icon(
+                    isFilterVisible ? Icons.filter_list_off : Icons.filter_list,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      isFilterVisible = !isFilterVisible;
+                    });
+                  },
                 ),
-                onPressed: () {
-                  setState(() {
-                    isFilterVisible = !isFilterVisible;
-                  });
-                },
-              ),
-              const SizedBox(width: 8),
-            ],
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: BoxDecoration(
-                  gradient: Provider.of<ThemeProvider>(context).cardGradient,
-                ),
-                child: Column(
-                  children: [
-                    const SizedBox(height: kToolbarHeight + 10),
-                    if (isFilterVisible) ...[
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.1),
+                const SizedBox(width: 8),
+              ],
+              flexibleSpace: FlexibleSpaceBar(
+                background: Container(
+                  decoration: BoxDecoration(
+                    gradient: Provider.of<ThemeProvider>(context).cardGradient,
+                  ),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: kToolbarHeight + 10),
+                      if (isFilterVisible) ...[
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.1),
+                              ),
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _buildFilterDropdown(
+                                  title: 'Store',
+                                  value: selectedStore,
+                                  items: [
+                                    const DropdownMenuItem(
+                                      value: null,
+                                      child: Text('All Stores'),
+                                    ),
+                                    ...['1', '2', '3', '4', '5', '6', '7', '8'].map((store) => 
+                                      DropdownMenuItem(
+                                        value: store,
+                                        child: Text(_getStoreName(store)),
+                                      ),
+                                    ),
+                                  ],
+                                  onChanged: (value) {
+                                    setState(() {
+                                      selectedStore = value as String?;
+                                      _filterItems();
+                                    });
+                                  },
+                                ),
+                                const SizedBox(height: 8),
+                                _buildFilterDropdown(
+                                  title: 'Category',
+                                  value: selectedFilter,
+                                  items: [
+                                    ...categories.map((category) => 
+                                      DropdownMenuItem(
+                                        value: category,
+                                        child: Text(category),
+                                      ),
+                                    ),
+                                  ],
+                                  onChanged: (value) {
+                                    setState(() {
+                                      selectedFilter = value as String?;
+                                      _filterItems();
+                                    });
+                                  },
+                                ),
+                                const SizedBox(height: 8),
+                                _buildFilterDropdown(
+                                  title: 'Sort By',
+                                  value: selectedSort,
+                                  items: [
+                                    'Name',
+                                    'Price (Low to High)',
+                                    'Price (High to Low)',
+                                  ].map((option) => DropdownMenuItem(
+                                    value: option,
+                                    child: Text(option),
+                                  )).toList(),
+                                  onChanged: (value) {
+                                    setState(() {
+                                      selectedSort = value as String;
+                                      _filterItems();
+                                    });
+                                  },
+                                ),
+                              ],
                             ),
                           ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              _buildFilterDropdown(
-                                title: 'Store',
-                                value: selectedStore,
-                                items: [
-                                  const DropdownMenuItem(
-                                    value: null,
-                                    child: Text('All Stores'),
-                                  ),
-                                  ...['1', '2', '3', '4', '5', '6', '7', '8'].map((store) => 
-                                    DropdownMenuItem(
-                                      value: store,
-                                      child: Text(_getStoreName(store)),
-                                    ),
-                                  ),
-                                ],
-                                onChanged: (value) {
-                                  setState(() {
-                                    selectedStore = value as String?;
-                                    _filterItems();
-                                  });
-                                },
-                              ),
-                              const SizedBox(height: 8),
-                              _buildFilterDropdown(
-                                title: 'Category',
-                                value: selectedFilter,
-                                items: [
-                                  const DropdownMenuItem(
-                                    value: null,
-                                    child: Text('All Categories'),
-                                  ),
-                                  ...categories.map((category) => 
-                                    DropdownMenuItem(
-                                      value: category,
-                                      child: Text(category),
-                                    ),
-                                  ),
-                                ],
-                                onChanged: (value) {
-                                  setState(() {
-                                    selectedFilter = value as String?;
-                                    _filterItems();
-                                  });
-                                },
-                              ),
-                              const SizedBox(height: 8),
-                              _buildFilterDropdown(
-                                title: 'Sort By',
-                                value: selectedSort,
-                                items: [
-                                  'Name',
-                                  'Price (Low to High)',
-                                  'Price (High to Low)',
-                                ].map((option) => DropdownMenuItem(
-                                  value: option,
-                                  child: Text(option),
-                                )).toList(),
-                                onChanged: (value) {
-                                  setState(() {
-                                    selectedSort = value as String;
-                                    _filterItems();
-                                  });
-                                },
-                              ),
-                            ],
-                          ),
                         ),
-                      ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             ),
-          ),
-          if (isLoading)
-            const SliverFillRemaining(
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else if (_searchController.text.isEmpty)
-            SliverPadding(
-              padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.02),
-              sliver: SliverGrid(
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
-                  childAspectRatio: 0.75,
-                  mainAxisSpacing: 6,
-                  crossAxisSpacing: 6,
-                ),
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) => _buildItemCard(filteredItems[index]),
-                  childCount: filteredItems.length,
+            if (isLoading && _currentPage == 1)
+              const SliverFillRemaining(
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_searchController.text.isEmpty)
+              SliverPadding(
+                padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.02),
+                sliver: SliverGrid(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
+                    childAspectRatio: 0.75,
+                    mainAxisSpacing: 6,
+                    crossAxisSpacing: 6,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      // Load more items when reaching the end
+                      if (index == filteredItems.length - 2 && !_isLoadingMore && _hasMoreItems) {
+                        _loadRandomDeals();
+                      }
+                      return _buildItemCard(filteredItems[index]);
+                    },
+                    childCount: filteredItems.length,
+                  ),
                 ),
               ),
-            )
-          else if (filteredItems.isEmpty)
-            SliverFillRemaining(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.search_off,
-                      size: 64,
-                      color: Colors.grey[400],
+
+            // Add loading indicator at the bottom
+            if (_isLoadingMore)
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                ),
+              ),
+
+            // Show message when no more items
+            if (!_hasMoreItems && filteredItems.isNotEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Center(
+                    child: Text(
+                      'No more items to load',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 14,
+                      ),
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'No items found for "${_searchController.text}"',
-                      style: AppTextStyles.bodyLarge(context),
-                    ),
-                  ],
+                  ),
                 ),
               ),
-            )
-          else
-            SliverPadding(
-              padding: const EdgeInsets.all(8),
-              sliver: SliverGrid(
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
-                  childAspectRatio: 0.75,
-                  mainAxisSpacing: 6,
-                  crossAxisSpacing: 6,
-                ),
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) => _buildItemCard(filteredItems[index]),
-                  childCount: filteredItems.length,
-                ),
-              ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1123,13 +1163,29 @@ class _FavoritesPageState extends State<FavoritesPage> {
     required List<DropdownMenuItem> items,
     required Function(dynamic) onChanged,
   }) {
+    // Ensure items is not null and has unique values
+    final uniqueItems = LinkedHashSet<String>.from(
+      items.where((item) => item.value != null)  // Filter out null values
+          .map((item) => item.value as String)
+    ).map((value) => 
+      items.firstWhere((item) => item.value == value)
+    ).toList();
+
+    // Add "All" option at the beginning
+    if (title != 'Sort By') {  // Don't add "All" option for Sort By
+      uniqueItems.insert(0, DropdownMenuItem(
+        value: null,
+        child: Text('All ${title}s'),
+      ));
+    }
+
     return GlassContainer(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       opacity: 0.1,
       child: DropdownButtonHideUnderline(
         child: DropdownButton(
           value: value,
-          items: items,
+          items: uniqueItems,
           onChanged: onChanged,
           style: AppTextStyles.bodyMedium(context).copyWith(
             color: Theme.of(context).textTheme.bodyLarge?.color,
@@ -1139,6 +1195,10 @@ class _FavoritesPageState extends State<FavoritesPage> {
           icon: Icon(
             Icons.arrow_drop_down,
             color: Theme.of(context).iconTheme.color,
+          ),
+          hint: Text(
+            'Select $title',
+            style: AppTextStyles.bodyMedium(context),
           ),
         ),
       ),
@@ -1173,17 +1233,17 @@ class _FavoritesPageState extends State<FavoritesPage> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null && item.quantity > 0) {
-        // Use sale price if available and lower than regular price
-        final effectivePrice = (item.salePrice != null && item.salePrice! < item.price) 
-            ? item.salePrice! 
-            : item.price;
+        // Check if there's a valid sale price (lower than regular price)
+        final hasSalePrice = item.originalSalePriceSEK != null && 
+            item.originalSalePriceSEK! < item.originalPriceSEK;
 
+        // Use original SEK prices for cart data
         final cartData = {
           'id': item.id,
           'name': item.name,
           'category': item.category,
-          'price': item.price,        // Original price
-          'salePrice': item.salePrice,  // Sale price if available
+          'price': hasSalePrice ? item.originalSalePriceSEK : item.originalPriceSEK,  // Use sale price if available
+          'salePrice': hasSalePrice ? item.originalSalePriceSEK : null,  // Only set salePrice if it's valid
           'imageUrl': item.imageUrl,
           'unit': item.unit,
           'quantity': item.quantity,
@@ -1197,9 +1257,13 @@ class _FavoritesPageState extends State<FavoritesPage> {
         );
 
         if (mounted) {
-          // Calculate total using effective price
-          final totalPrice = effectivePrice * item.quantity;
-          final displayTotal = _currencyService.convertPrice(totalPrice);
+          // Calculate total using effective SEK price
+          final effectivePriceSEK = hasSalePrice 
+              ? item.originalSalePriceSEK! 
+              : item.originalPriceSEK;
+              
+          final totalSEK = effectivePriceSEK * item.quantity;
+          final displayTotal = _currencyService.convertPrice(totalSEK);
           
           showMessage(
             context, 
