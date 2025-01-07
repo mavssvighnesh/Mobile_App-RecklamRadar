@@ -277,12 +277,10 @@ class CurrencyService {
       await prefs.setDouble('budget_amount', amount);
       await prefs.setString('budget_currency', currency.toUpperCase());
     } catch (e) {
-      print('Error saving budget: $e');
       throw CurrencyServiceException('Failed to save budget: $e');
     }
   }
 
-  // Add method to load budget with currency
   Future<Map<String, dynamic>> loadBudget() async {
     final prefs = await SharedPreferences.getInstance();
     final amount = prefs.getDouble('budget_amount');
@@ -293,18 +291,15 @@ class CurrencyService {
     };
   }
 
-  // Add this setter
   set selectedCurrency(String currency) {
     _selectedCurrency = currency;
   }
 
-  // Add this setter for testing purposes
   @visibleForTesting
   set exchangeRates(Map<String, double>? rates) {
     _exchangeRates = rates;
   }
 
-  // Add input validation methods
   bool _isValidCurrency(String currency) {
     return _currencySymbols.containsKey(currency.toUpperCase());
   }
@@ -315,22 +310,15 @@ class CurrencyService {
     return !rate.isNaN && !rate.isInfinite && rate > 0;
   }
 
-  // Add method to validate exchange rates
   bool _validateExchangeRates(Map<String, dynamic> rates) {
     try {
       for (final entry in rates.entries) {
-        if (!_isValidCurrency(entry.key)) {
-          print('Invalid currency in rates: ${entry.key}');
-          return false;
-        }
-        if (!_isValidRate(entry.value)) {
-          print('Invalid rate for ${entry.key}: ${entry.value}');
+        if (!_isValidCurrency(entry.key) || !_isValidRate(entry.value)) {
           return false;
         }
       }
       return true;
     } catch (e) {
-      print('Error validating exchange rates: $e');
       return false;
     }
   }
