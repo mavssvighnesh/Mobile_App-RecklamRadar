@@ -48,7 +48,9 @@ void main() async {
           initialData: 'SEK',
         ),
       ],
-      child: MyApp(initialRoute: currentUser != null ? '/home' : '/login'),
+      child: MyApp(
+        initialRoute: currentUser != null ? '/home' : '/login',
+      ),
     ),
   );
 }
@@ -67,6 +69,19 @@ class MyApp extends StatelessWidget {
       routes: {
         '/login': (context) => const LoginScreen(),
         '/home': (context) => const UserHomeScreen(),
+      },
+      onGenerateRoute: (settings) {
+        if (settings.name == '/') {
+          return MaterialPageRoute(
+            builder: (context) => const LoginScreen(),
+          );
+        }
+        return null;
+      },
+      onUnknownRoute: (settings) {
+        return MaterialPageRoute(
+          builder: (context) => const LoginScreen(),
+        );
       },
     );
   }

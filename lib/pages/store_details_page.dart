@@ -55,7 +55,7 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
   bool isFilterActive = false;
   Map<String, dynamic> _cartData = {};
   final _debouncer = Debouncer();
-  late final ScrollController _scrollController;
+  final ScrollController _scrollController = ScrollController();
   final _cacheManager = CustomCacheManager.instance;
   final _networkService = NetworkService();
   bool _isLowPerformanceMode = false;
@@ -74,7 +74,7 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
       }
     });
     _initializePerformance();
-    _scrollController = ScrollController()..addListener(_onScroll);
+    _scrollController.addListener(_onScroll);
     loadStoreItems();
     _initCartStream();
   }
