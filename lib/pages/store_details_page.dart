@@ -497,7 +497,7 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
                             style: AppTextStyles.price(context, isOnSale: true).copyWith(
                               decoration: TextDecoration.lineThrough,
                               color: Colors.black54,
-                              fontSize: 12,
+                              fontSize: 11,
                             ),
                           ),
                           Container(
@@ -512,7 +512,7 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
                               children: [
                                 Icon(
                                   Icons.verified_user,
-                                  size: 12,
+                                  size: 10,
                                   color: Colors.green[700],
                                 ),
                                 const SizedBox(width: 4),
@@ -531,7 +531,7 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
                           Text(
                             PriceFormatter.formatPriceWithUnit(item.price, item.unit),
                             style: AppTextStyles.price(context).copyWith(
-                              fontSize: 14,
+                              fontSize: 12,
                               fontWeight: FontWeight.bold,
                             ),
                           ),

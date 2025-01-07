@@ -839,7 +839,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                             style: TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
-                              fontSize: fontSize * 1.2,
+                              fontSize: fontSize * 1.1,
                             ),
                           ),
                         ),
@@ -863,7 +863,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                           Text(
                             item.name,
                             style: AppTextStyles.cardTitle(context).copyWith(
-                              fontSize: fontSize * 1.8,
+                              fontSize: fontSize * 1.4,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -871,7 +871,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                           Text(
                             item.storeName,
                             style: AppTextStyles.cardSubtitle(context).copyWith(
-                              fontSize: fontSize * 1.6,
+                              fontSize: fontSize * 1.4,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -917,7 +917,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                                     PriceFormatter.formatPriceWithUnit(item.salePrice!, item.unit),
                                     style: AppTextStyles.price(context).copyWith(
                                       color: Colors.green[700],
-                                      fontSize: fontSize * 1.6,
+                                      fontSize: fontSize * 1.2,
                                       fontWeight: FontWeight.bold,
                                     ),
                                     maxLines: 1,
@@ -929,7 +929,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                             Text(
                               PriceFormatter.formatPriceWithUnit(item.price, item.unit),
                               style: AppTextStyles.price(context).copyWith(
-                                fontSize: fontSize * 1.6,
+                                fontSize: fontSize * 1.2,
                                 fontWeight: FontWeight.bold,
                               ),
                               maxLines: 1,
