@@ -12,6 +12,15 @@ class AuthService {
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final FirestoreService _firestoreService = FirestoreService();
 
+  AuthService() {
+    // Enable persistence when service is initialized
+    _initializePersistence();
+  }
+
+  Future<void> _initializePersistence() async {
+    await _auth.setPersistence(Persistence.LOCAL);
+  }
+
   // Add stream to track auth state changes
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
@@ -150,10 +159,11 @@ class AuthService {
     }
   }
 
-  // Sign Out
+  // Sign Out with clear persistence
   Future<void> signOut() async {
     try {
       await _auth.signOut();
+      // Clear any cached data if needed
       print('Successfully signed out');
     } catch (e) {
       print('Sign out error: $e');
@@ -186,6 +196,13 @@ class AuthService {
     );
   }
 
-  // Get current user
-  User? get currentUser => _auth.currentUser;
+  // Get current user with auto-refresh token
+  User? get currentUser {
+    final user = _auth.currentUser;
+    if (user != null) {
+      // Refresh token if needed
+      user.getIdToken(true);
+    }
+    return user;
+  }
 }

@@ -25,6 +25,13 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isPasswordVisible = false;
   bool _isLoading = false;
 
+  @override
+  void initState() {
+    super.initState();
+    // Enable persistence
+    _auth.setPersistence(Persistence.LOCAL);
+  }
+
   Future<void> _signIn() async {
     setState(() => _isLoading = true);
     try {
@@ -47,27 +54,25 @@ class _LoginScreenState extends State<LoginScreen> {
         
         final userProfile = await _firestoreService.getUserProfile(userId);
         final isAdmin = userProfile?['isAdmin'] ?? 
-                       _emailController.text.trim().toLowerCase().endsWith('@rr.com');
+                     _emailController.text.trim().toLowerCase().endsWith('@rr.com');
 
-        // Navigate based on user role
+        // Navigate and remove all previous routes
         if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const UserHomeScreen(),
-          ),
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          '/home',
+          (Route<dynamic> route) => false,
         );
       }
-    } on FirebaseAuthException catch (e) {
+    } catch (e) {
       String message = 'An error occurred';
-      if (e.code == 'user-not-found') {
-        message = 'No user found with this email';
-      } else if (e.code == 'wrong-password') {
-        message = 'Wrong password provided';
+      if (e is FirebaseAuthException) {
+        if (e.code == 'user-not-found') {
+          message = 'No user found with this email';
+        } else if (e.code == 'wrong-password') {
+          message = 'Wrong password provided';
+        }
       }
       showMessage(context, message, false);
-    } catch (e) {
-      showMessage(context, "Login failed: $e", false);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

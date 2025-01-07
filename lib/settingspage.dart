@@ -310,16 +310,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             style: TextStyle(color: Colors.red),
                           ),
                           onTap: () async {
-                            await _auth.signOut();
-                            if (mounted) {
-                              Navigator.pushAndRemoveUntil(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const LoginScreen(),
-                                ),
-                                (route) => false,
-                              );
-                            }
+                            await _signOut();
                           },
                         ),
                       ],
@@ -458,6 +449,21 @@ class _SettingsPageState extends State<SettingsPage> {
       if (mounted) {
         setState(() => _isLoading = false);
       }
+    }
+  }
+
+  Future<void> _signOut() async {
+    try {
+      await _auth.signOut();
+      if (!mounted) return;
+      
+      // Navigate to login screen and remove all previous routes
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        '/login',
+        (Route<dynamic> route) => false,
+      );
+    } catch (e) {
+      showMessage(context, "Error signing out: $e", false);
     }
   }
 }

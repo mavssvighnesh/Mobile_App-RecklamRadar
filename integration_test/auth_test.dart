@@ -33,7 +33,7 @@ void main() {
             initialData: 'SEK',
           ),
         ],
-        child: const app.MyApp(),
+        child: const app.MyApp(initialRoute: '',),
       );
     }
 

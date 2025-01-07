@@ -19,6 +19,11 @@ import 'package:recklamradar/services/currency_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  // Initialize Firebase
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   // Initialize currency service and fetch initial rates
   final currencyService = CurrencyService();
   await currencyService.initializeCurrency();
@@ -26,24 +31,8 @@ void main() async {
   // Apply performance optimizations
   await PerformanceConfig.optimizePerformance();
 
-  // Enable frame monitoring in debug mode
-  if (kDebugMode) {
-    debugPrintBeginFrameBanner = true;
-    debugPrintEndFrameBanner = true;
-    debugPrintScheduleFrameStacks = true;
-  }
-
-  // Add image cache optimization
-  PaintingBinding.instance.imageCache.maximumSize = 100;
-  PaintingBinding.instance.imageCache.maximumSizeBytes = 50 << 20; // 50 MB
-
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  
-  final prefs = await SharedPreferences.getInstance();
-  // ignore: unused_local_variable
-  final isDarkMode = prefs.getBool('is_dark_mode') ?? false;
+  // Get cached user session
+  final User? currentUser = FirebaseAuth.instance.currentUser;
   
   runApp(
     MultiProvider(
@@ -59,24 +48,25 @@ void main() async {
           initialData: 'SEK',
         ),
       ],
-      child: const MyApp(),
+      child: MyApp(initialRoute: currentUser != null ? '/home' : '/login'),
     ),
   );
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final String initialRoute;
+  
+  const MyApp({super.key, required this.initialRoute});
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ThemeProvider>(
-      builder: (context, themeProvider, child) {
-        return MaterialApp(
-          title: 'ReklamRadar',
-          theme: themeProvider.theme,
-          home: const LoginScreen(),
-          debugShowCheckedModeBanner: false,
-        );
+    return MaterialApp(
+      title: 'ReklamRadar',
+      theme: Provider.of<ThemeProvider>(context).theme,
+      initialRoute: initialRoute,
+      routes: {
+        '/login': (context) => const LoginScreen(),
+        '/home': (context) => const UserHomeScreen(),
       },
     );
   }
