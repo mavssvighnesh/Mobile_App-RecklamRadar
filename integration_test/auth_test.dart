@@ -43,9 +43,9 @@ void main() {
       await tester.pumpAndSettle(const Duration(seconds: 2));
 
       // Enter valid credentials
-      await tester.enterText(find.byKey(const Key('email_field')), 'vv@gmail.com');
+      await tester.enterText(find.byKey(const Key('email_field')), 'vighneshmandaleeka@gmail.com');
       await tester.pump();
-      await tester.enterText(find.byKey(const Key('password_field')), '699999');
+      await tester.enterText(find.byKey(const Key('password_field')), '123467');
       await tester.pump();
       
       // Tap login button

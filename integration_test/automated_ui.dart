@@ -101,8 +101,8 @@ Future<void> _performLogin(WidgetTester tester) async {
   await tester.pumpAndSettle();
   expect(find.text('Welcome Back!'), findsOneWidget, reason: 'Login screen not found');
 
-  await tester.enterText(find.byKey(const Key('email_field')), 'vv@gmail.com');
-  await tester.enterText(find.byKey(const Key('password_field')), '699999');
+  await tester.enterText(find.byKey(const Key('email_field')), 'vighneshmandaleeka@gmail.com');
+  await tester.enterText(find.byKey(const Key('password_field')), '123467');
   await tester.pumpAndSettle();
 
   await tester.tap(find.byKey(const Key('login_button')));
