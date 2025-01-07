@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'home_screen.dart';
 import 'registration_page.dart';
 import 'passwordpage.dart';
-import 'admin_home_screen.dart';
 import 'package:recklamradar/providers/theme_provider.dart';
 import 'package:recklamradar/utils/message_utils.dart';
 import 'package:recklamradar/services/firestore_service.dart';
@@ -55,9 +54,7 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => isAdmin 
-              ? const AdminHomeScreen() 
-              : const UserHomeScreen(),
+            builder: (context) => const UserHomeScreen(),
           ),
         );
       }

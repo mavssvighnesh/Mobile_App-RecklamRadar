@@ -8,7 +8,6 @@ import 'services/auth_service.dart';
 import 'home_screen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'package:recklamradar/admin_home_screen.dart';
 import 'providers/theme_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
@@ -116,9 +115,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (context) => _isBusiness 
-                ? const AdminHomeScreen() 
-                : const UserHomeScreen(),
+              builder: (context) => const UserHomeScreen(),
             ),
           );
         }
