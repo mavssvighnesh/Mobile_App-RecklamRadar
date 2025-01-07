@@ -66,6 +66,12 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
   @override
   void initState() {
     super.initState();
+    // Initialize SizeConfig first
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        SizeConfig().init(context);
+      }
+    });
     _initializePerformance();
     _scrollController = ScrollController()..addListener(_onScroll);
     loadStoreItems();
@@ -365,7 +371,7 @@ class _StoreDetailsPageState extends State<StoreDetailsPage>
         color: Colors.transparent,
       ),
       child: Container(
-        margin: EdgeInsets.only(bottom: SizeConfig.blockSizeVertical * 1.5),
+        margin: EdgeInsets.only(bottom: MediaQuery.of(context).size.height * 0.015),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.9),
           borderRadius: BorderRadius.circular(15),

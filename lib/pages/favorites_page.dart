@@ -68,6 +68,11 @@ class _FavoritesPageState extends State<FavoritesPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        SizeConfig().init(context);
+      }
+    });
     _loadInitialData();
     _loadRandomDeals(); // Load random deals on start
     _currencySubscription = _currencyService.currencyStream.listen((_) {
@@ -708,11 +713,11 @@ class _FavoritesPageState extends State<FavoritesPage> {
             )
           else if (_searchController.text.isEmpty)
             SliverPadding(
-              padding: EdgeInsets.all(SizeConfig.blockSizeHorizontal * 2),
+              padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.02),
               sliver: SliverGrid(
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
-                  childAspectRatio: 0.95,
+                  childAspectRatio: 0.75,
                   mainAxisSpacing: 6,
                   crossAxisSpacing: 6,
                 ),
@@ -748,7 +753,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
               sliver: SliverGrid(
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
-                  childAspectRatio: 0.95,
+                  childAspectRatio: 0.75,
                   mainAxisSpacing: 6,
                   crossAxisSpacing: 6,
                 ),
@@ -778,13 +783,19 @@ class _FavoritesPageState extends State<FavoritesPage> {
         builder: (context, constraints) {
           final maxWidth = constraints.maxWidth;
           final maxHeight = constraints.maxHeight;
-
+          
+          // Calculate sizes based on container dimensions
+          final imageHeight = maxHeight * 0.5;  // 50% for image
+          final contentPadding = maxWidth * 0.03;
+          final fontSize = maxWidth * 0.045;
+          final iconSize = maxWidth * 0.05;
+          final buttonHeight = maxHeight * 0.12;
+          
           return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Image section with sale badge
-              Expanded(
-                flex: 3,
+              // Image section
+              SizedBox(
+                height: imageHeight,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
@@ -797,7 +808,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                           color: Theme.of(context).primaryColor.withOpacity(0.1),
                           child: Icon(
                             Icons.image_not_supported,
-                            size: maxWidth * 0.2,
+                            size: iconSize * 2,
                             color: Theme.of(context).primaryColor,
                           ),
                         ),
@@ -805,23 +816,23 @@ class _FavoritesPageState extends State<FavoritesPage> {
                     ),
                     if (item.salePrice != null)
                       Positioned(
-                        top: 8,
-                        left: 8,
+                        top: 4,
+                        left: 4,
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
+                            horizontal: 6,
+                            vertical: 2,
                           ),
                           decoration: BoxDecoration(
                             color: Colors.red,
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
                             '${(((item.price - item.salePrice!) / item.price) * 100).round()}% OFF',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
-                              fontSize: 12,
+                              fontSize: fontSize * 0.8,
                             ),
                           ),
                         ),
@@ -832,138 +843,139 @@ class _FavoritesPageState extends State<FavoritesPage> {
 
               // Content section
               Expanded(
-                flex: 3,
                 child: Padding(
-                  padding: EdgeInsets.all(maxWidth * 0.04),
+                  padding: EdgeInsets.all(contentPadding),
                   child: Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        item.name,
-                        style: AppTextStyles.cardTitle(context).copyWith(
-                          fontSize: maxWidth * 0.07,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        item.storeName,
-                        style: AppTextStyles.cardSubtitle(context).copyWith(
-                          fontSize: maxWidth * 0.05,
-                        ),
-                      ),
-                      const Spacer(),
-                      if (item.salePrice != null) ...[
-                        Text(
-                          PriceFormatter.formatPriceWithUnit(item.price, item.unit),
-                          style: AppTextStyles.price(context, isOnSale: true).copyWith(
-                            decoration: TextDecoration.lineThrough,
-                            fontSize: maxWidth * 0.06,
-                          ),
-                        ),
-                        Text(
-                          PriceFormatter.formatPriceWithUnit(item.salePrice!, item.unit),
-                          style: AppTextStyles.price(context).copyWith(
-                            color: Colors.green,
-                            fontSize: maxWidth * 0.07,
-                          ),
-                        ),
-                      ] else
-                        Text(
-                          PriceFormatter.formatPriceWithUnit(item.price, item.unit),
-                          style: AppTextStyles.price(context).copyWith(
-                            fontSize: maxWidth * 0.07,
-                          ),
-                        ),
-
-                      const SizedBox(height: 8),
-
-                      // Quantity and Cart controls
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      // Title and store name
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Quantity controls
-                          Container(
-                            height: maxHeight * 0.16,
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: Theme.of(context).primaryColor.withOpacity(0.3),
-                              ),
-                              borderRadius: BorderRadius.circular(8),
+                          Text(
+                            item.name,
+                            style: AppTextStyles.cardTitle(context).copyWith(
+                              fontSize: fontSize * 1.8,
                             ),
-                            child: Row(
-                              children: [
-                                _buildQuantityButton(
-                                  icon: Icons.remove,
-                                  onTap: () {
-                                    if (item.quantity > 0) {
-                                      setState(() => item.quantity--);
-                                    }
-                                  },
-                                  enabled: item.quantity > 0,
-                                  size: maxWidth * 0.06,
-                                ),
-                                SizedBox(
-                                  width: maxWidth * 0.16,
-                                  child: Text(
-                                    '${item.quantity}',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: maxWidth * 0.06,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                                _buildQuantityButton(
-                                  icon: Icons.add,
-                                  onTap: () {
-                                    if (item.quantity < 99) {
-                                      setState(() => item.quantity++);
-                                    }
-                                  },
-                                  enabled: item.quantity < 99,
-                                  size: maxWidth * 0.06,
-                                ),
-                              ],
-                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-
-                          // Add to cart button
-                          Container(
-                            height: maxHeight * 0.18,
-                            width: maxHeight * 0.18,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  Theme.of(context).primaryColor,
-                                  Theme.of(context).primaryColor.withOpacity(0.8),
-                                ],
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Theme.of(context).primaryColor.withOpacity(0.3),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
+                          Text(
+                            item.storeName,
+                            style: AppTextStyles.cardSubtitle(context).copyWith(
+                              fontSize: fontSize * 1.6,
                             ),
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(8),
-                                onTap: () => _addToCart(item),
-                                child: Icon(
-                                  Icons.shopping_cart_outlined,
-                                  size: maxWidth * 0.06,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
+                      ),
+
+                      // Price section
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (item.salePrice != null) ...[
+                            Text(
+                              PriceFormatter.formatPriceWithUnit(item.price, item.unit),
+                              style: AppTextStyles.price(context, isOnSale: true).copyWith(
+                                decoration: TextDecoration.lineThrough,
+                                fontSize: fontSize * 1.6,
+                              ),
+                              maxLines: 1,
+                            ),
+                            Text(
+                              PriceFormatter.formatPriceWithUnit(item.salePrice!, item.unit),
+                              style: AppTextStyles.price(context).copyWith(
+                                color: Colors.green,
+                                fontSize: fontSize * 1.6,
+                              ),
+                              maxLines: 1,
+                            ),
+                          ] else
+                            Text(
+                              PriceFormatter.formatPriceWithUnit(item.price, item.unit),
+                              style: AppTextStyles.price(context).copyWith(
+                                fontSize: fontSize * 1.6,
+                              ),
+                              maxLines: 1,
+                            ),
+                        ],
+                      ),
+
+                      // Controls section
+                      SizedBox(
+                        height: buttonHeight,
+                        child: Row(
+                          children: [
+                            // Quantity controls
+                            Expanded(
+                              flex: 3,
+                              child: Container(
+                                height: buttonHeight,
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: Theme.of(context).primaryColor.withOpacity(0.3),
+                                  ),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                  children: [
+                                    _buildQuantityButton(
+                                      icon: Icons.remove,
+                                      onTap: () {
+                                        if (item.quantity > 0) {
+                                          setState(() => item.quantity--);
+                                        }
+                                      },
+                                      enabled: item.quantity > 0,
+                                      size: iconSize,
+                                    ),
+                                    Text(
+                                      '${item.quantity}',
+                                      style: TextStyle(
+                                        fontSize: fontSize,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    _buildQuantityButton(
+                                      icon: Icons.add,
+                                      onTap: () {
+                                        if (item.quantity < 99) {
+                                          setState(() => item.quantity++);
+                                        }
+                                      },
+                                      enabled: item.quantity < 99,
+                                      size: iconSize,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            // Cart button
+                            SizedBox(
+                              height: buttonHeight,
+                              width: buttonHeight * 1.2,
+                              child: Material(
+                                color: Theme.of(context).primaryColor,
+                                borderRadius: BorderRadius.circular(6),
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(6),
+                                  onTap: () => _addToCart(item),
+                                  child: Icon(
+                                    Icons.shopping_cart_outlined,
+                                    size: iconSize,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
