@@ -4,6 +4,13 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 
+class CurrencyServiceException implements Exception {
+  final String message;
+  CurrencyServiceException(this.message);
+  @override
+  String toString() => 'CurrencyServiceException: $message';
+}
+
 class CurrencyService {
   static final CurrencyService _instance = CurrencyService._internal();
   factory CurrencyService() => _instance;
@@ -14,7 +21,7 @@ class CurrencyService {
 
   static const String _baseUrl = 'http://apilayer.net/api/live';
   static const String _apiKey = '1qflRbfP5gbNMfaNSrOU53mC7RAF4oFn';
-  static const String _baseCurrency = 'SEK';  // Base currency is SEK
+  static const String _baseCurrency = 'SEK';
   static const String _prefsKey = 'exchange_rates';
   static const String _lastFetchDateKey = 'last_fetch_date';
   static const String _lastSuccessfulFetchKey = 'last_successful_fetch';
@@ -34,9 +41,22 @@ class CurrencyService {
   String get currencySymbol => _currencySymbols[_selectedCurrency] ?? '';
 
   Future<void> initializeCurrency() async {
-    final prefs = await SharedPreferences.getInstance();
-    _selectedCurrency = prefs.getString('selected_currency') ?? 'SEK';
-    await _loadExchangeRates();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedCurrency = prefs.getString('selected_currency');
+      
+      if (savedCurrency != null && _isValidCurrency(savedCurrency)) {
+        _selectedCurrency = savedCurrency;
+      } else {
+        _selectedCurrency = 'SEK';
+        await prefs.setString('selected_currency', 'SEK');
+      }
+      
+      await _loadExchangeRates();
+    } catch (e) {
+      print('Error initializing currency service: $e');
+      throw CurrencyServiceException('Failed to initialize currency service');
+    }
   }
 
   Future<void> _loadExchangeRates() async {
@@ -45,40 +65,26 @@ class CurrencyService {
       final lastSuccessfulFetch = prefs.getString(_lastSuccessfulFetchKey);
       final now = DateTime.now();
       
-      // Load cached rates first
       final cachedRates = prefs.getString(_prefsKey);
       if (cachedRates != null) {
         _exchangeRates = Map<String, double>.from(
           json.decode(cachedRates).map((key, value) => 
             MapEntry(key, double.parse(value.toString()))));
-        print('Loaded cached exchange rates: $_exchangeRates');
       }
 
-      // Determine if we should fetch new rates
       bool shouldFetchNewRates = false;
       if (lastSuccessfulFetch == null) {
-        print('No previous successful fetch found');
         shouldFetchNewRates = true;
       } else {
         final lastFetch = DateTime.parse(lastSuccessfulFetch);
         final timeSinceLastFetch = now.difference(lastFetch);
-        
-        if (timeSinceLastFetch >= _fetchCooldown) {
-          print('Last successful fetch was ${timeSinceLastFetch.inHours} hours ago');
-          shouldFetchNewRates = true;
-        } else {
-          print('Using cached rates, next fetch in ${(_fetchCooldown - timeSinceLastFetch).inHours} hours');
-        }
+        shouldFetchNewRates = timeSinceLastFetch >= _fetchCooldown;
       }
 
       if (shouldFetchNewRates) {
-        print('Attempting to fetch new exchange rates...');
         final success = await _fetchLatestRates();
-        
         if (success) {
-          // Only update the last fetch time if the fetch was successful
           await prefs.setString(_lastSuccessfulFetchKey, now.toIso8601String());
-          print('Updated last successful fetch timestamp');
         }
       }
     } catch (e) {
@@ -87,17 +93,15 @@ class CurrencyService {
     }
   }
 
-  // Updated conversion rates with more precise values
   final Map<String, double> _conversionRates = {
     'SEK': 1.0,
-    'USD': 0.095,  // Example: 1 SEK = 0.095 USD
-    'EUR': 0.087,  // Example: 1 SEK = 0.087 EUR
-    'INR': 7.89,   // Example: 1 SEK = 7.89 INR
+    'USD': 0.095,
+    'EUR': 0.087,
+    'INR': 7.89,
   };
 
   Future<bool> _fetchLatestRates() async {
     try {
-      print('Making API call to fetch latest rates...');
       final response = await http.get(Uri.parse(
         '$_baseUrl?access_key=$_apiKey&currencies=EUR,USD,INR&source=SEK&format=1'
       )).timeout(
@@ -112,7 +116,6 @@ class CurrencyService {
         if (data['success'] == true) {
           final quotes = data['quotes'] as Map<String, dynamic>;
           
-          // Calculate and store the conversion rates
           _exchangeRates = {
             'SEK': 1.0,
             'USD': 1.0 / (quotes['USDSEK']?.toDouble() ?? 10.5),
@@ -120,21 +123,13 @@ class CurrencyService {
             'INR': (quotes['USDINR']?.toDouble() ?? 83.0) / (quotes['USDSEK']?.toDouble() ?? 10.5),
           };
           
-          print('New rates fetched successfully: $_exchangeRates');
-          
-          // Cache the new rates
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString(_prefsKey, json.encode(_exchangeRates));
-          print('New rates cached successfully');
           return true;
-        } else {
-          print('API Error: ${data['error']?['info']}');
-          throw Exception('API returned error: ${data['error']?['info']}');
         }
-      } else {
-        print('HTTP Error: ${response.statusCode}');
-        throw Exception('HTTP ${response.statusCode} error');
+        throw Exception('API returned error: ${data['error']?['info']}');
       }
+      throw Exception('HTTP ${response.statusCode} error');
     } catch (e) {
       print('Error fetching rates: $e');
       _useBackupRates();
@@ -143,43 +138,63 @@ class CurrencyService {
   }
 
   void _useBackupRates() {
-    // Backup rates if API fails
     _exchangeRates = {
       'SEK': 1.0,
-      'USD': 0.095,  // 1 SEK ≈ 0.095 USD
-      'EUR': 0.087,  // 1 SEK ≈ 0.087 EUR
-      'INR': 7.89,   // 1 SEK ≈ 7.89 INR
+      'USD': 0.095,
+      'EUR': 0.087,
+      'INR': 7.89,
     };
-    print('Using backup exchange rates: $_exchangeRates');
   }
 
   Future<void> setSelectedCurrency(String currency) async {
     _selectedCurrency = currency;
     _currencyController.add(currency);
-    // Save to preferences
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('selected_currency', currency);
   }
 
-  // Update the convertPrice method
   double convertPrice(double sekPrice) {
-    final rate = _exchangeRates?[_selectedCurrency] ?? 1.0;
-    return roundToTwoDecimals(sekPrice * rate);
+    if (sekPrice.isNaN || sekPrice.isInfinite) {
+      return 0.0;
+    }
+    
+    try {
+      final rate = _exchangeRates?[_selectedCurrency];
+      if (!_isValidRate(rate)) {
+        return sekPrice;
+      }
+      return roundToTwoDecimals(sekPrice * rate!);
+    } catch (e) {
+      print('Error converting price: $e');
+      return sekPrice;
+    }
   }
 
   String formatPrice(double price) {
-    // Format with proper currency symbols and positions
-    switch (_selectedCurrency) {
-      case 'SEK':
-        return '${price.toStringAsFixed(2)} kr';
-      case 'EUR':
-        return '€${price.toStringAsFixed(2)}';
-      case 'USD':
-        return '\$${price.toStringAsFixed(2)}';
-      case 'INR':
-        return '₹${price.toStringAsFixed(2)}';
-      default:
-        return '${price.toStringAsFixed(2)} ${_currencySymbols[_selectedCurrency]}';
+    if (price.isNaN || price.isInfinite) {
+      return '0.00';
+    }
+    
+    try {
+      final symbol = _currencySymbols[_selectedCurrency];
+      if (symbol == null) {
+        return '${price.toStringAsFixed(2)} $_selectedCurrency';
+      }
+      
+      switch (_selectedCurrency) {
+        case 'SEK':
+          return '${price.toStringAsFixed(2)} kr';
+        case 'EUR':
+          return '€${price.toStringAsFixed(2)}';
+        case 'USD':
+          return '\$${price.toStringAsFixed(2)}';
+        case 'INR':
+          return '₹${price.toStringAsFixed(2)}';
+        default:
+          return '${price.toStringAsFixed(2)} $symbol';
+      }
+    } catch (e) {
+      return price.toStringAsFixed(2);
     }
   }
 
@@ -187,49 +202,84 @@ class CurrencyService {
     return '${formatPrice(price)} ($_selectedCurrency)';
   }
 
-  // Only use this for manual refresh if needed
   Future<void> forceRefreshRates() async {
-    print('Force refreshing rates (use sparingly)');
     await _fetchLatestRates();
   }
 
-  // Add method to notify when currency changes
   void notifyPriceChange() {
-    // This could be used to trigger UI updates when currency changes
     print('Currency changed to $_selectedCurrency');
   }
 
-  // Add this method to manually refresh rates
   Future<void> refreshRates() async {
-    print('Manually refreshing rates...');
     await _fetchLatestRates();
   }
 
-  // Add this method to round converted prices
   double roundToTwoDecimals(double value) {
-    return double.parse(value.toStringAsFixed(2));
+    if (value.isNaN || value.isInfinite) {
+      return 0.0;
+    }
+    try {
+      return double.parse(value.toStringAsFixed(2));
+    } catch (e) {
+      return value;
+    }
   }
 
-  // Add method to convert between currencies
   double convertBetweenCurrencies(double amount, String fromCurrency, String toCurrency) {
-    // First convert to SEK (our base currency)
-    double sekAmount = amount;
-    if (fromCurrency != 'SEK') {
-      sekAmount = amount / (_exchangeRates?[fromCurrency] ?? 1.0);
+    try {
+      if (amount.isNaN || amount.isInfinite) {
+        throw CurrencyServiceException('Invalid amount: $amount');
+      }
+      
+      if (!_isValidCurrency(fromCurrency) || !_isValidCurrency(toCurrency)) {
+        throw CurrencyServiceException('Invalid currency provided');
+      }
+      
+      fromCurrency = fromCurrency.toUpperCase();
+      toCurrency = toCurrency.toUpperCase();
+      
+      double sekAmount = amount;
+      if (fromCurrency != 'SEK') {
+        final fromRate = _exchangeRates?[fromCurrency];
+        if (!_isValidRate(fromRate)) {
+          throw CurrencyServiceException('Invalid exchange rate for $fromCurrency');
+        }
+        sekAmount = amount / fromRate!;
+      }
+      
+      if (toCurrency == 'SEK') {
+        return roundToTwoDecimals(sekAmount);
+      }
+      
+      final toRate = _exchangeRates?[toCurrency];
+      if (!_isValidRate(toRate)) {
+        throw CurrencyServiceException('Invalid exchange rate for $toCurrency');
+      }
+      
+      return roundToTwoDecimals(sekAmount * toRate!);
+    } catch (e) {
+      print('Error converting between currencies: $e');
+      return amount;
     }
-    
-    // Then convert from SEK to target currency
-    if (toCurrency == 'SEK') {
-      return roundToTwoDecimals(sekAmount);
-    }
-    return roundToTwoDecimals(sekAmount * (_exchangeRates?[toCurrency] ?? 1.0));
   }
 
-  // Add method to store budget with currency
   Future<void> saveBudget(double amount, String currency) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble('budget_amount', amount);
-    await prefs.setString('budget_currency', currency);
+    try {
+      if (amount.isNaN || amount.isInfinite || amount < 0) {
+        throw CurrencyServiceException('Invalid budget amount: $amount');
+      }
+      
+      if (!_isValidCurrency(currency)) {
+        throw CurrencyServiceException('Invalid currency for budget: $currency');
+      }
+      
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble('budget_amount', amount);
+      await prefs.setString('budget_currency', currency.toUpperCase());
+    } catch (e) {
+      print('Error saving budget: $e');
+      throw CurrencyServiceException('Failed to save budget: $e');
+    }
   }
 
   // Add method to load budget with currency
@@ -252,5 +302,36 @@ class CurrencyService {
   @visibleForTesting
   set exchangeRates(Map<String, double>? rates) {
     _exchangeRates = rates;
+  }
+
+  // Add input validation methods
+  bool _isValidCurrency(String currency) {
+    return _currencySymbols.containsKey(currency.toUpperCase());
+  }
+
+  bool _isValidRate(dynamic rate) {
+    if (rate == null) return false;
+    if (rate is! num) return false;
+    return !rate.isNaN && !rate.isInfinite && rate > 0;
+  }
+
+  // Add method to validate exchange rates
+  bool _validateExchangeRates(Map<String, dynamic> rates) {
+    try {
+      for (final entry in rates.entries) {
+        if (!_isValidCurrency(entry.key)) {
+          print('Invalid currency in rates: ${entry.key}');
+          return false;
+        }
+        if (!_isValidRate(entry.value)) {
+          print('Invalid rate for ${entry.key}: ${entry.value}');
+          return false;
+        }
+      }
+      return true;
+    } catch (e) {
+      print('Error validating exchange rates: $e');
+      return false;
+    }
   }
 }
