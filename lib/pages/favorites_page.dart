@@ -154,13 +154,18 @@ class _FavoritesPageState extends State<FavoritesPage> {
                 })
                 .map((doc) {
                   final data = doc.data();
+                  final regularPrice = (data['price'] as num).toDouble();
+                  // Check both memberPrice and salePrice fields
+                  final salePrice = data['salePrice'] != null ? 
+                      (data['salePrice'] as num).toDouble() : 
+                      (data['memberPrice'] as num?)?.toDouble();
+
                   return StoreItem(
                     id: doc.id,
                     name: data['name'] ?? '',
                     category: data['category'] ?? '',
-                    price: (data['price'] as num).toDouble(),
-                    salePrice: data['memberPrice'] != null ? 
-                        (data['memberPrice'] as num).toDouble() : null,
+                    price: regularPrice,
+                    salePrice: salePrice,  // This will be either salePrice or memberPrice
                     imageUrl: data['imageUrl'] ?? '',
                     unit: data['unit'] ?? '',
                     inStock: data['inStock'] ?? true,
@@ -178,6 +183,15 @@ class _FavoritesPageState extends State<FavoritesPage> {
         // Wait for all store searches to complete
         final results = await Future.wait(futures);
         searchResults = results.expand((x) => x).toList();
+
+        // Sort items to prioritize those with valid sale prices
+        searchResults.sort((a, b) {
+          final aHasSale = a.salePrice != null && a.salePrice! < a.price;
+          final bHasSale = b.salePrice != null && b.salePrice! < b.price;
+          if (aHasSale && !bHasSale) return -1;
+          if (!aHasSale && bHasSale) return 1;
+          return 0;
+        });
 
         // Cache results
         _searchCache[cacheKey] = searchResults;
@@ -371,15 +385,17 @@ class _FavoritesPageState extends State<FavoritesPage> {
           final items = snapshot.docs.map((doc) {
             final data = doc.data();
             final regularPrice = (data['price'] as num).toDouble();
-            final memberPrice = data['memberPrice'] != null ? 
-                (data['memberPrice'] as num).toDouble() : null;
+            // Check both memberPrice and salePrice fields
+            final salePrice = data['salePrice'] != null ? 
+                (data['salePrice'] as num).toDouble() : 
+                (data['memberPrice'] as num?)?.toDouble();
 
             return StoreItem(
               id: doc.id,
               name: data['name'] ?? '',
               category: data['category'] ?? '',
               price: regularPrice,
-              salePrice: memberPrice != null && memberPrice < regularPrice ? memberPrice : null,
+              salePrice: salePrice,  // This will be either salePrice or memberPrice
               imageUrl: data['imageUrl'] ?? '',
               unit: data['unit'] ?? '',
               inStock: data['inStock'] ?? true,
@@ -388,9 +404,15 @@ class _FavoritesPageState extends State<FavoritesPage> {
             );
           }).toList();
 
-          // If member price filter is on, only add items with valid member prices
+          // Sort items to prioritize those with valid sale prices
+          items.sort((a, b) {
+            final aHasSale = a.salePrice != null && a.salePrice! < a.price;
+            final bHasSale = b.salePrice != null && b.salePrice! < b.price;
+            if (aHasSale && !bHasSale) return -1;
+            if (!aHasSale && bHasSale) return 1;
+            return 0;
+          });
 
-          items.shuffle();
           deals.addAll(items.take(3));
         } catch (e) {
           print('Error loading deals from store $storeNumber: $e');
@@ -820,8 +842,8 @@ class _FavoritesPageState extends State<FavoritesPage> {
                         left: 4,
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
+                            horizontal: 10,
+                            vertical: 6,
                           ),
                           decoration: BoxDecoration(
                             color: Colors.red,
@@ -832,7 +854,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                             style: TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
-                              fontSize: fontSize * 0.8,
+                              fontSize: fontSize * 1.2,
                             ),
                           ),
                         ),
@@ -877,31 +899,65 @@ class _FavoritesPageState extends State<FavoritesPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (item.salePrice != null) ...[
+                          if (item.salePrice != null && item.salePrice! < item.price) ...[
+                            // Original price (crossed out)
                             Text(
                               PriceFormatter.formatPriceWithUnit(item.price, item.unit),
                               style: AppTextStyles.price(context, isOnSale: true).copyWith(
                                 decoration: TextDecoration.lineThrough,
-                                fontSize: fontSize * 1.6,
+                                color: Colors.black54,
+                                fontSize: fontSize * 1.1,
                               ),
                               maxLines: 1,
                             ),
-                            Text(
-                              PriceFormatter.formatPriceWithUnit(item.salePrice!, item.unit),
-                              style: AppTextStyles.price(context).copyWith(
-                                color: Colors.green,
-                                fontSize: fontSize * 1.6,
+                            const SizedBox(height: 4),
+                            // Sale price in green container
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.green.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.green.withOpacity(0.2)),
                               ),
-                              maxLines: 1,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.verified_user,
+                                    size: fontSize * 1.1,
+                                    color: Colors.green[700],
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    PriceFormatter.formatPriceWithUnit(item.salePrice!, item.unit),
+                                    style: AppTextStyles.price(context).copyWith(
+                                      color: Colors.green[700],
+                                      fontSize: fontSize * 1.6,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    maxLines: 1,
+                                  ),
+                                ],
+                              ),
                             ),
                           ] else
                             Text(
                               PriceFormatter.formatPriceWithUnit(item.price, item.unit),
                               style: AppTextStyles.price(context).copyWith(
                                 fontSize: fontSize * 1.6,
+                                fontWeight: FontWeight.bold,
                               ),
                               maxLines: 1,
                             ),
+                          const SizedBox(height: 2),
+                          // Unit explanation
+                         /* Text(
+                            "Price per ${item.unit}",
+                            style: AppTextStyles.bodySmall(context).copyWith(
+                              color: Colors.grey[600],
+                              fontSize: fontSize * 1.1,
+                            ),
+                          ),*/
                         ],
                       ),
 
@@ -1117,28 +1173,33 @@ class _FavoritesPageState extends State<FavoritesPage> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null && item.quantity > 0) {
-        // Create map with base SEK prices
+        // Use sale price if available and lower than regular price
+        final effectivePrice = (item.salePrice != null && item.salePrice! < item.price) 
+            ? item.salePrice! 
+            : item.price;
+
         final cartData = {
           'id': item.id,
           'name': item.name,
           'category': item.category,
-          'price': item.originalPriceSEK,        
-          'salePrice': item.originalSalePriceSEK, 
+          'price': item.price,        // Original price
+          'salePrice': item.salePrice,  // Sale price if available
           'imageUrl': item.imageUrl,
           'unit': item.unit,
           'quantity': item.quantity,
-          'storeName': item.storeName.replaceAll('store ', ''), // Remove 'store ' prefix if present
+          'storeName': item.storeName.replaceAll('store ', ''),
         };
 
         await _firestoreService.addToCart(
           user.uid,
           cartData,
-          item.storeName.replaceAll('store ', ''), // Remove 'store ' prefix here too
+          item.storeName.replaceAll('store ', ''),
         );
 
         if (mounted) {
-          final totalSEK = (item.originalSalePriceSEK ?? item.originalPriceSEK) * item.quantity;
-          final displayTotal = _currencyService.convertPrice(totalSEK);
+          // Calculate total using effective price
+          final totalPrice = effectivePrice * item.quantity;
+          final displayTotal = _currencyService.convertPrice(totalPrice);
           
           showMessage(
             context, 
