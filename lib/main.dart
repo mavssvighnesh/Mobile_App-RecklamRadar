@@ -50,7 +50,7 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(
-          create: (_) => ThemeProvider()..loadThemeFromPrefs(),
+          create: (_) => ThemeProvider(),
         ),
         Provider<CurrencyService>.value(
           value: currencyService,
@@ -60,7 +60,7 @@ void main() async {
           initialData: 'SEK',
         ),
       ],
-      child: MyApp(),
+      child: const MyApp(),
     ),
   );
 }
@@ -70,45 +70,15 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'ReklamRadar',
-      theme: themeProvider.theme,
-      scrollBehavior: CustomScrollPhysics(),
-      builder: (context, child) {
-        SizeConfig().init(context);
-        return MediaQuery(
-          data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(1.0)),
-          child: Container(
-            constraints: const BoxConstraints(
-              minWidth: 320,
-              minHeight: 480,
-            ),
-            child: ScrollConfiguration(
-              behavior: CustomScrollPhysics(),
-              child: child!,
-            ),
-          ),
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        return MaterialApp(
+          title: 'ReklamRadar',
+          theme: themeProvider.theme,
+          home: const LoginScreen(),
+          debugShowCheckedModeBanner: false,
         );
       },
-      home: StreamBuilder<User?>(
-        stream: FirebaseAuth.instance.authStateChanges(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          
-          if (snapshot.hasData) {
-            final user = snapshot.data!;
-            final isAdmin = user.email?.toLowerCase().endsWith('@rr.com') ?? false;
-            return isAdmin ? const AdminHomeScreen() : const UserHomeScreen();
-          }
-          
-          return const LoginScreen();
-        },
-      ),
     );
   }
 }

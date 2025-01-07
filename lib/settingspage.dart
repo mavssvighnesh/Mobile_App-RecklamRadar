@@ -28,7 +28,7 @@ class _SettingsPageState extends State<SettingsPage> {
   String _userName = '';
   String _userEmail = '';
   String? _profileImage;
-  String _selectedLanguage = 'English';
+  final String _selectedLanguage = 'English';
   final String _selectedCurrency = 'SEK';
   // ignore: unused_field
   final bool _isDarkMode = false;
@@ -221,63 +221,42 @@ class _SettingsPageState extends State<SettingsPage> {
                       'App Settings',
                       [
                         ListTile(
-                          leading: const Icon(Icons.currency_exchange),
-                          title: const Text('Currency'),
+                          leading: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).primaryColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.currency_exchange,
+                              color: Theme.of(context).primaryColor,
+                            ),
+                          ),
+                          title: Text('Currency', style: AppTextStyles.bodyLarge(context)),
                           subtitle: Text('Selected: ${_currencyService.selectedCurrency}'),
                           onTap: () => _showCurrencyPicker(context),
                         ),
                         Consumer<ThemeProvider>(
                           builder: (context, themeProvider, child) {
-                            return AnimatedContainer(
-                              duration: ThemeProvider.themeDuration,
-                              curve: ThemeProvider.themeCurve,
-                              decoration: BoxDecoration(
-                                gradient: themeProvider.isDarkMode
-                                    ? LinearGradient(
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                        colors: [
-                                          const Color(0xFF2C3E50).withOpacity(0.8),
-                                          const Color(0xFF3A506B).withOpacity(0.8),
-                                        ],
-                                      )
-                                    : LinearGradient(
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                        colors: [
-                                          Colors.white.withOpacity(0.95),
-                                          Colors.white.withOpacity(0.85),
-                                        ],
-                                      ),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: themeProvider.isDarkMode
-                                      ? Colors.white.withOpacity(0.1)
-                                      : Colors.black.withOpacity(0.05),
+                            return ListTile(
+                              leading: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).primaryColor.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  themeProvider.isDarkMode ? Icons.dark_mode : Icons.light_mode,
+                                  color: Theme.of(context).primaryColor,
                                 ),
                               ),
-                              child: ListTile(
-                                leading: AnimatedSwitcher(
-                                  duration: ThemeProvider.themeDuration,
-                                  child: Icon(
-                                    themeProvider.isDarkMode ? Icons.dark_mode : Icons.light_mode,
-                                    key: ValueKey(themeProvider.isDarkMode),
-                                    color: Theme.of(context).iconTheme.color,
-                                  ),
-                                ),
-                                title: Text(
-                                  'Dark Mode',
-                                  style: AppTextStyles.bodyLarge(context),
-                                ),
-                                subtitle: Text(
-                                  'Toggle app theme',
-                                  style: AppTextStyles.bodySmall(context),
-                                ),
-                                trailing: Switch(
-                                  value: themeProvider.isDarkMode,
-                                  onChanged: (value) async {
-                                    await themeProvider.toggleTheme();
-                                    // Update user preferences in Firestore if needed
+                              title: Text('Dark Mode', style: AppTextStyles.bodyLarge(context)),
+                              subtitle: Text(themeProvider.isDarkMode ? 'Dark theme enabled' : 'Light theme enabled'),
+                              trailing: Switch(
+                                value: themeProvider.isDarkMode,
+                                onChanged: (value) async {
+                                  await themeProvider.toggleTheme();
+                                  if (mounted) {
                                     final user = _auth.currentUser;
                                     if (user != null) {
                                       await _firestoreService.updateUserProfile(
@@ -286,8 +265,20 @@ class _SettingsPageState extends State<SettingsPage> {
                                         user.email?.toLowerCase().endsWith('@rr.com') ?? false,
                                       );
                                     }
-                                  },
-                                ),
+                                    // Show feedback
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          value ? 'Dark mode enabled' : 'Light mode disabled',
+                                          style: const TextStyle(color: Colors.white),
+                                        ),
+                                        backgroundColor: Theme.of(context).primaryColor,
+                                        duration: const Duration(seconds: 2),
+                                      ),
+                                    );
+                                  }
+                                },
+                                activeColor: Theme.of(context).primaryColor,
                               ),
                             );
                           },
@@ -312,16 +303,24 @@ class _SettingsPageState extends State<SettingsPage> {
                             );
                           },
                         ),
-                        ElevatedButton(
-                          key: const Key('logout_button'),
-                          onPressed: () {
-                            _auth.signOut();
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => const LoginScreen()),
-                            );
+                        ListTile(
+                          leading: const Icon(Icons.logout, color: Colors.red),
+                          title: const Text(
+                            'Logout',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                          onTap: () async {
+                            await _auth.signOut();
+                            if (mounted) {
+                              Navigator.pushAndRemoveUntil(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const LoginScreen(),
+                                ),
+                                (route) => false,
+                              );
+                            }
                           },
-                          child: const Text('Logout'),
                         ),
                       ],
                     ),
@@ -337,16 +336,50 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Widget _buildSettingsSection(String title, List<Widget> children) {
     return GlassContainer(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      opacity: 0.15,
+      boxShadow: [
+        BoxShadow(
+          color: Theme.of(context).primaryColor.withOpacity(0.1),
+          blurRadius: 15,
+          spreadRadius: 2,
+        ),
+      ],
+      border: Border.all(
+        color: Theme.of(context).primaryColor.withOpacity(0.2),
+        width: 1.5,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: AppTextStyles.heading3(context),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  title == 'App Settings' ? Icons.settings : Icons.person_outline,
+                  color: Theme.of(context).primaryColor,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                title,
+                style: AppTextStyles.heading3(context).copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
-          ...children,
+          ...children.map((child) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: child,
+          )).toList(),
         ],
       ),
     );
@@ -371,10 +404,32 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _buildCurrencyOption(String label, String currency) {
+    final isSelected = _currencyService.selectedCurrency == currency;
     return GlassContainer(
       margin: const EdgeInsets.symmetric(vertical: 4),
+      opacity: isSelected ? 0.2 : 0.1,
+      backgroundColor: isSelected ? 
+          Theme.of(context).primaryColor.withOpacity(0.1) : 
+          Colors.white.withOpacity(0.1),
+      boxShadow: isSelected ? [
+        BoxShadow(
+          color: Theme.of(context).primaryColor.withOpacity(0.2),
+          blurRadius: 8,
+          spreadRadius: 1,
+        ),
+      ] : null,
       child: ListTile(
-        title: Text(label),
+        leading: Icon(
+          isSelected ? Icons.check_circle : Icons.circle_outlined,
+          color: isSelected ? Theme.of(context).primaryColor : Colors.grey,
+        ),
+        title: Text(
+          label,
+          style: AppTextStyles.bodyMedium(context).copyWith(
+            color: isSelected ? Theme.of(context).primaryColor : null,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
         onTap: () => _updateCurrency(currency),
       ),
     );

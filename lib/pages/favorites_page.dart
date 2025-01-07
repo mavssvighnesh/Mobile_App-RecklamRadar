@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:recklamradar/widgets/glass_container.dart';
 import '../models/store_item.dart';
 import '../utils/size_config.dart';
 import '../providers/theme_provider.dart';
@@ -763,47 +764,43 @@ class _FavoritesPageState extends State<FavoritesPage> {
   }
 
   Widget _buildItemCard(StoreItem item) {
-    return ThemedCard(
+    return GlassContainer(
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      opacity: 0.15,
+      boxShadow: [
+        BoxShadow(
+          color: Theme.of(context).primaryColor.withOpacity(0.1),
+          blurRadius: 8,
+          spreadRadius: 1,
+        ),
+      ],
       child: LayoutBuilder(
         builder: (context, constraints) {
           final maxWidth = constraints.maxWidth;
           final maxHeight = constraints.maxHeight;
-          
+
           return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Image Section with adjusted height
-              SizedBox(
-                height: maxHeight * 0.45,
+              // Image section with sale badge
+              Expanded(
+                flex: 3,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
                     ClipRRect(
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
                       child: Image.network(
                         item.imageUrl,
                         fit: BoxFit.cover,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Center(
-                            child: CircularProgressIndicator(
-                              value: loadingProgress.expectedTotalBytes != null
-                                  ? loadingProgress.cumulativeBytesLoaded /
-                                      loadingProgress.expectedTotalBytes!
-                                  : null,
-                            ),
-                          );
-                        },
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            color: Colors.grey[200],
-                            child: Icon(
-                              Icons.image_not_supported,
-                              size: maxWidth * 0.25,
-                              color: Colors.grey[400],
-                            ),
-                          );
-                        },
+                        errorBuilder: (_, __, ___) => Container(
+                          color: Theme.of(context).primaryColor.withOpacity(0.1),
+                          child: Icon(
+                            Icons.image_not_supported,
+                            size: maxWidth * 0.2,
+                            color: Theme.of(context).primaryColor,
+                          ),
+                        ),
                       ),
                     ),
                     if (item.salePrice != null)
@@ -818,46 +815,29 @@ class _FavoritesPageState extends State<FavoritesPage> {
                           decoration: BoxDecoration(
                             color: Colors.red,
                             borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.2),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.local_offer,
-                                color: Colors.white,
-                                size: maxWidth * 0.05,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${(((item.price - item.salePrice!) / item.price) * 100).round()}% OFF',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: maxWidth * 0.05,
-                                ),
-                              ),
-                            ],
+                          child: Text(
+                            '${(((item.price - item.salePrice!) / item.price) * 100).round()}% OFF',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
                           ),
                         ),
                       ),
                   ],
                 ),
               ),
-              // Content Section with adjusted spacing
+
+              // Content section
               Expanded(
+                flex: 3,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                  padding: EdgeInsets.all(maxWidth * 0.04),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Title
                       Text(
                         item.name,
                         style: AppTextStyles.cardTitle(context).copyWith(
@@ -866,36 +846,26 @@ class _FavoritesPageState extends State<FavoritesPage> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 2),
-                      
-                      // Store name
                       Text(
                         item.storeName,
                         style: AppTextStyles.cardSubtitle(context).copyWith(
                           fontSize: maxWidth * 0.05,
-                          color: Colors.grey[600],
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-
                       const Spacer(),
-
-                      // Price section with unit pricing
                       if (item.salePrice != null) ...[
                         Text(
                           PriceFormatter.formatPriceWithUnit(item.price, item.unit),
                           style: AppTextStyles.price(context, isOnSale: true).copyWith(
-                            fontSize: maxWidth * 0.06,
                             decoration: TextDecoration.lineThrough,
-                            color: Colors.grey[600],
+                            fontSize: maxWidth * 0.06,
                           ),
                         ),
                         Text(
                           PriceFormatter.formatPriceWithUnit(item.salePrice!, item.unit),
                           style: AppTextStyles.price(context).copyWith(
+                            color: Colors.green,
                             fontSize: maxWidth * 0.07,
-                            color: Colors.red,
                           ),
                         ),
                       ] else
@@ -906,18 +876,18 @@ class _FavoritesPageState extends State<FavoritesPage> {
                           ),
                         ),
 
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 8),
 
-                      // Quantity and Cart controls with adjusted sizes
+                      // Quantity and Cart controls
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
+                          // Quantity controls
                           Container(
                             height: maxHeight * 0.16,
                             decoration: BoxDecoration(
                               border: Border.all(
                                 color: Theme.of(context).primaryColor.withOpacity(0.3),
-                                width: 1,
                               ),
                               borderRadius: BorderRadius.circular(8),
                             ),
@@ -957,8 +927,8 @@ class _FavoritesPageState extends State<FavoritesPage> {
                               ],
                             ),
                           ),
-                          
-                          // Cart button with adjusted size and better design
+
+                          // Add to cart button
                           Container(
                             height: maxHeight * 0.18,
                             width: maxHeight * 0.18,
@@ -984,55 +954,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                               color: Colors.transparent,
                               child: InkWell(
                                 borderRadius: BorderRadius.circular(8),
-                                onTap: () async {
-                                  if (item.quantity == 0) {
-                                    showMessage(context, 'Please select quantity', false);
-                                    return;
-                                  }
-                                  try {
-                                    final user = FirebaseAuth.instance.currentUser;
-                                    if (user != null) {
-                                      // Get correct store name using the mapping
-                                      final storeName = _getStoreName(item.storeName);  // Use the mapping function
-                                      
-                                      // Create map with base SEK prices
-                                      final cartData = {
-                                        'id': item.id,
-                                        'name': item.name,
-                                        'category': item.category,
-                                        'price': item.originalPriceSEK,        // Base SEK price
-                                        'salePrice': item.originalSalePriceSEK, // Base SEK sale price
-                                        'imageUrl': item.imageUrl,
-                                        'unit': item.unit,
-                                        'quantity': item.quantity,
-                                        'storeName': storeName,  // Use mapped store name
-                                      };
-                                      
-                                      await _firestoreService.addToCart(
-                                        user.uid,
-                                        cartData,
-                                        storeName,  // Use mapped store name
-                                      );
-                                      
-                                      if (mounted) {
-                                        final totalSEK = (item.originalSalePriceSEK ?? item.originalPriceSEK) * item.quantity;
-                                        final displayTotal = _currencyService.convertPrice(totalSEK);
-                                        
-                                        showMessage(
-                                          context, 
-                                          '${item.quantity}x ${item.name} from $storeName\n${PriceFormatter.formatPrice(displayTotal)}', 
-                                          true,
-                                        );
-                                        setState(() => item.quantity = 0);
-                                      }
-                                    }
-                                  } catch (e) {
-                                    print('Error adding to cart: $e');
-                                    if (mounted) {
-                                      showMessage(context, 'Failed to add item to cart', false);
-                                    }
-                                  }
-                                },
+                                onTap: () => _addToCart(item),
                                 child: Icon(
                                   Icons.shopping_cart_outlined,
                                   size: maxWidth * 0.06,
@@ -1133,48 +1055,25 @@ class _FavoritesPageState extends State<FavoritesPage> {
     required List<DropdownMenuItem> items,
     required Function(dynamic) onChanged,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 12,
+    return GlassContainer(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      opacity: 0.1,
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton(
+          value: value,
+          items: items,
+          onChanged: onChanged,
+          style: AppTextStyles.bodyMedium(context).copyWith(
+            color: Theme.of(context).textTheme.bodyLarge?.color,
+          ),
+          dropdownColor: Theme.of(context).cardColor,
+          isExpanded: true,
+          icon: Icon(
+            Icons.arrow_drop_down,
+            color: Theme.of(context).iconTheme.color,
           ),
         ),
-        const SizedBox(height: 2),
-        Container(
-          height: 36,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.2),
-            ),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton(
-              isExpanded: true,
-              value: value,
-              items: items,
-              onChanged: onChanged,
-              dropdownColor: Theme.of(context).primaryColor.withOpacity(0.95),
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-              ),
-              icon: Icon(
-                Icons.arrow_drop_down,
-                color: Colors.white.withOpacity(0.8),
-                size: 20,
-              ),
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
