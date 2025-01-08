@@ -10,7 +10,7 @@ class AppConstants {
 
   // API related
   static const String apiBaseUrl = 'http://apilayer.net/api/live';
-  static const String apiKey = '3d5207802c94cd3f344fa072890871bb';
+  static const String apiKey = '1qflRbfP5gbNMfaNSrOU53mC7RAF4oFn';
 
   // Storage keys
   static const String currencyPrefsKey = 'selected_currency';
