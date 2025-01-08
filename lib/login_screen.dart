@@ -28,8 +28,8 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    // Enable persistence
-    _auth.setPersistence(Persistence.LOCAL);
+    // Remove the setPersistence call since it's web-only
+    // _auth.setPersistence(Persistence.LOCAL);
   }
 
   Future<void> _signIn() async {
@@ -44,10 +44,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final userId = credential.user?.uid;
       if (userId != null) {
-        // Show success message before navigation
         showMessage(context, "Successfully logged in!", true);
         
-        // Wait briefly for the message to be visible
         await Future.delayed(const Duration(milliseconds: 500));
 
         if (!mounted) return;
@@ -56,8 +54,6 @@ class _LoginScreenState extends State<LoginScreen> {
         final isAdmin = userProfile?['isAdmin'] ?? 
                      _emailController.text.trim().toLowerCase().endsWith('@rr.com');
 
-        // Navigate and remove all previous routes
-        if (!mounted) return;
         Navigator.of(context).pushNamedAndRemoveUntil(
           '/home',
           (Route<dynamic> route) => false,
