@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'storedealspage.dart';
-
-
-import 'favoritespage.dart';
+import 'package:recklamradar/pages/store_details_page.dart';
+import 'providers/theme_provider.dart';
+import 'pages/favorites_page.dart';
 import 'settingspage.dart';
-
+import 'package:provider/provider.dart';
 
 import 'cartpage.dart';
+import 'services/firestore_service.dart';
+import 'utils/size_config.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'widgets/glass_container.dart';
 
 class UserHomeScreen extends StatefulWidget {
   const UserHomeScreen({super.key});
 
   @override
-  _UserHomeScreenState createState() => _UserHomeScreenState();
+  State<UserHomeScreen> createState() => _UserHomeScreenState();
 }
 
 class _UserHomeScreenState extends State<UserHomeScreen> {
@@ -25,73 +25,88 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
   // List of page widgets for roll-over transitions
   final List<Widget> _pages = [
     const HomePage(),
-    FavoritesPage(),
-    CartPage(),
+    const FavoritesPage(),
+    const CartPage(),
     const SettingsPage(),
   ];
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    // ignore: unused_local_variable
+    final size = MediaQuery.of(context).size;
+    
     return Scaffold(
-      // Removed the AppBar
-      body: PageView(
-        controller: _pageController,
-        onPageChanged: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        children: _pages,
+      key: const Key('home_screen'),
+      body: SafeArea(
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: Provider.of<ThemeProvider>(context).subtleGradient,
+          ),
+          child: PageView(
+            controller: _pageController,
+            onPageChanged: (index) {
+              setState(() {
+                _currentIndex = index;
+              });
+            },
+            children: _pages,
+          ),
+        ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-            _pageController.animateToPage(
-              index,
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-            );
-          });
-        },
-        items: [
-          BottomNavigationBarItem(
-            icon: Image.asset(
-              'assets/icons/home.png',
-              color: _currentIndex == 0 ? Colors.blue : Colors.grey,
-              height: 24,
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -5),
             ),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Image.asset(
-              'assets/icons/search.png',
-              color: _currentIndex == 1 ? Colors.blue : Colors.grey,
-              height: 24,
+          ],
+        ),
+        child: BottomNavigationBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          selectedItemColor: theme.colorScheme.primary,
+          unselectedItemColor: Colors.grey.shade400,
+          currentIndex: _currentIndex,
+          type: BottomNavigationBarType.fixed,
+          selectedFontSize: 12,
+          unselectedFontSize: 12,
+          iconSize: 24,
+          onTap: (index) {
+            setState(() {
+              _currentIndex = index;
+              _pageController.animateToPage(
+                index,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+              );
+            });
+          },
+          items: [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.home_rounded),
+              label: 'Home',
             ),
-            label: 'Search',
-          ),
-          BottomNavigationBarItem(
-            icon: Image.asset(
-              'assets/icons/cart.png',
-              color: _currentIndex == 2 ? Colors.blue : Colors.grey,
-              height: 24,
+            _buildNavItem(Icons.search_rounded, 'Search'),
+            _buildNavItem(Icons.shopping_cart_rounded, 'Cart'),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.settings_rounded),
+              label: 'Settings',
             ),
-            label: 'Cart',
-          ),
-          BottomNavigationBarItem(
-            icon: Image.asset(
-              'assets/icons/settings.png',
-              color: _currentIndex == 3 ? Colors.blue : Colors.grey,
-              height: 24,
-            ),
-            label: 'Settings',
-          ),
-        ],
-        selectedItemColor: Colors.blue,
-        unselectedItemColor: Colors.grey,
+          ],
+        ),
       ),
+    );
+  }
+
+  BottomNavigationBarItem _buildNavItem(IconData icon, String label) {
+    return BottomNavigationBarItem(
+      icon: Icon(icon),
+      activeIcon: Icon(icon, size: 28),
+      label: label,
     );
   }
 }
@@ -107,256 +122,401 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final List<Map<String, dynamic>> stores = [
-    {"name": "City Gross", "image": "assets/images/city_gross.png"},
-    {"name": "Willys", "image": "assets/images/willys.png"},
-    {"name": "Coop", "image": "assets/images/coop.png"},
-    {"name": "Xtra", "image": "assets/images/xtra.png"},
-    {"name": "JYSK", "image": "assets/images/jysk.png"},
-    {"name": "Rusta", "image": "assets/images/rusta.png"},
-    {"name": "Lidl", "image": "assets/images/lidl.png"},
-    {"name": "Maxi ICA", "image": "assets/images/maxi.png"},
-  ];
-
-  bool isSearchActive = false; // Tracks whether search is active
-  TextEditingController searchController = TextEditingController();
-  List<dynamic> searchResults = []; // Dynamic list for search results
-  List<dynamic> products = []; // List to store fetched products
+  final FirestoreService _firestoreService = FirestoreService();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  bool isSearchActive = false;
+  final TextEditingController searchController = TextEditingController();
+  List<Map<String, dynamic>> searchResults = [];
+  List<Map<String, dynamic>> stores = [];
+  bool isLoading = true;
+  String userName = '';
 
   @override
   void initState() {
     super.initState();
-    fetchProducts(); // Fetch products from an online API
+    loadStores();
+    loadUserName();
   }
 
-  // Fetch products from an API
-  Future<void> fetchProducts() async {
-    final response = await http.get(Uri.parse('https://fakestoreapi.com/products'));
-    if (response.statusCode == 200) {
-      setState(() {
-        products = json.decode(response.body);
-      });
-    } else {
-      print('Failed to fetch products');
+  Future<void> loadUserName() async {
+    try {
+      final userId = _auth.currentUser?.uid;
+      if (userId != null) {
+        final userData = await _firestoreService.getUserProfile(userId);
+        if (mounted && userData != null) {
+          setState(() {
+            userName = userData['name'] ?? 'User';
+          });
+        }
+      }
+    } catch (e) {
+      print('Error loading user name: $e');
     }
+  }
+
+  Future<void> loadStores() async {
+    try {
+      setState(() => isLoading = true);
+      
+      final storesList = [
+        {
+          "id": "1",
+          "name": "City Gross",
+          "image": "assets/images/stores/city_gross.png",
+          "description": "City Gross Supermarket",
+        },
+        {
+          "id": "2",
+          "name": "Willys",
+          "image": "assets/images/stores/willys.png",
+          "description": "Willys Supermarket",
+        },
+        {
+          "id": "3",
+          "name": "Coop",
+          "image": "assets/images/stores/coop.png",
+          "description": "Coop Supermarket",
+        },
+        {
+          "id": "4",
+          "name": "Xtra",
+          "image": "assets/images/stores/xtra.png",
+          "description": "Xtra Supermarket",
+        },
+        {
+          "id": "5",
+          "name": "JYSK",
+          "image": "assets/images/stores/jysk.png",
+          "description": "JYSK Store",
+        },
+        {
+          "id": "6",
+          "name": "Rusta",
+          "image": "assets/images/stores/rusta.png",
+          "description": "Rusta Store",
+        },
+        {
+          "id": "7",
+          "name": "Lidl",
+          "image": "assets/images/stores/lidl.png",
+          "description": "Lidl Supermarket",
+        },
+        {
+          "id": "8",
+          "name": "Maxi",
+          "image": "assets/images/stores/maxi.png",
+          "description": "Maxi ICA Stormarknad",
+        },
+      ];
+
+      setState(() {
+        stores = storesList;
+        isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading stores: $e');
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
+    }
+  }
+
+  void _navigateToStore(Map<String, dynamic> store) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => StoreDetailsPage(
+          storeId: store['id'],
+          storeName: store['name'],
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    // Check if today is Friday
-    bool isFriday = DateTime.now().weekday == DateTime.friday;
-
-    // Calculate dates for "This Week" and "Next Week"
-    DateTime today = DateTime.now();
-    DateTime startOfWeek = today.subtract(Duration(days: today.weekday - 1));
-    DateTime endOfWeek = startOfWeek.add(const Duration(days: 6));
-    DateTime startOfNextWeek = startOfWeek.add(const Duration(days: 7));
-    DateTime endOfNextWeek = startOfNextWeek.add(const Duration(days: 6));
-
-    String thisWeekDates =
-        "${DateFormat('dd.MM.yyyy').format(startOfWeek)} - ${DateFormat('dd.MM.yyyy').format(endOfWeek)}";
-    String nextWeekDates =
-        "${DateFormat('dd.MM.yyyy').format(startOfNextWeek)} - ${DateFormat('dd.MM.yyyy').format(endOfNextWeek)}";
-
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: isSearchActive
-            ? TextField(
-                controller: searchController,
-                decoration: const InputDecoration(
-                  hintText: "Search products or stores...",
-                  border: InputBorder.none,
+    return Material(
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: Provider.of<ThemeProvider>(context).subtleGradient,
+        ),
+        child: Column(
+          children: [
+            // Enhanced App Bar
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              decoration: BoxDecoration(
+                gradient: Provider.of<ThemeProvider>(context).cardGradient,
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(24),
+                  bottomRight: Radius.circular(24),
                 ),
-                onChanged: (value) {
-                  // Update search results dynamically as user types
-                  setState(() {
-                    searchResults = [
-                      ...stores.where((store) =>
-                          store["name"].toLowerCase().contains(value.toLowerCase())),
-                      ...products.where((product) =>
-                          product["title"].toLowerCase().contains(value.toLowerCase())),
-                    ];
-                  });
-                },
-              )
-            : const Text(
-                "Welcome Back!",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
-                  color: Colors.black87,
-                ),
-              ),
-        actions: [
-          IconButton(
-            icon: Icon(isSearchActive ? Icons.close : Icons.search, color: Colors.black54),
-            onPressed: () {
-              setState(() {
-                if (isSearchActive) {
-                  searchController.clear();
-                  searchResults.clear(); // Clear search results when search is closed
-                }
-                isSearchActive = !isSearchActive;
-              });
-            },
-          ),
-          if (!isSearchActive)
-            IconButton(
-              icon: const Icon(Icons.filter_alt_outlined, color: Colors.black54),
-              onPressed: () {
-                // Filter functionality
-              },
-            ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Display search results or placeholder
-          if (isSearchActive && searchResults.isNotEmpty)
-            Expanded(
-              child: ListView.builder(
-                itemCount: searchResults.length,
-                itemBuilder: (context, index) {
-                  final result = searchResults[index];
-                  return ListTile(
-                    leading: result.containsKey("image")
-                        ? Image.asset(result["image"], width: 50, height: 50, fit: BoxFit.cover)
-                        : Image.network(result["image"], width: 50, height: 50, fit: BoxFit.cover),
-                    title: Text(result["name"] ?? result["title"]),
-                    onTap: () {
-                      // Navigate to store deals or product details
-                      if (result.containsKey("name")) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => StoreDealsPage(storeName: result["name"]),
-                          ),
-                        );
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text("Selected: ${result["title"]}")),
-                        );
-                      }
-                    },
-                  );
-                },
-              ),
-            )
-          else if (isSearchActive && searchResults.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text(
-                "No results found. Try searching for something else.",
-                style: TextStyle(fontSize: 16, color: Colors.grey),
-              ),
-            ),
-
-          // Grid for Stores
-          if (!isSearchActive)
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: GridView.builder(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2, // Two items per row
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
                   ),
-                  itemCount: stores.length,
-                  itemBuilder: (context, index) {
-                    final store = stores[index];
-                    return GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => StoreDealsPage(storeName: store["name"]),
-                          ),
-                        );
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.grey[200],
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.grey.withOpacity(0.2),
-                              blurRadius: 5,
-                              spreadRadius: 1,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                ],
+              ),
+              child: SafeArea(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Image.asset(
-                              store["image"],
-                              height: 80,
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              store["name"],
-                              style: const TextStyle(
+                            const Text(
+                              'Welcome Back!',
+                              style: TextStyle(
                                 fontSize: 16,
+                                color: Colors.white,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              userName,
+                              style: const TextStyle(
+                                fontSize: 24,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.black87,
+                                color: Colors.white,
+                                letterSpacing: 0.5,
                               ),
                             ),
                           ],
                         ),
+                        IconButton(
+                          icon: Icon(
+                            isSearchActive ? Icons.close : Icons.search,
+                            color: Colors.white,
+                            size: 28,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              isSearchActive = !isSearchActive;
+                              if (!isSearchActive) {
+                                searchController.clear();
+                                // Reset search results
+                              }
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                    if (isSearchActive) ...[
+                      const SizedBox(height: 20),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(15),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                        child: TextField(
+                          key: const Key('store_search_field'),
+                          controller: searchController,
+                          autofocus: true,
+                          decoration: InputDecoration(
+                            hintText: 'Search stores...',
+                            hintStyle: TextStyle(
+                              color: Colors.grey[400],
+                              fontSize: 16,
+                            ),
+                            prefixIcon: Icon(
+                              Icons.search,
+                              color: Theme.of(context).primaryColor,
+                            ),
+                            suffixIcon: IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                searchController.clear();
+                                // Reset search results
+                              },
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 15,
+                            ),
+                          ),
+                          onChanged: (value) {
+                            // Implement search functionality
+                            // Filter stores based on search query
+                            setState(() {
+                              if (value.isEmpty) {
+                                searchResults = stores;
+                              } else {
+                                searchResults = stores
+                                    .where((store) => store["name"]!
+                                        .toLowerCase()
+                                        .contains(value.toLowerCase()))
+                                    .toList();
+                              }
+                            });
+                          },
+                        ),
                       ),
-                    );
-                  },
+                    ],
+                  ],
                 ),
               ),
             ),
 
-          // Display selection menu if today is Friday
-          if (isFriday)
-            Container(
-              color: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Reklam Options:",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+            // Stores Grid
+            Expanded(
+              child: isLoading
+                  ? Center(
+                      child: CircularProgressIndicator(
+                        color: Theme.of(context).primaryColor,
+                      ),
+                    )
+                  : GridView.builder(
+                      padding: const EdgeInsets.all(20),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        childAspectRatio: 0.85,
+                        crossAxisSpacing: 20,
+                        mainAxisSpacing: 20,
+                      ),
+                      itemCount: isSearchActive ? searchResults.length : stores.length,
+                      itemBuilder: (context, index) {
+                        final store = isSearchActive ? searchResults[index] : stores[index];
+                        return _StoreCard(store: store);
+                      },
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  DropdownButton<String>(
-                    isExpanded: true,
-                    items: [
-                      DropdownMenuItem(
-                        value: "this_week",
-                        child: Text("This Week: $thisWeekDates"),
-                      ),
-                      DropdownMenuItem(
-                        value: "next_week",
-                        child: Text("Next Week: $nextWeekDates"),
-                      ),
-                    ],
-                    onChanged: (value) {
-                      // Handle selection
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text("Selected: ${value == 'this_week' ? 'This Week' : 'Next Week'}"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ignore: unused_element
+  Widget _buildStoreCard(Map<String, dynamic> store) {
+    return _StoreCard(store: store);
+  }
+}
+
+class _StoreCard extends StatefulWidget {
+  final Map<String, dynamic> store;
+  
+  const _StoreCard({required this.store});
+  
+  @override
+  State<_StoreCard> createState() => _StoreCardState();
+}
+
+class _StoreCardState extends State<_StoreCard> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _opacityAnimation;
+  
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+    
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+    
+    _opacityAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _navigateToStore() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => StoreDetailsPage(
+          storeId: widget.store['id'],
+          storeName: widget.store['name'],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => _controller.forward(),
+      onExit: (_) => _controller.reverse(),
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _scaleAnimation.value,
+            child: GlassContainer(
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: _navigateToStore,
+                  borderRadius: BorderRadius.circular(20),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          child: Hero(
+                            tag: 'store-${widget.store["id"]}',
+                            child: Image.asset(
+                              widget.store["image"]!,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
                         ),
-                      );
-                    },
-                    hint: const Text("Select Reklam"),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                        child: Text(
+                          widget.store["name"]!,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).primaryColor,
+                            letterSpacing: 0.5,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      if (widget.store["description"] != null)
+                        Text(
+                          widget.store["description"]!,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
-        ],
+          );
+        },
       ),
     );
   }
