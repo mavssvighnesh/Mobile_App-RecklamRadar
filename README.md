@@ -5,3 +5,8 @@ the main aim of the app is making the weekly shopping in the place like sweden e
 the app uses the firbase as the backend so some of the features are turned off to avoid any charges for the services we are using so the app can have some things not working please ignor them and these are some images of our app 
 
 
+<p align="center">
+  <img src="assests/image1.png" width="200"/>
+  <img src="assests/image2.png" width="200"/>
+  <img src="assests/image3.png" width="200"/>
+</p>
