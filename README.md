@@ -1,16 +1,7 @@
-# recklamradar
+this is mobile app developed by me using the flutter framework dart language 
 
-A new Flutter project.
+the main aim of the app is making the weekly shopping in the place like sweden easy with the features like price comparision currency conversion and cart things to manage the list of items we want to buy making the shopping hassle free 
 
-## Getting Started
+the app uses the firbase as the backend so some of the features are turned off to avoid any charges for the services we are using so the app can have some things not working please ignor them and these are some images of our app 
 
-This project is a starting point for a Flutter application.
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
