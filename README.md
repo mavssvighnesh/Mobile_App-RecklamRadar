@@ -6,7 +6,6 @@ the app uses the firbase as the backend so some of the features are turned off t
 
 
 <p align="center">
-  <img src="assests/image1.png" width="200"/>
-  <img src="assests/image2.png" width="200"/>
-  <img src="assests/image3.png" width="200"/>
+  <img src="assets/images/image1.png" width="200"/>
+    <img src="assets/images/image2.png" width="200"/>  <img src="assets/images/image3.png" width="200"/>  <img src="assets/images/image4.png" width="200"/>  <img src="assets/images/image5.png" width="200"/>  <img src="assets/images/image6.png" width="200"/>  <img src="assets/images/image7.png" width="200"/>
 </p>
